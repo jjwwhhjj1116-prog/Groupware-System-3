@@ -1,0 +1,281 @@
+import React from 'react';
+import { X, Mail, Phone, MapPin, Building, ShieldAlert, MessageSquare } from 'lucide-react';
+
+export default function HrCardModal({ isOpen, onClose, employee, onStartDm, currentUser }) {
+  if (!isOpen || !employee) return null;
+
+  // 회사 배지 스타일 반환
+  const getCompanyBadge = (company) => {
+    const isViet = company === 'Viet QS';
+    return (
+      <span style={{
+        ...styles.badge,
+        backgroundColor: isViet ? 'rgba(0, 88, 188, 0.1)' : 'rgba(255, 107, 0, 0.1)',
+        color: isViet ? '#0058bc' : '#ff6b00',
+        border: `1px solid ${isViet ? 'rgba(0, 88, 188, 0.2)' : 'rgba(255, 107, 0, 0.2)'}`
+      }}>
+        {company}
+      </span>
+    );
+  };
+
+  // 재직 상태 배지 스타일 반환
+  const getStatusBadge = (status) => {
+    let color = 'var(--text-muted)';
+    let bgColor = 'var(--bg-tertiary)';
+    if (status === '재직') {
+      color = '#23a55a';
+      bgColor = 'rgba(35, 165, 90, 0.1)';
+    } else if (status === '휴직') {
+      color = '#f0b232';
+      bgColor = 'rgba(240, 178, 50, 0.1)';
+    } else if (status === '퇴사') {
+      color = '#ff4d4f';
+      bgColor = 'rgba(255, 77, 79, 0.1)';
+    }
+
+    return (
+      <span style={{
+        ...styles.badge,
+        backgroundColor: bgColor,
+        color: color,
+        border: `1px solid ${bgColor}`
+      }}>
+        {status}
+      </span>
+    );
+  };
+
+  const isSelf = currentUser && currentUser.empNo === employee.empNo;
+
+  return (
+    <div style={styles.overlay} onClick={onClose}>
+      <div 
+        className="glass-panel animate-scale" 
+        style={styles.modal} 
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div style={styles.header}>
+          <h3 style={styles.title}>개인 인사카드</h3>
+          <button style={styles.closeBtn} onClick={onClose} className="close-btn">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div style={styles.body}>
+          <div style={styles.profileHeader}>
+            <div style={styles.avatarLarge}>
+              {employee.userName.charAt(0)}
+            </div>
+            <div style={styles.profileMeta}>
+              <h2 style={styles.userName}>{employee.userName}</h2>
+              <div style={styles.badgeRow}>
+                {getCompanyBadge(employee.company)}
+                {getStatusBadge(employee.status)}
+              </div>
+            </div>
+          </div>
+
+          <div style={styles.grid}>
+            <div style={styles.infoBox}>
+              <span style={styles.label}><Building size={12} style={styles.icon} /> 회사</span>
+              <strong style={styles.value}>{employee.company}</strong>
+            </div>
+            <div style={styles.infoBox}>
+              <span style={styles.label}><ShieldAlert size={12} style={styles.icon} /> 부서</span>
+              <strong style={styles.value}>{employee.dept}</strong>
+            </div>
+            <div style={styles.infoBox}>
+              <span style={styles.label}><ShieldAlert size={12} style={styles.icon} /> 직급</span>
+              <strong style={styles.value}>{employee.grade}</strong>
+            </div>
+            <div style={styles.infoBox}>
+              <span style={styles.label}><Mail size={12} style={styles.icon} /> 이메일</span>
+              <strong style={{ ...styles.value, fontSize: '0.8rem' }} title={employee.email}>
+                {employee.email || '-'}
+              </strong>
+            </div>
+            <div style={styles.infoBox}>
+              <span style={styles.label}><Phone size={12} style={styles.icon} /> 전화번호</span>
+              <strong style={styles.value}>{employee.phone || '-'}</strong>
+            </div>
+            <div style={styles.infoBox}>
+              <span style={styles.label}><MapPin size={12} style={styles.icon} /> 근무지</span>
+              <strong style={styles.value}>{employee.workplace || '-'}</strong>
+            </div>
+          </div>
+
+          {!isSelf && (
+            <div style={styles.footerActions}>
+              <button 
+                style={styles.dmBtn} 
+                onClick={() => {
+                  onStartDm(employee);
+                  onClose();
+                }}
+              >
+                <MessageSquare size={16} />
+                💬 DM 보내기
+              </button>
+            </div>
+          )}
+
+          <div style={styles.disclaimer}>
+            ※ 본 화면은 개인 기본 인사 카드 정보입니다. 개인정보보호 정책에 의거하여 연봉, 주민등록번호, 계좌 정보 등 민감 항목은 노출되지 않습니다.
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const styles = {
+  overlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backdropFilter: 'blur(4px)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000,
+  },
+  modal: {
+    width: '90%',
+    maxWidth: '420px',
+    borderRadius: 'var(--radius-lg)',
+    padding: '24px',
+    color: 'var(--text-primary)',
+    boxShadow: '0 20px 25px -5px rgba(0,0,0,0.3)',
+    backgroundColor: 'var(--bg-secondary)',
+    border: '1px solid var(--border)',
+  },
+  header: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '20px',
+    borderBottom: '1px solid var(--border-light)',
+    paddingBottom: '12px',
+  },
+  title: {
+    fontSize: '1.05rem',
+    fontWeight: '700',
+    margin: 0,
+  },
+  closeBtn: {
+    padding: '6px',
+    borderRadius: 'var(--radius-sm)',
+    color: 'var(--text-secondary)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+    border: 'none',
+  },
+  body: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '20px',
+  },
+  profileHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px',
+  },
+  avatarLarge: {
+    width: '56px',
+    height: '56px',
+    borderRadius: 'var(--radius-md)',
+    backgroundColor: 'var(--primary)',
+    color: '#ffffff',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '1.5rem',
+    fontWeight: 'bold',
+    boxShadow: '0 4px 10px rgba(255, 107, 0, 0.2)',
+  },
+  profileMeta: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '6px',
+  },
+  userName: {
+    fontSize: '1.2rem',
+    fontWeight: '700',
+    margin: 0,
+  },
+  badgeRow: {
+    display: 'flex',
+    gap: '6px',
+  },
+  badge: {
+    fontSize: '0.7rem',
+    fontWeight: '600',
+    padding: '2px 8px',
+    borderRadius: '4px',
+  },
+  grid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '12px',
+  },
+  infoBox: {
+    backgroundColor: 'var(--bg-tertiary)',
+    padding: '10px 12px',
+    borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--border-light)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px',
+  },
+  label: {
+    fontSize: '0.75rem',
+    color: 'var(--text-muted)',
+    display: 'flex',
+    alignItems: 'center',
+  },
+  icon: {
+    marginRight: '4px',
+    color: 'var(--primary)',
+  },
+  value: {
+    fontSize: '0.875rem',
+    color: 'var(--text-primary)',
+    fontWeight: '600',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  },
+  footerActions: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    marginTop: '6px',
+  },
+  dmBtn: {
+    padding: '10px 20px',
+    borderRadius: 'var(--radius-md)',
+    backgroundColor: 'var(--primary)',
+    color: '#ffffff',
+    fontWeight: '700',
+    fontSize: '0.85rem',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    border: 'none',
+    boxShadow: '0 4px 6px rgba(255, 107, 0, 0.15)',
+    cursor: 'pointer',
+  },
+  disclaimer: {
+    fontSize: '0.675rem',
+    color: 'var(--text-muted)',
+    lineHeight: '1.4',
+    borderTop: '1px solid var(--border-light)',
+    paddingTop: '12px',
+    marginTop: '6px',
+  }
+};
