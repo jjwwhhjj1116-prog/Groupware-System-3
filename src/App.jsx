@@ -565,7 +565,12 @@ export default function App() {
 
   const getChatKey = () => {
     if (activeChat.type === 'ai') return 'ai-bot';
-    if (activeChat.type === 'dm') return activeChat.id;
+    if (activeChat.type === 'dm') {
+      const otherId = activeChat.id.replace('-dm', '');
+      const myId = currentUser?.id || 'me';
+      const sorted = [myId, otherId].sort();
+      return `dm-${sorted[0]}-${sorted[1]}`;
+    }
     return `${currentWorkspace}-${activeChat.id}`;
   };
 
