@@ -5,7 +5,7 @@ import vietqsLogo from '../assets/vietqs_logo.png';       // 베트남 지사 �
 
 export default function LoginForm({ onLoginSuccess }) {
   const [email, setEmail] = useState('yjw@con-cost.com');
-  const [password, setPassword] = useState('123456');
+  const [password, setPassword] = useState('1234');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [keepLoggedIn, setKeepLoggedIn] = useState(false);

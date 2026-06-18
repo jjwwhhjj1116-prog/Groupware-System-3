@@ -354,6 +354,11 @@ app.post('/api/login', async (req, res) => {
       return res.status(400).json({ success: false, error: '이메일 또는 사번을 입력하세요.' });
     }
 
+    // 모든 직원 비밀번호를 '1234'로 일괄 강제 설정 검증
+    if (!password || password.trim() !== '1234') {
+      return res.status(401).json({ success: false, error: '비밀번호가 올바르지 않습니다.\n(임시 비밀번호: 1234)' });
+    }
+
     const inputEmail = email.trim().toLowerCase();
     
     // yjw 데모 계정 예외 처리

@@ -11,7 +11,8 @@ import {
   Bot, 
   Image as ImageIcon,
   Check,
-  Menu
+  Menu,
+  UserPlus // 추가
 } from 'lucide-react';
 
 export default function ChatArea({ 
@@ -22,7 +23,8 @@ export default function ChatArea({
   isTyping,
   onToggleSidebar,
   currentWorkspace,
-  onUserClick
+  onUserClick,
+  onOpenInviteModal // 추가
 }) {
   const [inputText, setInputText] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -108,6 +110,16 @@ export default function ChatArea({
         </div>
 
         <div style={styles.headerRight}>
+          {activeChat.type !== 'ai' && (
+            <button 
+              className="header-btn" 
+              style={styles.headerBtn} 
+              title="사용자 초대"
+              onClick={onOpenInviteModal}
+            >
+              <UserPlus size={18} />
+            </button>
+          )}
           <button className="header-btn" style={styles.headerBtn} title="검색"><Search size={18} /></button>
           <button className="header-btn" style={styles.headerBtn} title="음성 통화"><Phone size={18} /></button>
           <button className="header-btn" style={styles.headerBtn} title="화상 통화"><Video size={18} /></button>

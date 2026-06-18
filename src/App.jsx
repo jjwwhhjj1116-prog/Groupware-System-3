@@ -230,6 +230,12 @@ export default function App() {
   });
   const [isWidgetSettingsOpen, setIsWidgetSettingsOpen] = useState(false);
 
+  // DM 생성 및 초대 모달 상태 추가
+  const [isDmCreateModalOpen, setIsDmCreateModalOpen] = useState(false);
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [dmSearchQuery, setDmSearchQuery] = useState('');
+  const [inviteSearchQuery, setInviteSearchQuery] = useState('');
+
   // 🐶🤖 AI 챗봇 비서 플로팅 대화창 상태
   const [isChatbotOpen, setIsChatbotOpen] = useState(false);
   const [chatbotPos, setChatbotPos] = useState({ x: 0, y: 0 });
@@ -744,6 +750,95 @@ export default function App() {
     setActiveChat({ type: 'channel', id: newId });
   };
 
+  // 사용자 초대 핸들러 (채널 초대 또는 DM -> 그룹 대화방 승격)
+  const handleInviteUser = (employee) => {
+    const isViet = currentWorkspace === 'vietqs';
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+
+    if (activeChat.type === 'channel') {
+      // 1) 일반 채널의 경우: 시스템 메시지 추가 및 브로드캐스트
+      const sysMsgKey = getChatKey();
+      const sysMsg = {
+        id: `sys-${Date.now()}`,
+        sender: 'system',
+        senderName: '시스템',
+        content: isViet
+          ? `${employee.userName} đã được mời vào kênh.`
+          : `${employee.userName} 님이 대화방에 초대되었습니다.`,
+        time: timeStr,
+        channelId: sysMsgKey
+      };
+
+      // 로컬 메시지 추가
+      setMessages(prev => ({
+        ...prev,
+        [sysMsgKey]: [...(prev[sysMsgKey] || []), sysMsg]
+      }));
+
+      // 소켓 실시간 전송
+      if (socketRef.current) {
+        socketRef.current.emit('message:send', sysMsg);
+      }
+
+      setIsInviteModalOpen(false);
+      setInviteSearchQuery('');
+      playNotificationSound();
+    } else if (activeChat.type === 'dm') {
+      // 2) 1:1 DM의 경우: 기존 상대 + 나 + 초대 상대를 묶어 그룹 채널로 승격 생성
+      const activeDm = dms.find(d => d.id === activeChat.id);
+      const otherName = activeDm ? activeDm.name.split(' ')[0] : '대화상대';
+      const myName = currentUser ? currentUser.userName : '대표님';
+      const groupChannelId = `ch-group-${Date.now()}`;
+      const groupName = `${myName}, ${otherName}, ${employee.userName}`;
+
+      const newGroupChannel = { id: groupChannelId, name: groupName };
+
+      // 채널 리스트 상태 업데이트
+      setWorkspaceChannels(prev => ({
+        ...prev,
+        [currentWorkspace]: [...prev[currentWorkspace], newGroupChannel]
+      }));
+
+      // 첫 시스템 메시지 생성
+      const groupChatKey = `${currentWorkspace}-${groupChannelId}`;
+      const sysMsg = {
+        id: `sys-${Date.now()}`,
+        sender: 'system',
+        senderName: '시스템',
+        content: isViet
+          ? `${myName} đã tạo cuộc trò chuyện nhóm với ${otherName} và ${employee.userName}.`
+          : `${myName} 님이 ${otherName} 님, ${employee.userName} 님을 초대하여 그룹 대화를 시작했습니다.`,
+        time: timeStr,
+        channelId: groupChatKey
+      };
+
+      setMessages(prev => ({
+        ...prev,
+        [groupChatKey]: [sysMsg]
+      }));
+
+      // 서버에 그룹 채널 생성 및 시스템 메시지 소켓 발송
+      if (socketRef.current) {
+        socketRef.current.emit('channel:create', {
+          id: groupChannelId,
+          name: groupName,
+          workspace: currentWorkspace
+        });
+        // 딜레이를 주어 채널 개설 완료 후 첫 메시지가 들어가도록 처리
+        setTimeout(() => {
+          socketRef.current.emit('message:send', sysMsg);
+        }, 100);
+      }
+
+      // 새로 생성된 그룹 채널 방으로 전환
+      setActiveChat({ type: 'channel', id: groupChannelId });
+      setIsInviteModalOpen(false);
+      setInviteSearchQuery('');
+      playNotificationSound();
+    }
+  };
+
   const handleCloseSettings = () => {
     setGeminiKey(localStorage.getItem('gemini_api_key') || '');
     setGeminiModel(localStorage.getItem('gemini_model') || 'gemini-1.5-flash');
@@ -833,6 +928,7 @@ export default function App() {
             setCurrentMenu('chat');
           }}
           onOpenModal={() => setIsModalOpen(true)}
+          onOpenDmCreateModal={() => setIsDmCreateModalOpen(true)} // DM 생성 모달 콜백 추가
           isLightTheme={isLightTheme}
           onToggleTheme={() => setIsLightTheme(!isLightTheme)}
           todoCount={todos.filter(t => !t.completed).length}
@@ -866,6 +962,246 @@ export default function App() {
         onStartDm={handleStartDm}
         onRefreshEmployees={fetchEmployees}
       />
+
+      {/* 새 DM 생성 모달 */}
+      <div 
+        style={{
+          ...styles.settingsOverlay,
+          opacity: isDmCreateModalOpen ? 1 : 0,
+          visibility: isDmCreateModalOpen ? 'visible' : 'hidden',
+          transition: 'opacity 0.25s ease-in-out, visibility 0.25s ease-in-out',
+          zIndex: 9999,
+        }}
+        onClick={() => { setIsDmCreateModalOpen(false); setDmSearchQuery(''); }}
+      >
+        <div 
+          className="glass-panel animate-scale" 
+          style={{ ...styles.settingsModal, maxWidth: '400px' }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div style={styles.settingsHeader}>
+            <h3 style={styles.settingsTitle}>💬 새 DM 대화 시작</h3>
+            <button 
+              type="button" 
+              className="close-btn"
+              style={styles.closeBtn} 
+              onClick={() => { setIsDmCreateModalOpen(false); setDmSearchQuery(''); }}
+            >
+              <X size={20} />
+            </button>
+          </div>
+          <div style={{ ...styles.settingsBody, padding: '16px' }}>
+            <input 
+              type="text"
+              placeholder="이름 또는 부서로 직원 검색..."
+              value={dmSearchQuery}
+              onChange={(e) => setDmSearchQuery(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                borderRadius: '8px',
+                border: '1px solid var(--border)',
+                backgroundColor: 'var(--bg-primary)',
+                color: 'var(--text-primary)',
+                fontSize: '0.875rem',
+                outline: 'none',
+                marginBottom: '14px'
+              }}
+            />
+            <div style={{ maxHeight: '250px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              {allEmployees
+                .filter(emp => emp.id !== (currentUser?.id || 'me')) // 자신은 제외
+                .filter(emp => {
+                  const query = dmSearchQuery.toLowerCase();
+                  return emp.userName.toLowerCase().includes(query) || (emp.dept && emp.dept.toLowerCase().includes(query));
+                })
+                .map(emp => (
+                  <button
+                    key={emp.empNo}
+                    onClick={() => {
+                      handleStartDm(emp);
+                      setIsDmCreateModalOpen(false);
+                      setDmSearchQuery('');
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      padding: '10px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      backgroundColor: 'transparent',
+                      color: 'var(--text-primary)',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      transition: 'background-color 0.2s',
+                    }}
+                    className="employee-select-btn"
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    <div style={{
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '4px',
+                      backgroundColor: emp.company === 'Viet QS' ? '#0058bc' : '#ff6b00',
+                      color: '#ffffff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '0.85rem',
+                      fontWeight: 'bold'
+                    }}>
+                      {emp.userName.charAt(0)}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.875rem', fontWeight: 'bold' }}>{emp.userName} {emp.grade || ''}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{emp.company} · {emp.dept}</div>
+                    </div>
+                  </button>
+                ))
+              }
+              {allEmployees.filter(emp => emp.id !== (currentUser?.id || 'me')).filter(emp => {
+                const query = dmSearchQuery.toLowerCase();
+                return emp.userName.toLowerCase().includes(query) || (emp.dept && emp.dept.toLowerCase().includes(query));
+              }).length === 0 && (
+                <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                  검색된 직원이 없습니다.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 채팅방 사용자 초대 모달 */}
+      <div 
+        style={{
+          ...styles.settingsOverlay,
+          opacity: isInviteModalOpen ? 1 : 0,
+          visibility: isInviteModalOpen ? 'visible' : 'hidden',
+          transition: 'opacity 0.25s ease-in-out, visibility 0.25s ease-in-out',
+          zIndex: 9999,
+        }}
+        onClick={() => { setIsInviteModalOpen(false); setInviteSearchQuery(''); }}
+      >
+        <div 
+          className="glass-panel animate-scale" 
+          style={{ ...styles.settingsModal, maxWidth: '400px' }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div style={styles.settingsHeader}>
+            <h3 style={styles.settingsTitle}>👤 대화방에 직원 초대하기</h3>
+            <button 
+              type="button" 
+              className="close-btn"
+              style={styles.closeBtn} 
+              onClick={() => { setIsInviteModalOpen(false); setInviteSearchQuery(''); }}
+            >
+              <X size={20} />
+            </button>
+          </div>
+          <div style={{ ...styles.settingsBody, padding: '16px' }}>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '10px' }}>
+              {activeChat.type === 'dm' 
+                ? '💡 1:1 대화방에 직원을 초대하면 그룹 채팅방으로 자동 생성 및 전환됩니다.' 
+                : '💡 현재 채널 대화방에 직원을 초대합니다.'}
+            </p>
+            <input 
+              type="text"
+              placeholder="초대할 직원 이름 또는 부서 검색..."
+              value={inviteSearchQuery}
+              onChange={(e) => setInviteSearchQuery(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                borderRadius: '8px',
+                border: '1px solid var(--border)',
+                backgroundColor: 'var(--bg-primary)',
+                color: 'var(--text-primary)',
+                fontSize: '0.875rem',
+                outline: 'none',
+                marginBottom: '14px'
+              }}
+            />
+            <div style={{ maxHeight: '250px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              {allEmployees
+                .filter(emp => emp.id !== (currentUser?.id || 'me')) // 본인 제외
+                .filter(emp => {
+                  // 현재 DM 상대와 중복 초대 방지
+                  if (activeChat.type === 'dm') {
+                    const activeDm = dms.find(d => d.id === activeChat.id);
+                    if (activeDm && activeDm.empNo === emp.empNo) return false;
+                  }
+                  return true;
+                })
+                .filter(emp => {
+                  const query = inviteSearchQuery.toLowerCase();
+                  return emp.userName.toLowerCase().includes(query) || (emp.dept && emp.dept.toLowerCase().includes(query));
+                })
+                .map(emp => (
+                  <button
+                    key={emp.empNo}
+                    onClick={() => handleInviteUser(emp)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      padding: '10px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      backgroundColor: 'transparent',
+                      color: 'var(--text-primary)',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      transition: 'background-color 0.2s',
+                    }}
+                    className="employee-select-btn"
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    <div style={{
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '4px',
+                      backgroundColor: emp.company === 'Viet QS' ? '#0058bc' : '#ff6b00',
+                      color: '#ffffff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '0.85rem',
+                      fontWeight: 'bold'
+                    }}>
+                      {emp.userName.charAt(0)}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.875rem', fontWeight: 'bold' }}>{emp.userName} {emp.grade || ''}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{emp.company} · {emp.dept}</div>
+                    </div>
+                  </button>
+                ))
+              }
+              {allEmployees
+                .filter(emp => emp.id !== (currentUser?.id || 'me'))
+                .filter(emp => {
+                  if (activeChat.type === 'dm') {
+                    const activeDm = dms.find(d => d.id === activeChat.id);
+                    if (activeDm && activeDm.empNo === emp.empNo) return false;
+                  }
+                  return true;
+                })
+                .filter(emp => {
+                  const query = inviteSearchQuery.toLowerCase();
+                  return emp.userName.toLowerCase().includes(query) || (emp.dept && emp.dept.toLowerCase().includes(query));
+                }).length === 0 && (
+                <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                  초대 가능한 직원이 없습니다.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* --- 5. 사내 AI 및 API 환경설정 모달 (smooth transition) --- */}
       <div 
@@ -1336,6 +1672,7 @@ export default function App() {
             onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
             currentWorkspace={currentWorkspace}
             onUserClick={handleUserClick}
+            onOpenInviteModal={() => setIsInviteModalOpen(true)} // 초대 모달 콜백 추가
           />
         );
 

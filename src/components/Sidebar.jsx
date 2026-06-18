@@ -35,6 +35,7 @@ export default function Sidebar({
   activeChat, 
   onActiveChatChange, 
   onOpenModal,
+  onOpenDmCreateModal, // DM 생성 모달 콜백 추가
   isLightTheme,
   onToggleTheme,
   todoCount,
@@ -145,6 +146,9 @@ export default function Sidebar({
             <div style={styles.section}>
               <div style={styles.sectionHeader}>
                 <span style={styles.sectionTitle}>{t.dms}</span>
+                <button style={styles.addBtn} onClick={onOpenDmCreateModal} title="새 DM 시작">
+                  <Plus size={16} />
+                </button>
               </div>
 
               <div style={styles.sectionList}>
