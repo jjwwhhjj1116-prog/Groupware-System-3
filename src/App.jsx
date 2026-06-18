@@ -5,6 +5,7 @@ import Modal from './components/Modal';
 import LoginForm from './components/LoginForm';
 import HrCardModal from './components/HrCardModal';
 import HrManager from './components/HrManager';
+import OrgChart from './components/OrgChart';
 import { io } from 'socket.io-client';
 import { 
   Plus, 
@@ -36,6 +37,7 @@ const YOUNGJA_IMAGES = {
 // --- 다국어 번역 사전 ---
 const TRANSLATIONS = {
   concost: {
+    home: "대시보드",
     chat: "메시지",
     mail: "메일",
     calendar: "캘린더",
@@ -99,6 +101,7 @@ const TRANSLATIONS = {
     welcomeMessage: "이곳이 대화의 시작점입니다! 첫 메시지를 전송하여 새로운 대화를 시작해보세요."
   },
   vietqs: {
+    home: "Bảng điều khiển",
     chat: "Tin nhắn",
     mail: "Thư điện tử",
     calendar: "Lịch",
@@ -205,7 +208,7 @@ export default function App() {
   const [selectedEmployee, setSelectedEmployee] = useState(null);
 
   const [currentWorkspace, setCurrentWorkspace] = useState('concost'); // 'concost' or 'vietqs'
-  const [currentMenu, setCurrentMenu] = useState('chat'); // 'chat', 'mail', etc.
+  const [currentMenu, setCurrentMenu] = useState('home'); // 'home', 'chat', 'mail', etc.
   const [isLightTheme, setIsLightTheme] = useState(false);
   const [activeChat, setActiveChat] = useState({ type: 'channel', id: 'general' });
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -214,8 +217,27 @@ export default function App() {
 
   // Gemini API Key 및 모델명 보관 설정
   const [geminiKey, setGeminiKey] = useState(localStorage.getItem('gemini_api_key') || '');
-  const [geminiModel, setGeminiModel] = useState(localStorage.getItem('gemini_model') || 'gemini-1.5-flash');
+  const [geminiModel, setGeminiModel] = useState(localStorage.getItem('gemini_model') || 'gemini-3.5-flash');
   const [aiEnabled, setAiEnabled] = useState(localStorage.getItem('ai_assistant_enabled') !== 'false');
+
+  // 대시보드 위젯 설정 상태
+  const [visibleWidgets, setVisibleWidgets] = useState(() => {
+    const saved = localStorage.getItem('works_dashboard_widgets');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return ['todo', 'employees', 'calendar', 'board'];
+  });
+  const [isWidgetSettingsOpen, setIsWidgetSettingsOpen] = useState(false);
+
+  // 🐶🤖 AI 챗봇 비서 플로팅 대화창 상태
+  const [isChatbotOpen, setIsChatbotOpen] = useState(false);
+  const [chatbotPos, setChatbotPos] = useState({ x: 0, y: 0 });
+  const [chatbotText, setChatbotText] = useState('');
+  const [chatbotMessages, setChatbotMessages] = useState([
+    { id: 'cb-1', sender: 'youngja', senderName: 'AI 디자인실장 영자', content: '안녕하세요, 대표님! 🐶🤖 귀여운 강아지 로봇 비서 영자입니다. 어떤 업무를 도와드릴까요? 메신저 테마나 디자인, 혹은 사내 규정에 대해 물어보세요!', time: '오전 11:00' }
+  ]);
+  const [isChatbotTyping, setIsChatbotTyping] = useState(false);
 
   const socketRef = useRef(null);
   const t = TRANSLATIONS[currentWorkspace] || TRANSLATIONS.concost;
@@ -371,19 +393,20 @@ export default function App() {
     };
   }, [currentWorkspace, currentUser]);
 
+  const fetchEmployees = async () => {
+    try {
+      const res = await fetch('/api/employees');
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setAllEmployees(data.employees);
+      }
+    } catch (err) {
+      console.error('Failed to load employees:', err);
+    }
+  };
+
   // --- 2.5 사원대장 로드 및 인사카드 / DM 연동 함수들 ---
   useEffect(() => {
-    const fetchEmployees = async () => {
-      try {
-        const res = await fetch('/api/employees');
-        const data = await res.json();
-        if (res.ok && data.success) {
-          setAllEmployees(data.employees);
-        }
-      } catch (err) {
-        console.error('Failed to load employees:', err);
-      }
-    };
     fetchEmployees();
   }, [currentUser]);
 
@@ -737,6 +760,52 @@ export default function App() {
     playNotificationSound();
   };
 
+  const handleChatbotSendMessage = async (e) => {
+    e.preventDefault();
+    if (!chatbotText.trim()) return;
+
+    const userMsg = {
+      id: `cb-user-${Date.now()}`,
+      sender: 'me',
+      senderName: currentWorkspace === 'vietqs' ? 'Giám đốc' : '대표님',
+      content: chatbotText.trim(),
+      time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+    };
+
+    setChatbotMessages(prev => [...prev, userMsg]);
+    const prompt = chatbotText.trim();
+    setChatbotText('');
+    setIsChatbotTyping(true);
+
+    const isViet = currentWorkspace === 'vietqs';
+    let reply = await askGeminiAI(prompt, isViet);
+    let imageKey = 'thumbsup';
+
+    if (!reply) {
+      await new Promise(resolve => setTimeout(resolve, 1200));
+      if (isViet) {
+        reply = `Thưa Giám đốc! Tôi là Robot cưng hỗ trợ của ngài 🐶🤖. Vui lòng thiết lập API Key trong cài đặt (⚙️) để kích hoạt toàn bộ tính năng RAG thực tế!`;
+      } else {
+        reply = `대표님! 🐶🤖 설정(⚙️)에서 Google Gemini API Key를 등록하시면 실시간 RAG와 완벽한 AI 맞춤 비서 서비스를 제공해드릴 수 있어요. 지금은 데모 모드랍니다!`;
+      }
+    } else {
+      imageKey = reply.includes('감사') || reply.includes('cảm ơn') ? 'success' : 'idea';
+    }
+
+    setIsChatbotTyping(false);
+    const aiMsg = {
+      id: `cb-ai-${Date.now()}`,
+      sender: 'youngja',
+      senderName: isViet ? '✨ Trưởng phòng thiết kế AI (Youngja)' : '✨ AI 디자인실장 영자',
+      content: reply,
+      time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+      youngjaImageUrl: YOUNGJA_IMAGES[imageKey]
+    };
+
+    setChatbotMessages(prev => [...prev, aiMsg]);
+    playNotificationSound();
+  };
+
   if (!currentUser) {
     return <LoginForm onLoginSuccess={(user) => setCurrentUser(user)} />;
   }
@@ -795,99 +864,458 @@ export default function App() {
         employee={selectedEmployee}
         currentUser={currentUser}
         onStartDm={handleStartDm}
+        onRefreshEmployees={fetchEmployees}
       />
 
-      {/* --- 5. 사내 AI 및 API 환경설정 모달 --- */}
-      {isSettingsOpen && (
-        <div style={styles.settingsOverlay} onClick={handleCloseSettings}>
-          <form 
-            onSubmit={handleSaveSettings} 
-            className="glass-panel animate-scale" 
-            style={styles.settingsModal}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={styles.settingsHeader}>
-              <h3 style={styles.settingsTitle}>⚙️ 사내 AI & API 환경설정</h3>
-              <button 
-                type="button" 
-                className="close-btn"
-                style={styles.closeBtn} 
-                onClick={handleCloseSettings}
-              >
-                <X size={20} />
-              </button>
-            </div>
+      {/* --- 5. 사내 AI 및 API 환경설정 모달 (smooth transition) --- */}
+      <div 
+        style={{
+          ...styles.settingsOverlay,
+          opacity: isSettingsOpen ? 1 : 0,
+          visibility: isSettingsOpen ? 'visible' : 'hidden',
+          transition: 'opacity 0.25s ease-in-out, visibility 0.25s ease-in-out',
+        }} 
+        onClick={handleCloseSettings}
+      >
+        <form 
+          onSubmit={handleSaveSettings} 
+          className="glass-panel animate-scale" 
+          style={styles.settingsModal}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div style={styles.settingsHeader}>
+            <h3 style={styles.settingsTitle}>⚙️ 사내 AI & API 환경설정</h3>
+            <button 
+              type="button" 
+              className="close-btn"
+              style={styles.closeBtn} 
+              onClick={handleCloseSettings}
+            >
+              <X size={20} />
+            </button>
+          </div>
 
-            <div style={styles.settingsBody}>
-              <div style={styles.inputGroup}>
-                <label style={{ ...styles.label, justifyContent: 'space-between', width: '100%', cursor: 'pointer' }}>
-                  <span style={{ display: 'flex', alignItems: 'center' }}>
-                    <Bot size={16} style={{ marginRight: '6px', color: 'var(--primary)' }} />
-                    {currentWorkspace === 'vietqs' ? 'Kích hoạt Trợ lý AI' : 'AI 챗봇 비서 활성화'}
-                  </span>
-                  <input
-                    type="checkbox"
-                    checked={aiEnabled}
-                    onChange={(e) => setAiEnabled(e.target.checked)}
-                    style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                  />
-                </label>
-                <span style={styles.helperText}>
-                  {currentWorkspace === 'vietqs' 
-                    ? 'Bật/tắt hiển thị Trợ lý thiết kế AI (Youngja) trên thanh menu.'
-                    : '활성화 시, 사이드바에 ✨ AI 디자인실장 (영자) 방이 노출되어 대화가 가능해집니다.'}
+          <div style={styles.settingsBody}>
+            <div style={styles.inputGroup}>
+              <label style={{ ...styles.label, justifyContent: 'space-between', width: '100%', cursor: 'pointer' }}>
+                <span style={{ display: 'flex', alignItems: 'center' }}>
+                  <Bot size={16} style={{ marginRight: '6px', color: 'var(--primary)' }} />
+                  {currentWorkspace === 'vietqs' ? 'Kích hoạt Trợ lý AI' : 'AI 챗봇 비서 활성화'}
                 </span>
-              </div>
-
-              <div style={styles.inputGroup}>
-                <label style={styles.label}>
-                  <Key size={16} style={{ marginRight: '6px', color: 'var(--primary)' }} />
-                  Google Gemini API Key
-                </label>
                 <input
-                  type="password"
-                  value={geminiKey}
-                  onChange={(e) => setGeminiKey(e.target.value)}
-                  placeholder="AIzaSy... 형식의 키를 입력해 주세요."
-                  style={styles.settingsInput}
+                  type="checkbox"
+                  checked={aiEnabled}
+                  onChange={(e) => setAiEnabled(e.target.checked)}
+                  style={{ width: '18px', height: '18px', cursor: 'pointer' }}
                 />
-                <span style={styles.helperText}>
-                  설정 시, AI 디자인실장 영자 챗봇이 실제 인공지능 지식 기반으로 답변해 줍니다.
-                </span>
-              </div>
-
-              <div style={styles.inputGroup}>
-                <label style={styles.label}>
-                  <Database size={16} style={{ marginRight: '6px', color: 'var(--primary)' }} />
-                  AI 모델 선택 (Gemini Engine)
-                </label>
-                <select
-                  value={geminiModel}
-                  onChange={(e) => setGeminiModel(e.target.value)}
-                  style={styles.settingsSelect}
-                >
-                  <option value="gemini-1.5-flash">Gemini 1.5 Flash (경량・고속)</option>
-                  <option value="gemini-1.5-pro">Gemini 1.5 Pro (고성능・정밀)</option>
-                </select>
-              </div>
+              </label>
+              <span style={styles.helperText}>
+                {currentWorkspace === 'vietqs' 
+                  ? 'Bật/tắt hiển thị Trợ lý thiết kế AI (Youngja) trên thanh menu.'
+                  : '활성화 시, 사이드바에 ✨ AI 디자인실장 (영자) 방이 노출되어 대화가 가능해집니다.'}
+              </span>
             </div>
 
-            <div style={styles.settingsFooter}>
-              <button 
-                type="button" 
-                className="cancel-btn"
-                style={styles.cancelBtn} 
-                onClick={handleCloseSettings}
+            <div style={styles.inputGroup}>
+              <label style={styles.label}>
+                <Key size={16} style={{ marginRight: '6px', color: 'var(--primary)' }} />
+                Google Gemini API Key
+              </label>
+              <input
+                type="password"
+                value={geminiKey}
+                onChange={(e) => setGeminiKey(e.target.value)}
+                placeholder="AIzaSy... 형식의 키를 입력해 주세요."
+                style={styles.settingsInput}
+              />
+              <span style={styles.helperText}>
+                설정 시, AI 디자인실장 영자 챗봇이 실제 인공지능 지식 기반으로 답변해 줍니다.
+              </span>
+            </div>
+
+            <div style={styles.inputGroup}>
+              <label style={styles.label}>
+                <Database size={16} style={{ marginRight: '6px', color: 'var(--primary)' }} />
+                AI 모델 선택 (Gemini Engine)
+              </label>
+              <select
+                value={geminiModel}
+                onChange={(e) => setGeminiModel(e.target.value)}
+                style={styles.settingsSelect}
               >
-                취소
-              </button>
-              <button type="submit" style={styles.saveBtn}>
-                저장하기
-              </button>
+                <option value="gemini-3.5-flash">Gemini 3.5 Flash (권장 모델)</option>
+                <option value="gemini-1.5-flash">Gemini 1.5 Flash (경량・고속)</option>
+                <option value="gemini-1.5-pro">Gemini 1.5 Pro (고성능・정밀)</option>
+              </select>
             </div>
-          </form>
+          </div>
+
+          <div style={styles.settingsFooter}>
+            <button 
+              type="button" 
+              className="cancel-btn"
+              style={styles.cancelBtn} 
+              onClick={handleCloseSettings}
+            >
+              취소
+            </button>
+            <button type="submit" style={styles.saveBtn}>
+              저장하기
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* 대시보드 위젯 설정 모달 */}
+      <div 
+        style={{
+          ...styles.settingsOverlay,
+          opacity: isWidgetSettingsOpen ? 1 : 0,
+          visibility: isWidgetSettingsOpen ? 'visible' : 'hidden',
+          transition: 'opacity 0.25s ease-in-out, visibility 0.25s ease-in-out',
+        }} 
+        onClick={() => setIsWidgetSettingsOpen(false)}
+      >
+        <div 
+          className="glass-panel animate-scale" 
+          style={styles.settingsModal}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div style={styles.settingsHeader}>
+            <h3 style={styles.settingsTitle}>⚙️ 대시보드 위젯 설정</h3>
+            <button 
+              type="button" 
+              className="close-btn"
+              style={styles.closeBtn} 
+              onClick={() => setIsWidgetSettingsOpen(false)}
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          <div style={styles.settingsBody}>
+            <div style={styles.inputGroup}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold' }}>
+                <input 
+                  type="checkbox" 
+                  checked={visibleWidgets.includes('todo')}
+                  onChange={(e) => {
+                    const list = e.target.checked 
+                      ? [...visibleWidgets, 'todo'] 
+                      : visibleWidgets.filter(w => w !== 'todo');
+                    setVisibleWidgets(list);
+                    localStorage.setItem('works_dashboard_widgets', JSON.stringify(list));
+                  }}
+                  style={{ width: '16px', height: '16px' }}
+                />
+                오늘 할 일 목록 (Todo)
+              </label>
+            </div>
+            <div style={styles.inputGroup}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold' }}>
+                <input 
+                  type="checkbox" 
+                  checked={visibleWidgets.includes('employees')}
+                  onChange={(e) => {
+                    const list = e.target.checked 
+                      ? [...visibleWidgets, 'employees'] 
+                      : visibleWidgets.filter(w => w !== 'employees');
+                    setVisibleWidgets(list);
+                    localStorage.setItem('works_dashboard_widgets', JSON.stringify(list));
+                  }}
+                  style={{ width: '16px', height: '16px' }}
+                />
+                우리 회사 임직원 현황
+              </label>
+            </div>
+            <div style={styles.inputGroup}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold' }}>
+                <input 
+                  type="checkbox" 
+                  checked={visibleWidgets.includes('calendar')}
+                  onChange={(e) => {
+                    const list = e.target.checked 
+                      ? [...visibleWidgets, 'calendar'] 
+                      : visibleWidgets.filter(w => w !== 'calendar');
+                    setVisibleWidgets(list);
+                    localStorage.setItem('works_dashboard_widgets', JSON.stringify(list));
+                  }}
+                  style={{ width: '16px', height: '16px' }}
+                />
+                이번 주 전사 일정
+              </label>
+            </div>
+            <div style={styles.inputGroup}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold' }}>
+                <input 
+                  type="checkbox" 
+                  checked={visibleWidgets.includes('board')}
+                  onChange={(e) => {
+                    const list = e.target.checked 
+                      ? [...visibleWidgets, 'board'] 
+                      : visibleWidgets.filter(w => w !== 'board');
+                    setVisibleWidgets(list);
+                    localStorage.setItem('works_dashboard_widgets', JSON.stringify(list));
+                  }}
+                  style={{ width: '16px', height: '16px' }}
+                />
+                사내 주요 소식
+              </label>
+            </div>
+          </div>
+
+          <div style={styles.settingsFooter}>
+            <button 
+              type="button" 
+              style={styles.saveBtn} 
+              onClick={() => setIsWidgetSettingsOpen(false)}
+            >
+              확인
+            </button>
+          </div>
         </div>
-      )}
+      </div>
+
+      {/* 🐶🤖 귀여운 강아지 로봇 AI 챗봇 비서 플로팅 아이콘 */}
+      <button
+        style={{
+          position: 'fixed',
+          right: '24px',
+          top: '50%',
+          transform: 'translateY(-50%)',
+          width: '64px',
+          height: '64px',
+          borderRadius: '50%',
+          backgroundColor: 'rgba(31, 41, 55, 0.8)',
+          border: '2px solid #ff6b00',
+          boxShadow: '0 8px 24px rgba(255, 107, 0, 0.3)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9998,
+          cursor: 'pointer',
+          backdropFilter: 'blur(8px)',
+          transition: 'all 0.3s ease'
+        }}
+        onClick={() => setIsChatbotOpen(!isChatbotOpen)}
+        title="AI 비서 영자 대화하기"
+        className="dog-robot-btn"
+      >
+        <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M4 12c0-2 2-3 4-2v6c-2 1-4 0-4-4Z" fill="#ff6b00" />
+          <path d="M32 12c0-2-2-3-4-2v6c2 1 4 0 4-4Z" fill="#ff6b00" />
+          <rect x="7" y="7" width="22" height="20" rx="5" fill="#2b2d31" stroke="#ff6b00" strokeWidth="2" />
+          <rect x="10" y="10" width="16" height="11" rx="3" fill="#111214" />
+          <circle cx="14" cy="15" r="2.5" fill="#00ffcc" />
+          <circle cx="22" cy="15" r="2.5" fill="#00ffcc" />
+          <ellipse cx="18" cy="23" rx="2" ry="1.5" fill="#ff6b00" />
+        </svg>
+      </button>
+
+      {/* 🐶🤖 AI 챗봇 비서 대화창 */}
+      <div 
+        style={{
+          position: 'fixed',
+          right: '100px',
+          top: '15%',
+          width: '380px',
+          height: '520px',
+          backgroundColor: 'rgba(31, 41, 55, 0.9)',
+          backdropFilter: 'blur(20px)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          borderRadius: '16px',
+          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.4)',
+          display: isChatbotOpen ? 'flex' : 'none',
+          flexDirection: 'column',
+          zIndex: 9999,
+          transform: `translate(${chatbotPos.x}px, ${chatbotPos.y}px)`,
+          transition: 'transform 0.05s ease-out'
+        }}
+        onMouseDown={(e) => {
+          if (e.button === 1) {
+            e.preventDefault();
+            const startX = e.clientX - chatbotPos.x;
+            const startY = e.clientY - chatbotPos.y;
+            const handleMouseMove = (moveEvent) => {
+              setChatbotPos({
+                x: moveEvent.clientX - startX,
+                y: moveEvent.clientY - startY
+              });
+            };
+            const handleMouseUp = () => {
+              window.removeEventListener('mousemove', handleMouseMove);
+              window.removeEventListener('mouseup', handleMouseUp);
+            };
+            window.addEventListener('mousemove', handleMouseMove);
+            window.addEventListener('mouseup', handleMouseUp);
+          }
+        }}
+      >
+        {/* 대화창 헤더 */}
+        <div 
+          style={{
+            padding: '14px 16px',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            cursor: 'move',
+            userSelect: 'none',
+            backgroundColor: 'rgba(0, 0, 0, 0.2)',
+            borderTopLeftRadius: '16px',
+            borderTopRightRadius: '16px'
+          }}
+          onMouseDown={(e) => {
+            if (e.button === 0) {
+              const startX = e.clientX - chatbotPos.x;
+              const startY = e.clientY - chatbotPos.y;
+              const handleMouseMove = (moveEvent) => {
+                setChatbotPos({
+                  x: moveEvent.clientX - startX,
+                  y: moveEvent.clientY - startY
+                });
+              };
+              const handleMouseUp = () => {
+                window.removeEventListener('mousemove', handleMouseMove);
+                window.removeEventListener('mouseup', handleMouseUp);
+              };
+                window.addEventListener('mousemove', handleMouseMove);
+                window.addEventListener('mouseup', handleMouseUp);
+            }
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold', fontSize: '0.9rem' }}>
+            <span>🐶🤖 AI 비서 영자 (gemini-3.5-flash)</span>
+          </div>
+          <button 
+            onClick={() => setIsChatbotOpen(false)} 
+            style={{ color: '#aaa', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px' }}
+            className="close-btn"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* 대화 피드 */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {chatbotMessages.map(msg => {
+            const isMe = msg.sender === 'me';
+            return (
+              <div 
+                key={msg.id} 
+                style={{ 
+                  display: 'flex', 
+                  gap: '8px', 
+                  alignItems: 'flex-start',
+                  justifyContent: isMe ? 'flex-end' : 'flex-start'
+                }}
+              >
+                {!isMe && (
+                  <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: '#ffecf4', display: 'flex', alignItems: 'center', justifySelf: 'center', flexShrink: 0 }}>
+                    <Bot size={16} style={{ color: '#ff007f', margin: 'auto' }} />
+                  </div>
+                )}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', maxWidth: '75%' }}>
+                  {!isMe && (
+                    <span style={{ fontSize: '0.7rem', color: '#ff007f', fontWeight: 'bold' }}>{msg.senderName}</span>
+                  )}
+                  <div 
+                    style={{
+                      padding: '8px 12px',
+                      borderRadius: '10px',
+                      fontSize: '0.825rem',
+                      lineHeight: '1.4',
+                      wordBreak: 'break-word',
+                      backgroundColor: isMe ? '#ff6b00' : 'rgba(255,255,255,0.08)',
+                      color: '#ffffff',
+                      borderBottomLeftRadius: !isMe ? '2px' : '10px',
+                      borderBottomRightRadius: isMe ? '2px' : '10px'
+                    }}
+                  >
+                    {msg.content}
+                    {msg.youngjaImageUrl && (
+                      <div style={{ marginTop: '6px', borderRadius: '6px', overflow: 'hidden', maxWidth: '120px' }}>
+                        <img src={msg.youngjaImageUrl} alt="youngja" style={{ width: '100%', display: 'block' }} />
+                      </div>
+                    )}
+                  </div>
+                  <span style={{ fontSize: '0.65rem', color: '#888', alignSelf: isMe ? 'flex-end' : 'flex-start' }}>{msg.time}</span>
+                </div>
+              </div>
+            );
+          })}
+          {isChatbotTyping && (
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: '#ffecf4', display: 'flex' }}>
+                <Bot size={16} style={{ color: '#ff007f', margin: 'auto' }} />
+              </div>
+              <div style={{ padding: '8px 12px', borderRadius: '10px', backgroundColor: 'rgba(255,255,255,0.05)', display: 'flex', gap: '4px' }}>
+                <span style={{ width: '4px', height: '4px', backgroundColor: '#aaa', borderRadius: '50%', animation: 'fadeIn 1s infinite alternate' }} />
+                <span style={{ width: '4px', height: '4px', backgroundColor: '#aaa', borderRadius: '50%', animation: 'fadeIn 1s infinite alternate', animationDelay: '0.2s' }} />
+                <span style={{ width: '4px', height: '4px', backgroundColor: '#aaa', borderRadius: '50%', animation: 'fadeIn 1s infinite alternate', animationDelay: '0.4s' }} />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* API Key 가이드 링크 */}
+        {!geminiKey && (
+          <div style={{ padding: '8px 12px', backgroundColor: 'rgba(255, 107, 0, 0.15)', fontSize: '0.75rem', color: '#ff8a3d', borderTop: '1px solid rgba(255, 107, 0, 0.3)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <span>🔑 API Key 미등록 상태 (데모 모드)</span>
+            <a href="https://aistudio.google.com/" target="_blank" rel="noopener noreferrer" style={{ color: '#00ffff', textDecoration: 'underline', fontWeight: 'bold' }}>
+              👉 Google AI Studio에서 API Key 발급받기
+            </a>
+          </div>
+        )}
+
+        {/* 대화 입력 */}
+        <form onSubmit={handleChatbotSendMessage} style={{ padding: '12px', borderTop: '1px solid rgba(255, 255, 255, 0.1)', display: 'flex', gap: '8px' }}>
+          <input 
+            type="text" 
+            value={chatbotText} 
+            onChange={(e) => setChatbotText(e.target.value)} 
+            placeholder="질문해보세요..." 
+            style={{
+              flex: 1,
+              padding: '8px 12px',
+              borderRadius: '8px',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              backgroundColor: 'rgba(0, 0, 0, 0.3)',
+              color: '#ffffff',
+              fontSize: '0.825rem',
+              outline: 'none'
+            }}
+          />
+          <button 
+            type="submit" 
+            style={{ 
+              backgroundColor: '#ff6b00', 
+              color: '#ffffff', 
+              borderRadius: '8px', 
+              padding: '8px 12px', 
+              fontSize: '0.825rem', 
+              fontWeight: 'bold',
+              cursor: 'pointer'
+            }}
+          >
+            전송
+          </button>
+        </form>
+      </div>
+
+      <style>{`
+        @keyframes pulse-soft {
+          0% { box-shadow: 0 0 0 0 rgba(255, 107, 0, 0.4); }
+          70% { box-shadow: 0 0 0 10px rgba(255, 107, 0, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(255, 107, 0, 0); }
+        }
+        .dog-robot-btn {
+          animation: pulse-soft 2s infinite;
+        }
+        .dog-robot-btn:hover {
+          transform: translateY(-50%) scale(1.08) !important;
+        }
+      `}</style>
     </div>
   );
 
@@ -911,9 +1339,166 @@ export default function App() {
           />
         );
 
+      case 'home':
+        return (
+          <div style={styles.mainContainer} className="animate-fade">
+            <div style={styles.mainHeader}>
+              <h2 style={styles.mainTitle}>📊 종합 대시보드</h2>
+              <button 
+                className="action-btn"
+                style={{
+                  ...styles.editDashboardBtn,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  backgroundColor: 'var(--bg-secondary)',
+                  border: '1px solid var(--border-light)',
+                  padding: '6px 14px',
+                  borderRadius: '8px',
+                  fontSize: '0.8rem',
+                  fontWeight: '700',
+                  color: 'var(--text-primary)'
+                }}
+                onClick={() => setIsWidgetSettingsOpen(true)}
+              >
+                ⚙️ 대시보드 편집
+              </button>
+            </div>
+
+            <div style={styles.dashboardGrid}>
+              {/* 위젯 1: AI 출근길 브리핑 (상단 와이드) */}
+              <div style={{ ...styles.widgetCard, gridColumn: '1 / -1' }}>
+                <div style={{ ...styles.widgetTitle, color: accentColor }}>
+                  🤖 AI Workspace Morning Briefing
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                  <div style={{ fontSize: '36px' }}>🌅</div>
+                  <div>
+                    <h3 style={{ fontSize: '15px', fontWeight: '800', marginBottom: '6px', color: 'var(--text-primary)' }}>
+                      {currentUser?.userName} {currentUser?.grade || '대표님'}, 좋은 아침입니다!
+                    </h3>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
+                      오늘 등록된 전사 협업 일정은 <strong style={{ color: accentColor }}>{calendarEvents.length}건</strong>이며, 진행중인 업무 태스크 카드가 <strong style={{ color: accentColor }}>{todos.filter(t => !t.completed).length}건</strong> 대기하고 있습니다. 
+                      최근 Viet QS 법인의 BIM 협업 드라이브에 <strong style={{ color: accentColor }}>{driveFiles.length}개</strong>의 신규 도면 파일이 업로드되었습니다.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* 위젯 2: 알림 상태 */}
+              <div style={styles.widgetCard}>
+                <div style={styles.widgetTitle}>🔔 미확인 알림 상태</div>
+                <div style={{ display: 'flex', justifyContent: 'space-around', padding: '10px 0' }}>
+                  <div style={{ textAlign: 'center', cursor: 'pointer' }} onClick={() => setCurrentMenu('chat')}>
+                    <div style={{ fontSize: '24px', marginBottom: '6px' }}>💬</div>
+                    <strong style={{ fontSize: '1.1rem', color: accentColor }}>3 건</strong>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>새 메시지</div>
+                  </div>
+                  <div style={{ textAlign: 'center', cursor: 'pointer' }} onClick={() => setCurrentMenu('mail')}>
+                    <div style={{ fontSize: '24px', marginBottom: '6px' }}>📧</div>
+                    <strong style={{ fontSize: '1.1rem', color: 'var(--primary)' }}>{mails.filter(m => !m.read).length} 건</strong>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>읽지않은 메일</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 위젯 3: 오늘 할 일 */}
+              {visibleWidgets.includes('todo') && (
+                <div style={styles.widgetCard}>
+                  <div style={styles.widgetTitle}>✅ 오늘 할 일 목록</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {todos.slice(0, 3).map(todo => (
+                      <div key={todo.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', backgroundColor: 'var(--bg-primary)', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '75%' }}>
+                          • {todo.text}
+                        </span>
+                        <span style={{
+                          fontSize: '0.65rem',
+                          fontWeight: '800',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          backgroundColor: todo.completed ? 'rgba(35, 165, 90, 0.1)' : 'rgba(240, 178, 50, 0.1)',
+                          color: todo.completed ? '#23a55a' : '#f0b232'
+                        }}>
+                          {todo.completed ? '완료' : '진행중'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 위젯 4: 임직원 현황 */}
+              {visibleWidgets.includes('employees') && (
+                <div style={styles.widgetCard}>
+                  <div style={styles.widgetTitle}>👥 우리 회사 임직원 현황</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.8rem', fontWeight: '700' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>양사 총 임직원 수</span>
+                      <strong style={{ color: 'var(--text-primary)' }}>{allEmployees.length} 명</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>CON-COST 본사</span>
+                      <strong style={{ color: 'var(--text-primary)' }}>{allEmployees.filter(e => e.company === 'CON-COST').length} 명</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>Viet QS 지사</span>
+                      <strong style={{ color: 'var(--text-primary)' }}>{allEmployees.filter(e => e.company === 'Viet QS').length} 명</strong>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 위젯 5: 이번 주 전사 일정 */}
+              {visibleWidgets.includes('calendar') && (
+                <div style={styles.widgetCard}>
+                  <div style={styles.widgetTitle}>📅 이번 주 전사 일정</div>
+                  <table style={{ width: '100%', fontSize: '0.8rem', borderCollapse: 'collapse', fontWeight: '700' }}>
+                    <tbody>
+                      <tr style={{ borderBottom: '1px solid var(--border-light)' }}>
+                        <td style={{ padding: '8px 0', color: accentColor }}>15일 (월)</td>
+                        <td style={{ color: 'var(--text-primary)' }}>BIM파트 주간 1차 도면 QC 납품</td>
+                      </tr>
+                      <tr style={{ borderBottom: '1px solid var(--border-light)' }}>
+                        <td style={{ padding: '8px 0', color: 'var(--text-primary)' }}>17일 (수)</td>
+                        <td style={{ color: 'var(--text-primary)' }}>Viet QS Horizon 회의</td>
+                      </tr>
+                      <tr>
+                        <td style={{ padding: '8px 0', color: 'var(--text-muted)' }}>19일 (금)</td>
+                        <td style={{ color: 'var(--text-primary)' }}>대표이사 주관 경영 보고</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* 위젯 6: 사내 주요 소식 */}
+              {visibleWidgets.includes('board') && (
+                <div style={styles.widgetCard}>
+                  <div style={styles.widgetTitle}>📢 사내 주요 소식</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.8rem' }}>
+                    {boardPosts.slice(0, 3).map(post => (
+                      <div key={post.id} style={{ display: 'flex', justifyContent: 'space-between', cursor: 'pointer' }} onClick={() => setCurrentMenu('board')}>
+                        <span style={{ fontWeight: '700', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%' }}>
+                          {post.title}
+                        </span>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{post.date}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+
       case 'hr':
         return (
-          <HrManager currentWorkspace={currentWorkspace} />
+          <OrgChart 
+            allEmployees={allEmployees}
+            onUserClick={handleUserClick}
+            currentWorkspace={currentWorkspace}
+          />
         );
 
       case 'mail':
@@ -1859,5 +2444,30 @@ const styles = {
     fontWeight: '600',
     backgroundColor: 'var(--primary)',
     color: '#ffffff',
+  },
+  dashboardGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+    gap: '20px',
+    padding: '0',
+  },
+  widgetCard: {
+    backgroundColor: 'var(--bg-secondary)',
+    border: '1px solid var(--border)',
+    borderRadius: 'var(--radius-lg)',
+    padding: '20px',
+    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+  },
+  widgetTitle: {
+    fontSize: '0.9rem',
+    fontWeight: '800',
+    marginBottom: '14px',
+    color: 'var(--text-primary)',
+    borderBottom: '1px dashed var(--border-light)',
+    paddingBottom: '8px',
+  },
+  editDashboardBtn: {
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
   }
 };

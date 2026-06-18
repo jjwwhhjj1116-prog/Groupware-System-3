@@ -18,7 +18,8 @@ import {
   Star,
   Trash2,
   AlertCircle,
-  Users
+  Users,
+  Home
 } from 'lucide-react';
 
 import concostVert from '../assets/concost_logo_vert.png';
@@ -54,6 +55,7 @@ export default function Sidebar({
 
   // 1단 글로벌 네비게이션 메뉴 정의 (다국어 바인딩)
   const menuItems = [
+    { id: 'home', label: currentWorkspace === 'vietqs' ? 'Bảng điều khiển' : '대시보드', icon: <Home size={20} /> },
     { id: 'chat', label: t.chat, icon: <MessageSquare size={20} />, badge: 3 },
     { id: 'mail', label: t.mail, icon: <Mail size={20} />, badge: mailUnreadCount },
     { id: 'calendar', label: t.calendar, icon: <Calendar size={20} /> },
@@ -66,7 +68,7 @@ export default function Sidebar({
   if (isManager) {
     menuItems.push({ 
       id: 'hr', 
-      label: currentWorkspace === 'vietqs' ? 'Nhân sự' : '인사관리', 
+      label: currentWorkspace === 'vietqs' ? 'Sơ đồ tổ chức' : '조직도', 
       icon: <Users size={20} /> 
     });
   }

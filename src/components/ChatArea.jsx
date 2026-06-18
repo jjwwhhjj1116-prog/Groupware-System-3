@@ -27,6 +27,35 @@ export default function ChatArea({
   const [inputText, setInputText] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const messagesEndRef = useRef(null);
+  
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef(null);
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      alert(`[드롭 파일 전송 완료]: ${files[0].name} (${(files[0].size/1024).toFixed(1)} KB)`);
+    }
+  };
+
+  const handleFileChange = (e) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      alert(`[파일 첨부 완료]: ${files[0].name} (${(files[0].size/1024).toFixed(1)} KB)`);
+    }
+  };
 
   // Auto scroll to bottom
   const scrollToBottom = () => {
@@ -217,7 +246,53 @@ export default function ChatArea({
       </div>
 
       {/* Chat Input Area */}
-      <form onSubmit={handleSubmit} style={styles.inputArea}>
+      <form 
+        onSubmit={handleSubmit} 
+        style={{
+          ...styles.inputArea,
+          position: 'relative',
+          border: isDragging 
+            ? `2.5px dashed ${currentWorkspace === 'concost' ? '#ff6b00' : 'var(--primary)'}` 
+            : '1px solid var(--border-light)',
+          backgroundColor: isDragging 
+            ? (currentWorkspace === 'concost' ? 'rgba(255, 107, 0, 0.05)' : 'rgba(0, 122, 255, 0.05)')
+            : 'var(--bg-primary)',
+          borderRadius: 'var(--radius-lg)',
+          margin: '0 20px 20px 20px',
+          transition: 'all var(--transition-fast)'
+        }}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        {isDragging && (
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: currentWorkspace === 'concost' ? 'rgba(255, 107, 0, 0.08)' : 'rgba(0, 122, 255, 0.08)',
+            border: `2px dashed ${currentWorkspace === 'concost' ? '#ff6b00' : 'var(--primary)'}`,
+            borderRadius: 'var(--radius-lg)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: currentWorkspace === 'concost' ? '#ff6b00' : 'var(--primary)',
+            fontWeight: 'bold',
+            fontSize: '0.9rem',
+            zIndex: 10,
+            pointerEvents: 'none'
+          }}>
+            📥 파일을 여기에 놓으세요! (Drop files here)
+          </div>
+        )}
+        <input 
+          type="file" 
+          ref={fileInputRef} 
+          style={{ display: 'none' }} 
+          onChange={handleFileChange} 
+        />
         {/* Quick Emoji bar */}
         <div style={styles.quickEmojiBar}>
           {quickEmojis.map(emoji => (
@@ -235,10 +310,22 @@ export default function ChatArea({
 
         {/* Text Input Row */}
         <div style={styles.inputRow}>
-          <button type="button" className="header-btn" style={styles.inputActionBtn} title="파일 업로드">
+          <button 
+            type="button" 
+            className="header-btn" 
+            style={styles.inputActionBtn} 
+            title="파일 업로드"
+            onClick={() => fileInputRef.current?.click()}
+          >
             <Paperclip size={20} />
           </button>
-          <button type="button" className="header-btn" style={styles.inputActionBtn} title="이미지 업로드">
+          <button 
+            type="button" 
+            className="header-btn" 
+            style={styles.inputActionBtn} 
+            title="이미지 업로드"
+            onClick={() => fileInputRef.current?.click()}
+          >
             <ImageIcon size={20} />
           </button>
 
