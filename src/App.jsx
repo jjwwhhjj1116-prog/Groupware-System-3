@@ -27,7 +27,7 @@ import {
 import { getUserRoleLevel, getRoleLabel } from './utils/permission'; // 추가
 import ceoDongmyungImg from './assets/ceo_dongmyung.png';
 import ceoDongmyungThinkingImg from './assets/ceo_dongmyung_thinking.png';
-import chatbotIcon from './assets/chatbot_icon.png';
+
 
 // AI 영자 표정 이미지들
 const YOUNGJA_IMAGES = {
@@ -1713,11 +1713,69 @@ export default function App() {
             title="AI 비서 동명 대화하기"
             className="dog-robot-btn"
           >
-            <img 
-              src={chatbotIcon} 
-              alt="AI Chatbot Icon" 
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-            />
+            <svg 
+              width="44" 
+              height="44" 
+              viewBox="0 0 64 64" 
+              fill="none" 
+              xmlns="http://www.w3.org/2000/svg"
+              style={{ transition: 'transform 0.3s ease' }}
+            >
+              <defs>
+                <linearGradient id="visorGrad" x1="16" y1="20" x2="48" y2="38" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#111214" />
+                  <stop offset="100%" stopColor="#202225" />
+                </linearGradient>
+                <linearGradient id="headGrad" x1="12" y1="14" x2="52" y2="48" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#ffffff" />
+                  <stop offset="100%" stopColor="#f0f1f5" />
+                </linearGradient>
+                <linearGradient id="earGrad" x1="6" y1="22" x2="58" y2="42" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#2f3136" />
+                  <stop offset="100%" stopColor="#1f2023" />
+                </linearGradient>
+                <filter id="shadowFilter" x="-10%" y="-10%" width="120%" height="120%">
+                  <feDropShadow dx="0" dy="2" stdDeviation="2" floodOpacity="0.15" />
+                </filter>
+              </defs>
+
+              {/* Antennae */}
+              <path d="M22 18L18 8" stroke="#cbd5e1" strokeWidth="3" strokeLinecap="round" />
+              <circle cx="18" cy="8" r="4" fill="var(--primary)" />
+              <circle cx="18" cy="8" r="1.5" fill="#ffffff" />
+
+              <path d="M42 18L46 8" stroke="#cbd5e1" strokeWidth="3" strokeLinecap="round" />
+              <circle cx="46" cy="8" r="4" fill="var(--primary)" />
+              <circle cx="46" cy="8" r="1.5" fill="#ffffff" />
+
+              {/* Robot Head Body */}
+              <rect x="10" y="14" width="44" height="34" rx="14" fill="url(#headGrad)" stroke="#e2e8f0" strokeWidth="2" />
+
+              {/* Side Headphones (Robot Ears) */}
+              <rect x="5" y="22" width="6" height="18" rx="3" fill="url(#earGrad)" />
+              <rect x="7" y="26" width="2" height="10" rx="1" fill="var(--primary)" opacity="0.8" />
+              
+              <rect x="53" y="22" width="6" height="18" rx="3" fill="url(#earGrad)" />
+              <rect x="55" y="26" width="2" height="10" rx="1" fill="var(--primary)" opacity="0.8" />
+
+              {/* Visor */}
+              <rect x="14" y="20" width="36" height="20" rx="8" fill="url(#visorGrad)" filter="url(#shadowFilter)" />
+
+              {/* Glowing Eyes */}
+              <circle cx="23" cy="30" r="4.5" fill="none" stroke="var(--primary)" strokeWidth="2" />
+              <circle cx="23" cy="30" r="1.5" fill="var(--primary)" />
+              
+              <circle cx="41" cy="30" r="4.5" fill="none" stroke="var(--primary)" strokeWidth="2" />
+              <circle cx="41" cy="30" r="1.5" fill="var(--primary)" />
+
+              {/* Blush */}
+              <circle cx="18" cy="36" r="1.5" fill="var(--primary)" opacity="0.4" />
+              <circle cx="46" cy="36" r="1.5" fill="var(--primary)" opacity="0.4" />
+
+              {/* Robotic Collar/Neck */}
+              <rect x="24" y="47" width="16" height="5" rx="2.5" fill="#cbd5e1" />
+              <line x1="28" y1="49.5" x2="36" y2="49.5" stroke="var(--primary)" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
           </button>
         </div>
       )}
