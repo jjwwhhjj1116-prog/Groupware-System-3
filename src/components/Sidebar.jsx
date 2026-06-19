@@ -514,6 +514,26 @@ export default function Sidebar({
             <Bot size={26} />
           </button>
 
+          {/* Settings Button */}
+          <button 
+            className="action-btn"
+            style={styles.actionBtn} 
+            onClick={onOpenSettings} 
+            title="환경 설정"
+          >
+            <Settings size={26} />
+          </button>
+
+          {/* Logout Button */}
+          <button 
+            className="action-btn"
+            style={{ ...styles.actionBtn, color: '#ff4d4f' }} 
+            onClick={onLogout} 
+            title="로그아웃"
+          >
+            <LogOutIcon size={24} />
+          </button>
+
           {/* Theme Toggle */}
           <button 
             className="action-btn"
@@ -580,30 +600,16 @@ export default function Sidebar({
           {renderSubPanelContent()}
         </div>
 
-        {/* Profile/Footer Area (설정/로그아웃만 노출하여 프로필 중복 제거) */}
-        <div style={{ ...styles.profileFooter, justifyContent: 'flex-end', padding: '14px 20px' }}>
-          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-            <button 
-              onClick={onLogout} 
-              style={{ ...styles.settingsBtn, color: '#ff4d4f' }} 
-              title="로그아웃"
-            >
-              <LogOutIcon />
-            </button>
-            <button style={styles.settingsBtn} title="설정" onClick={onOpenSettings}>
-              <Settings size={16} />
-            </button>
-          </div>
-        </div>
+
       </div>
     </div>
   );
 }
 
 // 간단한 로그아웃 아이콘
-function LogOutIcon() {
+function LogOutIcon({ size = 14 }) {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
       <polyline points="16 17 21 12 16 7"></polyline>
       <line x1="21" y1="12" x2="9" y2="12"></line>
