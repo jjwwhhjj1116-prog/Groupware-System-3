@@ -19,8 +19,10 @@ import {
   Settings,
   X,
   Key,
-  Database
+  Database,
+  ShieldAlert // 추가
 } from 'lucide-react';
+import { getUserRoleLevel, getRoleLabel } from './utils/permission'; // 추가
 
 // AI 영자 표정 이미지들
 const YOUNGJA_IMAGES = {
@@ -922,6 +924,15 @@ export default function App() {
           }}
           currentMenu={currentMenu}
           onMenuChange={(menu) => {
+            const roleLevel = getUserRoleLevel(currentUser);
+            if (menu === 'hr' && roleLevel > 2) {
+              alert(currentWorkspace === 'vietqs' ? 'Không có quyền truy cập.' : '접근 권한이 없습니다. (임원 이상 접근 가능)');
+              return;
+            }
+            if (menu === 'project' && roleLevel > 3) {
+              alert(currentWorkspace === 'vietqs' ? 'Không có quyền truy cập.' : '접근 권한이 없습니다. (PM 이상 접근 가능)');
+              return;
+            }
             setCurrentMenu(menu);
             if (menu === 'chat') setActiveChat({ type: 'channel', id: 'general' });
           }}
@@ -1664,6 +1675,28 @@ export default function App() {
   function renderMainContent() {
     const isConcost = currentWorkspace === 'concost';
     const accentColor = isConcost ? '#ff6b00' : 'var(--primary)';
+    const roleLevel = getUserRoleLevel(currentUser);
+
+    // 접근 권한 강제 차단 가드
+    if (currentMenu === 'hr' && roleLevel > 2) {
+      return (
+        <div style={{ display: 'flex', flex: 1, height: '100%', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
+          <ShieldAlert size={48} style={{ color: 'var(--danger)', marginBottom: '16px' }} />
+          <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>접근 권한이 없습니다</h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '6px' }}>임원 등급 이상만 접근할 수 있는 메뉴입니다.</p>
+        </div>
+      );
+    }
+
+    if (currentMenu === 'project' && roleLevel > 3) {
+      return (
+        <div style={{ display: 'flex', flex: 1, height: '100%', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
+          <ShieldAlert size={48} style={{ color: 'var(--danger)', marginBottom: '16px' }} />
+          <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>접근 권한이 없습니다</h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '6px' }}>PM 등급 이상만 접근할 수 있는 메뉴입니다.</p>
+        </div>
+      );
+    }
 
     switch (currentMenu) {
       case 'chat':

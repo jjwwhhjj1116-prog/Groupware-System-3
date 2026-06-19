@@ -1,4 +1,3 @@
-import React from 'react';
 import { 
   Hash, 
   MessageSquare, 
@@ -21,9 +20,9 @@ import {
   Users,
   Home
 } from 'lucide-react';
-
 import concostVert from '../assets/concost_logo_vert.png';
 import vietqsLogo from '../assets/vietqs_logo.png';
+import { getUserRoleLevel, getRoleLabel } from '../utils/permission'; // 권한 관리 유틸 임포트
 
 export default function Sidebar({ 
   currentWorkspace, 
@@ -47,26 +46,30 @@ export default function Sidebar({
   onLogout
 }) {
 
-  // 관리자 권한 여부 체크
-  const isManager = currentUser && (
-    ['대표', '부사장', '상무', '센터장', '본부장', '실장', '팀장', '파트장', 'CEO'].includes(currentUser.grade) ||
-    currentUser.dept === '경영지원본부' ||
-    currentUser.role === '실장'
-  );
+  const roleLevel = getUserRoleLevel(currentUser);
 
   // 1단 글로벌 네비게이션 메뉴 정의 (다국어 바인딩)
   const menuItems = [
     { id: 'home', label: currentWorkspace === 'vietqs' ? 'Bảng điều khiển' : '대시보드', icon: <Home size={20} /> },
     { id: 'chat', label: t.chat, icon: <MessageSquare size={20} />, badge: 3 },
     { id: 'mail', label: t.mail, icon: <Mail size={20} />, badge: mailUnreadCount },
-    { id: 'calendar', label: t.calendar, icon: <Calendar size={20} /> },
-    { id: 'project', label: t.project, icon: <Layers size={20} /> },
+    { id: 'calendar', label: t.calendar, icon: <Calendar size={20} /> }
+  ];
+
+  // 프로젝트 칸반: PM 이상 (Level 1, 2, 3) 노출
+  if (roleLevel <= 3) {
+    menuItems.push({ id: 'project', label: t.project, icon: <Layers size={20} /> });
+  }
+
+  // 드라이브, 할일, 게시판: 모든 등급 노출
+  menuItems.push(
     { id: 'drive', label: t.drive, icon: <Cloud size={20} /> },
     { id: 'todo', label: t.todo, icon: <CheckCircle size={20} />, badge: todoCount },
     { id: 'board', label: t.board, icon: <Megaphone size={20} /> }
-  ];
+  );
 
-  if (isManager) {
+  // 조직도: 임원 이상 (Level 1, 2) 노출
+  if (roleLevel <= 2) {
     menuItems.push({ 
       id: 'hr', 
       label: currentWorkspace === 'vietqs' ? 'Sơ đồ tổ chức' : '조직도', 
@@ -437,7 +440,9 @@ export default function Sidebar({
           
           <div style={styles.avatarWrapper}>
             <div style={styles.myAvatar}>
-              <span style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>{currentWorkspace === 'vietqs' ? 'G' : '대'}</span>
+              <span style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>
+                {currentUser?.userName ? currentUser.userName.charAt(0) : (currentWorkspace === 'vietqs' ? 'G' : '대')}
+              </span>
             </div>
             <span className="status-dot online" style={styles.myStatus} />
           </div>
@@ -471,7 +476,7 @@ export default function Sidebar({
             </div>
             <div style={styles.profileMeta}>
               <div style={styles.profileName} title={currentUser?.userName || ''}>
-                {currentUser?.userName ? `${currentUser.userName} ${currentUser.grade || ''}` : (currentWorkspace === 'vietqs' ? 'Giám đốc' : '대표님 (나)')}
+                {currentUser?.userName ? `${currentUser.userName} ${currentUser.grade || ''} (${getRoleLabel(roleLevel)})` : (currentWorkspace === 'vietqs' ? 'Giám đốc' : '대표님 (나)')}
               </div>
               <div style={styles.profileStatus}>
                 <span className="status-dot online" style={{ marginRight: '6px' }} />

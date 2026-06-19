@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Mail, Phone, MapPin, Building, ShieldAlert, MessageSquare, Edit2, Save, Trash2 } from 'lucide-react';
+import { getUserRoleLevel } from '../utils/permission'; // 권한 유틸 임포트
 
 export default function HrCardModal({ isOpen, onClose, employee, onStartDm, currentUser, onRefreshEmployees }) {
   if (!isOpen || !employee) return null;
@@ -76,12 +77,10 @@ export default function HrCardModal({ isOpen, onClose, employee, onStartDm, curr
   };
 
   const isSelf = currentUser && currentUser.empNo === employee.empNo;
-
-  const isManager = currentUser && (
-    ['대표', '부사장', '상무', '센터장', '본부장', '실장', '팀장', '파트장', 'CEO'].includes(currentUser.grade) ||
-    currentUser.dept === '경영지원본부' ||
-    currentUser.role === '실장'
-  );
+  const roleLevel = getUserRoleLevel(currentUser);
+  
+  // 사원 정보 수정 및 퇴사 처리는 오직 관리자(Level 1)만 가능
+  const isAdmin = roleLevel === 1;
 
   const handleSave = async () => {
     if (!editForm.userName.trim()) {
@@ -294,7 +293,7 @@ export default function HrCardModal({ isOpen, onClose, employee, onStartDm, curr
               </div>
 
               <div style={styles.footerActions}>
-                {isManager && (
+                {isAdmin && (
                   <div style={{ display: 'flex', gap: '8px', marginRight: 'auto' }}>
                     <button style={styles.editBtn} onClick={() => setIsEditing(true)}>
                       <Edit2 size={13} style={{ marginRight: '4px' }} /> 정보 수정

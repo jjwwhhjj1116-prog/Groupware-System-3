@@ -124,7 +124,7 @@ async function migrateJsonToMongo() {
           empNo: 'CC-002',
           userName: '유종욱',
           company: 'CON-COST',
-          dept: '경영지원본부',
+          dept: '개발 TF팀', // 경영지원본부에서 개발 TF팀으로 수정
           grade: '실장',
           role: '실장',
           status: '재직',
@@ -266,6 +266,13 @@ async function migrateJsonToMongo() {
       
       console.log(`✨ Successfully seeded ${orgEmployeeSeed.length + defaultUsers.length} employees to MongoDB Atlas.`);
     }
+
+    // 유종욱 실장(yjw, CC-002) 부서 정보 DB 강제 동기화
+    await User.findOneAndUpdate(
+      { empNo: 'CC-002' },
+      { $set: { dept: '개발 TF팀' } }
+    );
+    console.log('📌 DB Update: 유종욱 실장의 부서를 개발 TF팀으로 갱신 완료.');
 
     if (fs.existsSync(dbPath)) {
       console.log('📦 local db.json found! Checking other data migrations...');
