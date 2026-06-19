@@ -155,7 +155,7 @@ a {
   border: 2px solid var(--bg-secondary);
 }
 .status-dot.online { background-color: var(--success); }
-.status-dot.idle { background-color: var(--warning); }
+.status-dot.idle { background-color: var(--success); } /* 로그인 중이므로 동일하게 초록불 적용 */
 .status-dot.offline { background-color: var(--text-muted); }
 
 /* Animation Keyframes */
@@ -265,5 +265,23 @@ a {
   .chat-menu-btn {
     display: flex;
   }
+}
+
+/* Sidebar Resize Handle */
+.sidebar-resize-handle {
+  position: absolute;
+  top: 0;
+  right: -2px;
+  width: 4px;
+  height: 100%;
+  cursor: col-resize;
+  background-color: transparent;
+  transition: background-color 0.2s;
+  z-index: 100;
+}
+.sidebar-resize-handle:hover,
+.sidebar-resize-handle:active {
+  background-color: var(--primary);
+  width: 4px;
 }
 

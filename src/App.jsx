@@ -225,6 +225,15 @@ export default function App() {
   const [activeChat, setActiveChat] = useState({ type: 'channel', id: 'general' });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // HOME 화면에서는 기본적으로 닫아 둠
+  const [subPanelWidth, setSubPanelWidth] = useState(() => {
+    const saved = localStorage.getItem('sidebar_subpanel_width');
+    return saved ? parseInt(saved, 10) : 260; // 기본 260px
+  });
+
+  const handleSubPanelWidthChange = (width) => {
+    setSubPanelWidth(width);
+    localStorage.setItem('sidebar_subpanel_width', String(width));
+  };
   const [isChatbotHovered, setIsChatbotHovered] = useState(false); // 챗봇 마우스오버 트래킹
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
@@ -332,7 +341,7 @@ export default function App() {
   const [dms, setDms] = useState([
     { id: 'youngja-dm', name: '영자 실장 (디자인)', avatarColor: '#ff007f', status: 'online' },
     { id: 'jabis-dm', name: '자비스 부장 (개발)', avatarColor: '#6e40c9', status: 'offline' },
-    { id: 'kodari-dm', name: '코다리 대표 (기획)', avatarColor: '#0058bc', status: 'idle' }
+    { id: 'kodari-dm', name: '코다리 대표 (기획)', avatarColor: '#0058bc', status: 'online' }
   ]);
 
   // 각 대화방 메시지 내역
@@ -482,7 +491,8 @@ export default function App() {
       const res = await fetch('/api/employees');
       const data = await res.json();
       if (res.ok && data.success) {
-        setAllEmployees(data.employees);
+        const validEmployees = (data.employees || []).filter(emp => emp && emp.userName && emp.empNo);
+        setAllEmployees(validEmployees);
       }
     } catch (err) {
       console.error('Failed to load employees:', err);
@@ -584,8 +594,9 @@ export default function App() {
         .then(res => res.json())
         .then(data => {
           if (data.success) {
-            setAllEmployees(data.employees);
-            const retryFound = data.employees.find(e => e.id === senderId || e.empNo === senderId);
+            const validEmployees = (data.employees || []).filter(emp => emp && emp.userName && emp.empNo);
+            setAllEmployees(validEmployees);
+            const retryFound = validEmployees.find(e => e.id === senderId || e.empNo === senderId);
             if (retryFound) {
               setSelectedEmployee(retryFound);
               setIsHrCardOpen(true);
@@ -1016,7 +1027,7 @@ export default function App() {
   return (
     <div className="app-container">
       {/* 1단 & 2단 사이드바 */}
-      <div style={{ display: isSidebarOpen ? 'flex' : 'none', height: '100%', zIndex: 50 }}>
+      <div style={{ display: 'flex', height: '100%', zIndex: 50 }}>
         <Sidebar
           currentWorkspace={currentWorkspace}
           onWorkspaceChange={(ws) => {
@@ -1071,6 +1082,9 @@ export default function App() {
               setIsChatbotOpen(true); // 활성화 시 챗봇 창도 함께 열림
             }
           }}
+          isSidebarOpen={isSidebarOpen}
+          subPanelWidth={subPanelWidth}
+          onSubPanelWidthChange={handleSubPanelWidthChange}
         />
       </div>
 
@@ -1147,10 +1161,12 @@ export default function App() {
             />
             <div style={{ maxHeight: '250px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px' }}>
               {allEmployees
-                .filter(emp => emp.id !== (currentUser?.id || 'me')) // 자신은 제외
+                .filter(emp => emp && emp.id !== (currentUser?.id || 'me')) // 자신은 제외
                 .filter(emp => {
                   const query = dmSearchQuery.toLowerCase();
-                  return emp.userName.toLowerCase().includes(query) || (emp.dept && emp.dept.toLowerCase().includes(query));
+                  const nameMatch = emp.userName ? emp.userName.toLowerCase().includes(query) : false;
+                  const deptMatch = emp.dept ? emp.dept.toLowerCase().includes(query) : false;
+                  return nameMatch || deptMatch;
                 })
                 .map(emp => (
                   <button
@@ -1198,9 +1214,11 @@ export default function App() {
                   </button>
                 ))
               }
-              {allEmployees.filter(emp => emp.id !== (currentUser?.id || 'me')).filter(emp => {
+              {allEmployees.filter(emp => emp && emp.id !== (currentUser?.id || 'me')).filter(emp => {
                 const query = dmSearchQuery.toLowerCase();
-                return emp.userName.toLowerCase().includes(query) || (emp.dept && emp.dept.toLowerCase().includes(query));
+                const nameMatch = emp.userName ? emp.userName.toLowerCase().includes(query) : false;
+                const deptMatch = emp.dept ? emp.dept.toLowerCase().includes(query) : false;
+                return nameMatch || deptMatch;
               }).length === 0 && (
                 <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
                   검색된 직원이 없습니다.
@@ -1263,7 +1281,7 @@ export default function App() {
             />
             <div style={{ maxHeight: '250px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px' }}>
               {allEmployees
-                .filter(emp => emp.id !== (currentUser?.id || 'me')) // 본인 제외
+                .filter(emp => emp && emp.id !== (currentUser?.id || 'me')) // 본인 제외
                 .filter(emp => {
                   // 현재 DM 상대와 중복 초대 방지
                   if (activeChat.type === 'dm') {
@@ -1274,7 +1292,9 @@ export default function App() {
                 })
                 .filter(emp => {
                   const query = inviteSearchQuery.toLowerCase();
-                  return emp.userName.toLowerCase().includes(query) || (emp.dept && emp.dept.toLowerCase().includes(query));
+                  const nameMatch = emp.userName ? emp.userName.toLowerCase().includes(query) : false;
+                  const deptMatch = emp.dept ? emp.dept.toLowerCase().includes(query) : false;
+                  return nameMatch || deptMatch;
                 })
                 .map(emp => (
                   <button
@@ -1319,7 +1339,7 @@ export default function App() {
                 ))
               }
               {allEmployees
-                .filter(emp => emp.id !== (currentUser?.id || 'me'))
+                .filter(emp => emp && emp.id !== (currentUser?.id || 'me'))
                 .filter(emp => {
                   if (activeChat.type === 'dm') {
                     const activeDm = dms.find(d => d.id === activeChat.id);
@@ -1329,7 +1349,9 @@ export default function App() {
                 })
                 .filter(emp => {
                   const query = inviteSearchQuery.toLowerCase();
-                  return emp.userName.toLowerCase().includes(query) || (emp.dept && emp.dept.toLowerCase().includes(query));
+                  const nameMatch = emp.userName ? emp.userName.toLowerCase().includes(query) : false;
+                  const deptMatch = emp.dept ? emp.dept.toLowerCase().includes(query) : false;
+                  return nameMatch || deptMatch;
                 }).length === 0 && (
                 <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
                   초대 가능한 직원이 없습니다.

@@ -49,10 +49,35 @@ export default function Sidebar({
   isChatbotVisible, // 추가
   onToggleChatbotVisible, // 추가
   todoFilter = 'all', // 추가
-  onTodoFilterChange // 추가
+  onTodoFilterChange, // 추가
+  isSidebarOpen,
+  subPanelWidth = 260,
+  onSubPanelWidthChange
 }) {
 
   const roleLevel = getUserRoleLevel(currentUser);
+
+  const handleMouseDown = (e) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = subPanelWidth;
+
+    const handleMouseMove = (moveEvent) => {
+      const deltaX = moveEvent.clientX - startX;
+      const newWidth = Math.max(160, Math.min(450, startWidth + deltaX));
+      if (onSubPanelWidthChange) {
+        onSubPanelWidthChange(newWidth);
+      }
+    };
+
+    const handleMouseUp = () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
 
   // 1단 글로벌 네비게이션 메뉴 정의 (다국어 바인딩)
   const menuItems = [
@@ -476,7 +501,12 @@ export default function Sidebar({
           </button>
           
           <div style={styles.avatarWrapper} onClick={() => onUserClick && onUserClick(currentUser?.id)}>
-            <div style={{ ...styles.myAvatar, cursor: 'pointer', overflow: 'hidden' }}>
+            <div style={{ 
+              ...styles.myAvatar, 
+              backgroundColor: currentUser?.photoUrl ? 'transparent' : 'var(--primary)',
+              cursor: 'pointer', 
+              overflow: 'hidden' 
+            }}>
               {currentUser?.photoUrl ? (
                 <img 
                   src={currentUser.photoUrl} 
@@ -497,8 +527,15 @@ export default function Sidebar({
       {/* 2단: Sub-Navigation Panel (Dynamic by menu) */}
       <div style={{
         ...styles.subPanel,
-        display: currentMenu === 'home' ? 'none' : 'flex'
+        width: `${subPanelWidth}px`,
+        display: (currentMenu === 'home' || !isSidebarOpen) ? 'none' : 'flex',
+        position: 'relative'
       }}>
+        {/* resize handle */}
+        <div 
+          onMouseDown={handleMouseDown}
+          className="sidebar-resize-handle"
+        />
         {/* Workspace Brand Header */}
         <div style={styles.header}>
           <div style={styles.brandWrapper}>
