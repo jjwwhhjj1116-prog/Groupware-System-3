@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import concostVert from '../assets/concost_logo_vert.png';
 import vietqsLogo from '../assets/vietqs_logo.png';
-import ceoDongmyungImg from '../assets/ceo_dongmyung.png';
+
 import { getUserRoleLevel, getRoleLabel } from '../utils/permission'; // 권한 관리 유틸 임포트
 
 export default function Sidebar({ 
@@ -174,14 +174,23 @@ export default function Sidebar({
                       width: '20px',
                       height: '20px',
                       borderRadius: 'var(--radius-sm)',
-                      overflow: 'hidden',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      backgroundColor: 'transparent',
+                      backgroundColor: 'var(--bg-secondary)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
                       flexShrink: 0
                     }}>
-                      <img src={ceoDongmyungImg} alt="CEO" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <svg width="14" height="14" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M22 18L18 8" stroke="#cbd5e1" strokeWidth="4" strokeLinecap="round" />
+                        <circle cx="18" cy="8" r="5" fill="var(--primary)" />
+                        <path d="M42 18L46 8" stroke="#cbd5e1" strokeWidth="4" strokeLinecap="round" />
+                        <circle cx="46" cy="8" r="5" fill="var(--primary)" />
+                        <rect x="10" y="14" width="44" height="34" rx="14" fill="#ffffff" stroke="#cbd5e1" strokeWidth="3" />
+                        <rect x="14" y="20" width="36" height="20" rx="8" fill="#111214" />
+                        <circle cx="23" cy="30" r="4.5" fill="var(--primary)" />
+                        <circle cx="41" cy="30" r="4.5" fill="var(--primary)" />
+                      </svg>
                     </div>
                     <span style={styles.itemText}>{t.aiName}</span>
                   </button>
@@ -424,6 +433,7 @@ export default function Sidebar({
         <div style={styles.workspaceList}>
           {/* CONCOST Workspace */}
           <button 
+            className="workspace-btn"
             style={{
               ...styles.workspaceBtn,
               borderLeft: currentWorkspace === 'concost' ? '3px solid #ff6b00' : '3px solid transparent',
@@ -442,6 +452,7 @@ export default function Sidebar({
 
           {/* VIETQS Workspace */}
           <button 
+            className="workspace-btn"
             style={{
               ...styles.workspaceBtn,
               borderLeft: currentWorkspace === 'vietqs' ? '3px solid #0058bc' : '3px solid transparent',
@@ -538,12 +549,15 @@ export default function Sidebar({
       </div>
 
       {/* 2단: Sub-Navigation Panel (Dynamic by menu) */}
-      <div style={{
-        ...styles.subPanel,
-        width: `${subPanelWidth}px`,
-        display: (currentMenu === 'home' || !isSidebarOpen) ? 'none' : 'flex',
-        position: 'relative'
-      }}>
+      <div 
+        className="sidebar-subpanel"
+        style={{
+          ...styles.subPanel,
+          width: `${subPanelWidth}px`,
+          display: (currentMenu === 'home' || !isSidebarOpen) ? 'none' : 'flex',
+          position: 'relative'
+        }}
+      >
         {/* resize handle */}
         <div 
           onMouseDown={handleMouseDown}

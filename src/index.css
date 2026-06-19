@@ -184,76 +184,78 @@ a {
 
 /* Works UI Hover & Active Utilities */
 .workspace-icon-wrapper:hover {
-  transform: scale(1.05);
+  transform: scale(1.05) !important;
 }
 
 .action-btn:hover {
-  color: var(--text-primary);
-  background-color: var(--bg-active);
+  color: var(--text-primary) !important;
+  background-color: var(--bg-active) !important;
 }
 
 .menu-item-btn:hover {
-  background-color: var(--bg-hover);
-  color: var(--text-primary);
+  background-color: var(--bg-hover) !important;
+  color: var(--text-primary) !important;
 }
 
 .add-btn:hover {
-  background-color: var(--bg-active);
-  color: var(--text-primary);
+  background-color: var(--bg-active) !important;
+  color: var(--text-primary) !important;
 }
 
 .item-btn:hover {
-  background-color: var(--bg-hover);
+  background-color: var(--bg-hover) !important;
+  color: var(--text-primary) !important;
 }
 
 .checkbox-item:hover {
-  background-color: var(--bg-hover);
+  background-color: var(--bg-hover) !important;
 }
 
 .settings-btn:hover {
-  background-color: var(--bg-hover);
-  color: var(--text-primary);
+  background-color: var(--bg-hover) !important;
+  color: var(--text-primary) !important;
 }
 
 .header-btn:hover {
-  background-color: var(--bg-hover);
-  color: var(--text-primary);
+  background-color: var(--bg-hover) !important;
+  color: var(--text-primary) !important;
 }
 
 .todo-delete-btn:hover {
-  color: var(--danger);
-  background-color: var(--bg-hover);
+  color: var(--danger) !important;
+  background-color: var(--bg-hover) !important;
 }
 
 .close-btn:hover {
-  background-color: var(--bg-hover);
-  color: var(--text-primary);
+  background-color: var(--bg-hover) !important;
+  color: var(--text-primary) !important;
 }
 
 .cancel-btn:hover {
-  background-color: var(--bg-hover);
-  color: var(--text-primary);
+  background-color: var(--bg-hover) !important;
+  color: var(--text-primary) !important;
 }
 
 .card-btn:hover {
-  background-color: var(--bg-hover);
-  color: var(--text-primary);
+  background-color: var(--bg-hover) !important;
+  color: var(--text-primary) !important;
 }
 
 .quick-emoji-btn:hover {
-  background-color: var(--bg-hover);
+  background-color: var(--bg-hover) !important;
 }
 
 .picker-emoji-btn:hover {
-  background-color: var(--bg-hover);
+  background-color: var(--bg-hover) !important;
 }
 
 .post-table-row:hover {
-  background-color: var(--bg-hover);
+  background-color: var(--bg-hover) !important;
 }
 
 .mail-item:hover {
-  transform: translateY(-1px);
+  background-color: var(--bg-hover) !important;
+  transform: translateY(-1px) !important;
 }
 
 /* Responsive hamburgers for Mobile */
@@ -284,4 +286,56 @@ a {
   background-color: var(--primary);
   width: 4px;
 }
+
+/* --- Added custom interactive hovers --- */
+
+/* Sidebar Workspace Hover */
+.workspace-btn:hover {
+  background-color: var(--bg-hover) !important;
+}
+
+/* Sidebar Subpanel Global Hover */
+.sidebar-subpanel button:hover {
+  background-color: var(--bg-hover) !important;
+}
+.sidebar-subpanel label:hover {
+  background-color: var(--bg-hover) !important;
+}
+
+/* Home Dashboard Widget Cards Hover */
+.widget-card {
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.25s ease, box-shadow 0.25s ease !important;
+}
+.widget-card:hover {
+  transform: translateY(-2.5px) !important;
+  border-color: var(--primary) !important;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Dashboard Mail Item Card Hover */
+.mail-item-card {
+  transition: all 0.15s ease-in-out !important;
+}
+.mail-item-card:hover {
+  background-color: var(--bg-hover) !important;
+  transform: translateX(4px) !important;
+}
+
+/* Calendar Cells Hover */
+.calendar-cell {
+  transition: all 0.15s ease-in-out !important;
+}
+.calendar-cell:hover {
+  background-color: var(--bg-hover) !important;
+  border-color: var(--primary) !important;
+}
+
+/* Todo Item Row Hover */
+.todo-item-row {
+  transition: all 0.15s ease-in-out !important;
+}
+.todo-item-row:hover {
+  background-color: var(--bg-hover) !important;
+}
+
 

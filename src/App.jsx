@@ -41,6 +41,73 @@ const YOUNGJA_IMAGES = {
   panic: "https://raw.githubusercontent.com/wonseokjung/solopreneur-ai-agents/main/agents/youngja/assets/youngja_panic.png"
 };
 
+// Robot Face Icon Component (Custom inline SVG)
+const RobotFaceIcon = ({ size = 44 }) => (
+  <svg 
+    width={size} 
+    height={size} 
+    viewBox="0 0 64 64" 
+    fill="none" 
+    xmlns="http://www.w3.org/2000/svg"
+    style={{ transition: 'transform 0.3s ease' }}
+  >
+    <defs>
+      <linearGradient id="visorGrad" x1="16" y1="20" x2="48" y2="38" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stopColor="#111214" />
+        <stop offset="100%" stopColor="#202225" />
+      </linearGradient>
+      <linearGradient id="headGrad" x1="12" y1="14" x2="52" y2="48" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stopColor="#ffffff" />
+        <stop offset="100%" stopColor="#f0f1f5" />
+      </linearGradient>
+      <linearGradient id="earGrad" x1="6" y1="22" x2="58" y2="42" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stopColor="#2f3136" />
+        <stop offset="100%" stopColor="#1f2023" />
+      </linearGradient>
+      <filter id="shadowFilter" x="-10%" y="-10%" width="120%" height="120%">
+        <feDropShadow dx="0" dy="2" stdDeviation="2" floodOpacity="0.15" />
+      </filter>
+    </defs>
+
+    {/* Antennae */}
+    <path d="M22 18L18 8" stroke="#cbd5e1" strokeWidth="3" strokeLinecap="round" />
+    <circle cx="18" cy="8" r="4" fill="var(--primary)" />
+    <circle cx="18" cy="8" r="1.5" fill="#ffffff" />
+
+    <path d="M42 18L46 8" stroke="#cbd5e1" strokeWidth="3" strokeLinecap="round" />
+    <circle cx="46" cy="8" r="4" fill="var(--primary)" />
+    <circle cx="46" cy="8" r="1.5" fill="#ffffff" />
+
+    {/* Robot Head Body */}
+    <rect x="10" y="14" width="44" height="34" rx="14" fill="url(#headGrad)" stroke="#e2e8f0" strokeWidth="2" />
+
+    {/* Side Headphones (Robot Ears) */}
+    <rect x="5" y="22" width="6" height="18" rx="3" fill="url(#earGrad)" />
+    <rect x="7" y="26" width="2" height="10" rx="1" fill="var(--primary)" opacity="0.8" />
+    
+    <rect x="53" y="22" width="6" height="18" rx="3" fill="url(#earGrad)" />
+    <rect x="55" y="26" width="2" height="10" rx="1" fill="var(--primary)" opacity="0.8" />
+
+    {/* Visor */}
+    <rect x="14" y="20" width="36" height="20" rx="8" fill="url(#visorGrad)" filter="url(#shadowFilter)" />
+
+    {/* Glowing Eyes */}
+    <circle cx="23" cy="30" r="4.5" fill="none" stroke="var(--primary)" strokeWidth="2" />
+    <circle cx="23" cy="30" r="1.5" fill="var(--primary)" />
+    
+    <circle cx="41" cy="30" r="4.5" fill="none" stroke="var(--primary)" strokeWidth="2" />
+    <circle cx="41" cy="30" r="1.5" fill="var(--primary)" />
+
+    {/* Blush */}
+    <circle cx="18" cy="36" r="1.5" fill="var(--primary)" opacity="0.4" />
+    <circle cx="46" cy="36" r="1.5" fill="var(--primary)" opacity="0.4" />
+
+    {/* Robotic Collar/Neck */}
+    <rect x="24" y="47" width="16" height="5" rx="2.5" fill="#cbd5e1" />
+    <line x1="28" y1="49.5" x2="36" y2="49.5" stroke="var(--primary)" strokeWidth="1.5" strokeLinecap="round" />
+  </svg>
+);
+
 // AI CEO 동명 표정 이미지들
 const CEO_IMAGES = {
   default: ceoDongmyungImg,
@@ -61,7 +128,7 @@ const TRANSLATIONS = {
     channels: "채널",
     dms: "다이렉트 메시지",
     aiAssistant: "AI 어시스턴트",
-    aiName: "✨ AI 공사비 컨설팅 CEO (동명)",
+    aiName: "✨ CC AI 비서",
     addChannel: "채널 추가",
     addTodo: "일정 추가",
     addProject: "프로젝트 생성",
@@ -125,7 +192,7 @@ const TRANSLATIONS = {
     channels: "Kênh",
     dms: "Tin nhắn trực tiếp",
     aiAssistant: "Trợ lý AI",
-    aiName: "✨ AI Tư vấn Chi phí XD (Dongmyung)",
+    aiName: "✨ CC AI Trợ lý",
     addChannel: "Thêm kênh",
     addTodo: "Thêm lịch",
     addProject: "Tạo dự án",
@@ -265,7 +332,7 @@ export default function App() {
   const [chatbotPos, setChatbotPos] = useState({ x: 0, y: 0 });
   const [chatbotText, setChatbotText] = useState('');
   const [chatbotMessages, setChatbotMessages] = useState([
-    { id: 'cb-1', sender: 'youngja', senderName: 'CEO 현동명 (AI)', content: '반갑네, 유종욱 실장. 내가 바로 (주)컨코스트의 회장 현동명이라네. 건축 공사비 적산이나 회사 규정에 대해 궁금한 점이 있으면 무엇이든 물어보게나. 허허.', time: '오전 11:00' }
+    { id: 'cb-1', sender: 'youngja', senderName: 'CC AI 비서', content: '안녕하세요, 유종욱 실장님! 🤖 저는 대표님을 돕는 스마트한 CC AI 비서입니다. 건축 공사비 적산, 사내 규정이나 일정 관리 등 궁금하신 점이 있으시면 편하게 물어보세요!', time: '오전 11:00' }
   ]);
   const [isChatbotTyping, setIsChatbotTyping] = useState(false);
 
@@ -1019,7 +1086,7 @@ export default function App() {
       if (isViet) {
         reply = `Thưa Giám đốc! Tôi là Dongmyung, AI hỗ trợ 🐶🤖. Vui lòng thiết lập API Key trong cài đặt (⚙️) để kích hoạt toàn bộ tính năng RAG thực tế!`;
       } else {
-        reply = `유 실장! 🐶🤖 설정(⚙️)에서 Google Gemini API Key를 등록하면 실시간 RAG와 완벽한 AI 맞춤 조언 서비스를 제공해줄 수 있네. 지금은 데모 모드라네. 허허.`;
+        reply = `실장님! 🤖 설정(⚙️)에서 Google Gemini API Key를 등록하면 실시간 RAG와 완벽한 AI 맞춤 비서 서비스를 제공해드릴 수 있습니다. 지금은 데모 모드입니다. 😊`;
       }
     } else {
       imageKey = reply.includes('생각') || reply.includes('고민') || reply.includes('적산') ? 'thinking' : 'default';
@@ -1029,7 +1096,7 @@ export default function App() {
     const aiMsg = {
       id: `cb-ai-${Date.now()}`,
       sender: 'ceo-bot',
-      senderName: isViet ? '✨ AI Tư vấn Chi phí XD (Dongmyung)' : '✨ AI 공사비 컨설팅 CEO (동명)',
+      senderName: isViet ? '✨ CC AI Trợ lý' : '✨ CC AI 비서',
       content: reply,
       time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
       youngjaImageUrl: CEO_IMAGES[imageKey]
@@ -1713,69 +1780,7 @@ export default function App() {
             title="AI 비서 동명 대화하기"
             className="dog-robot-btn"
           >
-            <svg 
-              width="44" 
-              height="44" 
-              viewBox="0 0 64 64" 
-              fill="none" 
-              xmlns="http://www.w3.org/2000/svg"
-              style={{ transition: 'transform 0.3s ease' }}
-            >
-              <defs>
-                <linearGradient id="visorGrad" x1="16" y1="20" x2="48" y2="38" gradientUnits="userSpaceOnUse">
-                  <stop offset="0%" stopColor="#111214" />
-                  <stop offset="100%" stopColor="#202225" />
-                </linearGradient>
-                <linearGradient id="headGrad" x1="12" y1="14" x2="52" y2="48" gradientUnits="userSpaceOnUse">
-                  <stop offset="0%" stopColor="#ffffff" />
-                  <stop offset="100%" stopColor="#f0f1f5" />
-                </linearGradient>
-                <linearGradient id="earGrad" x1="6" y1="22" x2="58" y2="42" gradientUnits="userSpaceOnUse">
-                  <stop offset="0%" stopColor="#2f3136" />
-                  <stop offset="100%" stopColor="#1f2023" />
-                </linearGradient>
-                <filter id="shadowFilter" x="-10%" y="-10%" width="120%" height="120%">
-                  <feDropShadow dx="0" dy="2" stdDeviation="2" floodOpacity="0.15" />
-                </filter>
-              </defs>
-
-              {/* Antennae */}
-              <path d="M22 18L18 8" stroke="#cbd5e1" strokeWidth="3" strokeLinecap="round" />
-              <circle cx="18" cy="8" r="4" fill="var(--primary)" />
-              <circle cx="18" cy="8" r="1.5" fill="#ffffff" />
-
-              <path d="M42 18L46 8" stroke="#cbd5e1" strokeWidth="3" strokeLinecap="round" />
-              <circle cx="46" cy="8" r="4" fill="var(--primary)" />
-              <circle cx="46" cy="8" r="1.5" fill="#ffffff" />
-
-              {/* Robot Head Body */}
-              <rect x="10" y="14" width="44" height="34" rx="14" fill="url(#headGrad)" stroke="#e2e8f0" strokeWidth="2" />
-
-              {/* Side Headphones (Robot Ears) */}
-              <rect x="5" y="22" width="6" height="18" rx="3" fill="url(#earGrad)" />
-              <rect x="7" y="26" width="2" height="10" rx="1" fill="var(--primary)" opacity="0.8" />
-              
-              <rect x="53" y="22" width="6" height="18" rx="3" fill="url(#earGrad)" />
-              <rect x="55" y="26" width="2" height="10" rx="1" fill="var(--primary)" opacity="0.8" />
-
-              {/* Visor */}
-              <rect x="14" y="20" width="36" height="20" rx="8" fill="url(#visorGrad)" filter="url(#shadowFilter)" />
-
-              {/* Glowing Eyes */}
-              <circle cx="23" cy="30" r="4.5" fill="none" stroke="var(--primary)" strokeWidth="2" />
-              <circle cx="23" cy="30" r="1.5" fill="var(--primary)" />
-              
-              <circle cx="41" cy="30" r="4.5" fill="none" stroke="var(--primary)" strokeWidth="2" />
-              <circle cx="41" cy="30" r="1.5" fill="var(--primary)" />
-
-              {/* Blush */}
-              <circle cx="18" cy="36" r="1.5" fill="var(--primary)" opacity="0.4" />
-              <circle cx="46" cy="36" r="1.5" fill="var(--primary)" opacity="0.4" />
-
-              {/* Robotic Collar/Neck */}
-              <rect x="24" y="47" width="16" height="5" rx="2.5" fill="#cbd5e1" />
-              <line x1="28" y1="49.5" x2="36" y2="49.5" stroke="var(--primary)" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
+            <RobotFaceIcon size={44} />
           </button>
         </div>
       )}
@@ -1853,7 +1858,7 @@ export default function App() {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold', fontSize: '0.9rem' }}>
-            <span>🐶🤖 AI CEO 동명 회장님 (gemini-3.5-flash)</span>
+            <span>🤖 CC AI 비서 (gemini-3.5-flash)</span>
           </div>
           <button 
             onClick={() => setIsChatbotOpen(false)} 
@@ -1879,12 +1884,18 @@ export default function App() {
                 }}
               >
                 {!isMe && (
-                  <div style={{ width: '28px', height: '28px', borderRadius: '50%', overflow: 'hidden', display: 'flex', alignItems: 'center', justifySelf: 'center', flexShrink: 0 }}>
-                    <img 
-                      src={ceoDongmyungImg} 
-                      alt="CEO" 
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                    />
+                  <div style={{ 
+                    width: '28px', 
+                    height: '28px', 
+                    borderRadius: '50%', 
+                    backgroundColor: 'var(--bg-secondary)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    flexShrink: 0 
+                  }}>
+                    <RobotFaceIcon size={22} />
                   </div>
                 )}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', maxWidth: '75%' }}>
@@ -1978,16 +1989,80 @@ export default function App() {
           </button>
         </form>
 
-        {/* 우측 하단 크기 조절 핸들 (Resizable) */}
+        {/* Right border resizer */}
         <div
           style={{
             position: 'absolute',
-            right: 0,
+            right: '-4px',
+            top: 0,
             bottom: 0,
-            width: '16px',
-            height: '16px',
-            cursor: 'se-resize',
-            zIndex: 10000,
+            width: '8px',
+            cursor: 'ew-resize',
+            zIndex: 10000
+          }}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const startWidth = chatbotSize.width;
+            const startX = e.clientX;
+            
+            const handleMouseMove = (moveEvent) => {
+              const newWidth = Math.max(300, Math.min(1000, startWidth + (moveEvent.clientX - startX)));
+              setChatbotSize(prev => ({ ...prev, width: newWidth }));
+            };
+            
+            const handleMouseUp = () => {
+              window.removeEventListener('mousemove', handleMouseMove);
+              window.removeEventListener('mouseup', handleMouseUp);
+            };
+            
+            window.addEventListener('mousemove', handleMouseMove);
+            window.addEventListener('mouseup', handleMouseUp);
+          }}
+        />
+
+        {/* Bottom border resizer */}
+        <div
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: '-4px',
+            height: '8px',
+            cursor: 'ns-resize',
+            zIndex: 10000
+          }}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const startHeight = chatbotSize.height;
+            const startY = e.clientY;
+            
+            const handleMouseMove = (moveEvent) => {
+              const newHeight = Math.max(350, Math.min(1000, startHeight + (moveEvent.clientY - startY)));
+              setChatbotSize(prev => ({ ...prev, height: newHeight }));
+            };
+            
+            const handleMouseUp = () => {
+              window.removeEventListener('mousemove', handleMouseMove);
+              window.removeEventListener('mouseup', handleMouseUp);
+            };
+            
+            window.addEventListener('mousemove', handleMouseMove);
+            window.addEventListener('mouseup', handleMouseUp);
+          }}
+        />
+
+        {/* Bottom-right corner resizer */}
+        <div
+          style={{
+            position: 'absolute',
+            right: '-6px',
+            bottom: '-6px',
+            width: '18px',
+            height: '18px',
+            cursor: 'nwse-resize',
+            zIndex: 10001,
             display: 'flex',
             alignItems: 'flex-end',
             justifyContent: 'flex-end',
@@ -2002,8 +2077,8 @@ export default function App() {
             const startY = e.clientY;
             
             const handleMouseMove = (moveEvent) => {
-              const newWidth = Math.max(300, startWidth + (moveEvent.clientX - startX));
-              const newHeight = Math.max(400, startHeight + (moveEvent.clientY - startY));
+              const newWidth = Math.max(300, Math.min(1000, startWidth + (moveEvent.clientX - startX)));
+              const newHeight = Math.max(350, Math.min(1000, startHeight + (moveEvent.clientY - startY)));
               setChatbotSize({ width: newWidth, height: newHeight });
             };
             
@@ -2016,8 +2091,8 @@ export default function App() {
             window.addEventListener('mouseup', handleMouseUp);
           }}
         >
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ opacity: 0.6 }}>
-            <path d="M9 1L1 9M9 5L5 9M9 8L8 9" stroke="#ff6b00" strokeWidth="1.5" strokeLinecap="round" />
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ opacity: 0.8, pointerEvents: 'none' }}>
+            <path d="M9 1L1 9M9 5L5 9M9 8L8 9" stroke="var(--primary)" strokeWidth="1.5" strokeLinecap="round" />
           </svg>
         </div>
       </div>
@@ -2132,7 +2207,7 @@ export default function App() {
             <div style={styles.dashboardGrid}>
               {/* 위젯 1: 참여중인 프로젝트 (간트 차트) */}
               {visibleWidgets.includes('gantt') && (
-                <div style={{ ...styles.widgetCard, gridColumn: 'span 6', minWidth: 0 }}>
+                <div className="widget-card" style={{ ...styles.widgetCard, gridColumn: 'span 6', minWidth: 0 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px dashed var(--border-light)', paddingBottom: '8px' }}>
                     <div style={{ fontWeight: '800', fontSize: '0.95rem' }}>🏢 참여중인 프로젝트</div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>월별 | 4월</div>
@@ -2209,7 +2284,7 @@ export default function App() {
 
               {/* 위젯 2: KPI 성과 (SVG 도넛 차트) */}
               {visibleWidgets.includes('kpi') && (
-                <div style={{ ...styles.widgetCard, gridColumn: 'span 3', minWidth: 0 }}>
+                <div className="widget-card" style={{ ...styles.widgetCard, gridColumn: 'span 3', minWidth: 0 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px dashed var(--border-light)', paddingBottom: '8px' }}>
                     <div style={{ fontWeight: '800', fontSize: '0.95rem' }}>📊 KPI 성과</div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Q1/2026</div>
@@ -2268,7 +2343,7 @@ export default function App() {
 
               {/* 위젯 3: 결재 현황 (SVG 도넛 차트) */}
               {visibleWidgets.includes('approval') && (
-                <div style={{ ...styles.widgetCard, gridColumn: 'span 3', minWidth: 0 }}>
+                <div className="widget-card" style={{ ...styles.widgetCard, gridColumn: 'span 3', minWidth: 0 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px dashed var(--border-light)', paddingBottom: '8px' }}>
                     <div style={{ fontWeight: '800', fontSize: '0.95rem' }}>📑 결재 현황</div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>2026년</div>
@@ -2316,7 +2391,7 @@ export default function App() {
 
               {/* 위젯 4: 전자메일 (받은편지함) */}
               {visibleWidgets.includes('email') && (
-                <div style={{ ...styles.widgetCard, gridColumn: 'span 6', minWidth: 0 }}>
+                <div className="widget-card" style={{ ...styles.widgetCard, gridColumn: 'span 6', minWidth: 0 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px dashed var(--border-light)', paddingBottom: '8px' }}>
                     <div style={{ fontWeight: '800', fontSize: '0.95rem' }}>📧 전자메일</div>
                     <button style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer' }} onClick={() => setCurrentMenu('mail')}>
@@ -2332,7 +2407,7 @@ export default function App() {
                       { sender: 'OO Xây dựng', title: 'Trả lời câu hỏi Smart City', time: '2026-01-26 09:12' },
                       { sender: 'OO Xây dựng', title: 'Trả lời câu hỏi 프로젝트', time: '2026-01-26 09:12' }
                     ].map((m, idx) => (
-                      <div key={idx} style={{ padding: '8px 10px', backgroundColor: 'var(--bg-primary)', borderRadius: '6px', border: '1px solid var(--border)', fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: '2px', cursor: 'pointer' }} onClick={() => setCurrentMenu('mail')}>
+                      <div key={idx} className="mail-item-card" style={{ padding: '8px 10px', backgroundColor: 'var(--bg-primary)', borderRadius: '6px', border: '1px solid var(--border)', fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: '2px', cursor: 'pointer' }} onClick={() => setCurrentMenu('mail')}>
                         <span style={{ fontWeight: '800', color: 'var(--text-primary)', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>
                           [{m.sender}] {m.title}
                         </span>
@@ -2347,7 +2422,7 @@ export default function App() {
 
               {/* 위젯 5: 게시판 */}
               {visibleWidgets.includes('board') && (
-                <div style={{ ...styles.widgetCard, gridColumn: 'span 6', minWidth: 0 }}>
+                <div className="widget-card" style={{ ...styles.widgetCard, gridColumn: 'span 6', minWidth: 0 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px dashed var(--border-light)', paddingBottom: '8px' }}>
                     <div style={{ fontWeight: '800', fontSize: '0.95rem' }}>📢 게시판</div>
                     <button style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer' }} onClick={() => setCurrentMenu('board')}>
@@ -2372,7 +2447,7 @@ export default function App() {
                           { type: '회의록', typeBg: 'rgba(148, 155, 164, 0.1)', typeColor: 'var(--text-secondary)', title: '회의록 họp tuần (주 3 tuần 1)', author: 'PMO', date: '21/01/2026' },
                           { type: '매뉴얼', typeBg: 'rgba(165, 85, 236, 0.1)', typeColor: '#a555ec', title: 'Sổ tay hướng dẫn ng mới vào làm', author: '총무부', date: '15/01/2026' }
                         ].map((post, idx) => (
-                          <tr key={idx} style={{ borderBottom: '1px solid var(--border-light)', cursor: 'pointer' }} onClick={() => setCurrentMenu('board')}>
+                          <tr key={idx} className="post-table-row" style={{ borderBottom: '1px solid var(--border-light)', cursor: 'pointer' }} onClick={() => setCurrentMenu('board')}>
                             <td style={{ padding: '8px 4px' }}>
                               <span style={{
                                 padding: '2px 6px',
@@ -2400,7 +2475,7 @@ export default function App() {
 
               {/* 위젯 6: 전자결재 (결재 대기) */}
               {visibleWidgets.includes('e_approval') && (
-                <div style={{ ...styles.widgetCard, gridColumn: 'span 6', minWidth: 0 }}>
+                <div className="widget-card" style={{ ...styles.widgetCard, gridColumn: 'span 6', minWidth: 0 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px dashed var(--border-light)', paddingBottom: '8px' }}>
                     <div style={{ fontWeight: '800', fontSize: '0.95rem' }}>✍️ 전자결재</div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'bold' }}>결재 대기함</div>
@@ -2420,7 +2495,7 @@ export default function App() {
                           { status: '대기', statusBg: 'rgba(240, 178, 50, 0.1)', statusColor: '#f0b232', title: 'Yêu cầu duyệt đơn Quyết toán chi phí (Vật tư)', creator: '작성자: A', date: '26/01/2026' },
                           { status: '대기', statusBg: 'rgba(240, 178, 50, 0.1)', statusColor: '#f0b232', title: 'Yêu cầu duyệt đơn 휴가', creator: '작성자: B', date: '25/01/2026' }
                         ].map((app, idx) => (
-                          <tr key={idx} style={{ borderBottom: '1px solid var(--border-light)', cursor: 'pointer' }}>
+                          <tr key={idx} className="post-table-row" style={{ borderBottom: '1px solid var(--border-light)', cursor: 'pointer' }}>
                             <td style={{ padding: '10px 4px' }}>
                               <span style={{
                                 padding: '2px 6px',
@@ -2448,7 +2523,7 @@ export default function App() {
 
               {/* 위젯 7: 일정관리 */}
               {visibleWidgets.includes('schedule') && (
-                <div style={{ ...styles.widgetCard, gridColumn: 'span 6', minWidth: 0 }}>
+                <div className="widget-card" style={{ ...styles.widgetCard, gridColumn: 'span 6', minWidth: 0 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px dashed var(--border-light)', paddingBottom: '8px' }}>
                     <div style={{ fontWeight: '800', fontSize: '0.95rem' }}>📅 일정관리</div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'bold' }}>예정된 부재/휴가</div>
@@ -2588,7 +2663,7 @@ export default function App() {
               {days.map(d => {
                 const dayEvents = calendarEvents.filter(e => e.day === d);
                 return (
-                  <div key={d} style={styles.calendarCell}>
+                  <div key={d} className="calendar-cell" style={styles.calendarCell}>
                     <div style={styles.cellDayNum}>{d}</div>
                     <div style={styles.cellEvents}>
                       {dayEvents.map((e, idx) => {
