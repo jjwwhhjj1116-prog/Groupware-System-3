@@ -945,6 +945,7 @@ export default function App() {
           }}
           onOpenModal={() => setIsModalOpen(true)}
           onOpenDmCreateModal={() => setIsDmCreateModalOpen(true)} // DM 생성 모달 콜백 추가
+          onUserClick={handleUserClick}
           isLightTheme={isLightTheme}
           onToggleTheme={() => setIsLightTheme(!isLightTheme)}
           todoCount={todos.filter(t => !t.completed).length}
@@ -977,6 +978,10 @@ export default function App() {
         currentUser={currentUser}
         onStartDm={handleStartDm}
         onRefreshEmployees={fetchEmployees}
+        onUpdateCurrentUser={(updatedUser) => {
+          setCurrentUser(updatedUser);
+          sessionStorage.setItem('currentUser', JSON.stringify(updatedUser));
+        }}
       />
 
       {/* 새 DM 생성 모달 */}

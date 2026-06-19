@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { X, Mail, Phone, MapPin, Building, ShieldAlert, MessageSquare, Edit2, Save, Trash2 } from 'lucide-react';
 import { getUserRoleLevel } from '../utils/permission'; // 권한 유틸 임포트
 
-export default function HrCardModal({ isOpen, onClose, employee, onStartDm, currentUser, onRefreshEmployees }) {
+export default function HrCardModal({ isOpen, onClose, employee, onStartDm, currentUser, onRefreshEmployees, onUpdateCurrentUser }) {
   if (!isOpen || !employee) return null;
 
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({
+    id: '',
+    empNo: '',
     userName: '',
     company: '',
     dept: '',
@@ -14,12 +16,14 @@ export default function HrCardModal({ isOpen, onClose, employee, onStartDm, curr
     email: '',
     phone: '',
     workplace: '',
-    status: ''
+    status: '',
+    photoUrl: '' // 추가
   });
 
   useEffect(() => {
     if (employee) {
       setEditForm({
+        id: employee.id || '',
         empNo: employee.empNo || '',
         userName: employee.userName || '',
         company: employee.company || 'CON-COST',
@@ -28,7 +32,8 @@ export default function HrCardModal({ isOpen, onClose, employee, onStartDm, curr
         email: employee.email || '',
         phone: employee.phone || '',
         workplace: employee.workplace || '',
-        status: employee.status || '재직'
+        status: employee.status || '재직',
+        photoUrl: employee.photoUrl || '' // 추가
       });
       setIsEditing(false);
     }
@@ -99,6 +104,9 @@ export default function HrCardModal({ isOpen, onClose, employee, onStartDm, curr
         alert('인사 정보가 저장되었습니다.');
         setIsEditing(false);
         if (onRefreshEmployees) onRefreshEmployees();
+        if (isSelf && onUpdateCurrentUser) {
+          onUpdateCurrentUser(data.user);
+        }
         onClose();
       } else {
         alert(data.error || '저장에 실패했습니다.');
@@ -153,6 +161,73 @@ export default function HrCardModal({ isOpen, onClose, employee, onStartDm, curr
           {isEditing ? (
             // --- EDITING MODE UI ---
             <div style={styles.editContainer}>
+              {/* 프로필 이미지 업로드 영역 추가 */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '20px', gap: '8px' }}>
+                {editForm.photoUrl ? (
+                  <img 
+                    src={editForm.photoUrl} 
+                    alt="미리보기" 
+                    style={{
+                      width: '80px',
+                      height: '80px',
+                      borderRadius: '12px',
+                      objectFit: 'cover',
+                      border: '1px solid var(--border-light)'
+                    }}
+                  />
+                ) : (
+                  <div style={{
+                    width: '80px',
+                    height: '80px',
+                    borderRadius: '12px',
+                    backgroundColor: 'var(--bg-active)',
+                    color: 'var(--text-secondary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '1.5rem',
+                    fontWeight: 'bold',
+                    border: '1px solid var(--border-light)'
+                  }}>
+                    {editForm.userName ? editForm.userName.charAt(0) : '사'}
+                  </div>
+                )}
+                <button 
+                  type="button" 
+                  onClick={() => document.getElementById('photo-upload-input').click()}
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border-light)',
+                    backgroundColor: 'var(--bg-secondary)',
+                    color: 'var(--text-secondary)',
+                    fontSize: '0.75rem',
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-secondary)'}
+                >
+                  사진 업로드
+                </button>
+                <input 
+                  type="file" 
+                  id="photo-upload-input" 
+                  accept="image/*" 
+                  style={{ display: 'none' }}
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onloadend = () => {
+                        setEditForm(prev => ({ ...prev, photoUrl: reader.result }));
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                />
+              </div>
               <div style={styles.formGroup}>
                 <label style={styles.label}>이름</label>
                 <input 
@@ -160,6 +235,7 @@ export default function HrCardModal({ isOpen, onClose, employee, onStartDm, curr
                   value={editForm.userName} 
                   onChange={(e) => setEditForm({ ...editForm, userName: e.target.value })}
                   style={styles.input}
+                  disabled={!isAdmin}
                 />
               </div>
 
@@ -170,6 +246,7 @@ export default function HrCardModal({ isOpen, onClose, employee, onStartDm, curr
                     value={editForm.company} 
                     onChange={(e) => setEditForm({ ...editForm, company: e.target.value })}
                     style={styles.select}
+                    disabled={!isAdmin}
                   >
                     <option value="CON-COST">CON-COST</option>
                     <option value="Viet QS">Viet QS</option>
@@ -181,6 +258,7 @@ export default function HrCardModal({ isOpen, onClose, employee, onStartDm, curr
                     value={editForm.status} 
                     onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
                     style={styles.select}
+                    disabled={!isAdmin}
                   >
                     <option value="재직">재직</option>
                     <option value="휴직">휴직</option>
@@ -197,6 +275,7 @@ export default function HrCardModal({ isOpen, onClose, employee, onStartDm, curr
                     value={editForm.dept} 
                     onChange={(e) => setEditForm({ ...editForm, dept: e.target.value })}
                     style={styles.input}
+                    disabled={!isAdmin}
                   />
                 </div>
                 <div style={styles.formGroup}>
@@ -206,6 +285,7 @@ export default function HrCardModal({ isOpen, onClose, employee, onStartDm, curr
                     value={editForm.grade} 
                     onChange={(e) => setEditForm({ ...editForm, grade: e.target.value })}
                     style={styles.input}
+                    disabled={!isAdmin}
                   />
                 </div>
               </div>
@@ -251,9 +331,25 @@ export default function HrCardModal({ isOpen, onClose, employee, onStartDm, curr
             // --- VIEW MODE UI ---
             <>
               <div style={styles.profileHeader}>
-                <div style={styles.avatarLarge}>
-                  {employee.userName.charAt(0)}
-                </div>
+                {employee.photoUrl ? (
+                  <img 
+                    src={employee.photoUrl} 
+                    alt="프로필 사진" 
+                    style={{
+                      width: '90px',
+                      height: '90px',
+                      borderRadius: '12px',
+                      objectFit: 'cover',
+                      border: '1px solid var(--border-light)',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                      marginRight: '16px'
+                    }}
+                  />
+                ) : (
+                  <div style={styles.avatarLarge}>
+                    {employee.userName.charAt(0)}
+                  </div>
+                )}
                 <div style={styles.profileMeta}>
                   <h2 style={styles.userName}>{employee.userName}</h2>
                   <div style={styles.badgeRow}>
@@ -293,14 +389,16 @@ export default function HrCardModal({ isOpen, onClose, employee, onStartDm, curr
               </div>
 
               <div style={styles.footerActions}>
-                {isAdmin && (
+                {(isAdmin || isSelf) && (
                   <div style={{ display: 'flex', gap: '8px', marginRight: 'auto' }}>
                     <button style={styles.editBtn} onClick={() => setIsEditing(true)}>
                       <Edit2 size={13} style={{ marginRight: '4px' }} /> 정보 수정
                     </button>
-                    <button style={styles.deleteBtn} onClick={handleDelete}>
-                      <Trash2 size={13} style={{ marginRight: '4px' }} /> 퇴사 처리
-                    </button>
+                    {isAdmin && (
+                      <button style={styles.deleteBtn} onClick={handleDelete}>
+                        <Trash2 size={13} style={{ marginRight: '4px' }} /> 퇴사 처리
+                      </button>
+                    )}
                   </div>
                 )}
                 {!isSelf && (

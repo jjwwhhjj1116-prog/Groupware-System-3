@@ -35,6 +35,7 @@ export default function Sidebar({
   onActiveChatChange, 
   onOpenModal,
   onOpenDmCreateModal, // DM 생성 모달 콜백 추가
+  onUserClick, // 사용자 클릭 콜백 추가
   isLightTheme,
   onToggleTheme,
   todoCount,
@@ -438,11 +439,19 @@ export default function Sidebar({
             {isLightTheme ? <Moon size={18} /> : <Sun size={18} />}
           </button>
           
-          <div style={styles.avatarWrapper}>
-            <div style={styles.myAvatar}>
-              <span style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>
-                {currentUser?.userName ? currentUser.userName.charAt(0) : (currentWorkspace === 'vietqs' ? 'G' : '대')}
-              </span>
+          <div style={styles.avatarWrapper} onClick={() => onUserClick && onUserClick(currentUser?.id)}>
+            <div style={{ ...styles.myAvatar, cursor: 'pointer', overflow: 'hidden' }}>
+              {currentUser?.photoUrl ? (
+                <img 
+                  src={currentUser.photoUrl} 
+                  alt="내 사진" 
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                />
+              ) : (
+                <span style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>
+                  {currentUser?.userName ? currentUser.userName.charAt(0) : (currentWorkspace === 'vietqs' ? 'G' : '대')}
+                </span>
+              )}
             </div>
             <span className="status-dot online" style={styles.myStatus} />
           </div>
@@ -471,8 +480,19 @@ export default function Sidebar({
         {/* Profile/Footer Area */}
         <div style={styles.profileFooter}>
           <div style={styles.profileInfo}>
-            <div style={styles.avatarFooter}>
-              <span>{currentUser?.userName ? currentUser.userName.charAt(0) : '대'}</span>
+            <div 
+              style={{ ...styles.avatarFooter, cursor: 'pointer', overflow: 'hidden' }}
+              onClick={() => onUserClick && onUserClick(currentUser?.id)}
+            >
+              {currentUser?.photoUrl ? (
+                <img 
+                  src={currentUser.photoUrl} 
+                  alt="내 사진" 
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                />
+              ) : (
+                <span>{currentUser?.userName ? currentUser.userName.charAt(0) : '대'}</span>
+              )}
             </div>
             <div style={styles.profileMeta}>
               <div style={styles.profileName} title={currentUser?.userName || ''}>
