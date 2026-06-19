@@ -20,7 +20,9 @@ import {
   X,
   Key,
   Database,
-  ShieldAlert // 추가
+  ShieldAlert, // 추가
+  Menu,
+  Star
 } from 'lucide-react';
 import { getUserRoleLevel, getRoleLabel } from './utils/permission'; // 추가
 import ceoDongmyungImg from './assets/ceo_dongmyung.png';
@@ -47,7 +49,7 @@ const CEO_IMAGES = {
 // --- 다국어 번역 사전 ---
 const TRANSLATIONS = {
   concost: {
-    home: "대시보드",
+    home: "HOME",
     chat: "메시지",
     mail: "메일",
     calendar: "캘린더",
@@ -111,7 +113,7 @@ const TRANSLATIONS = {
     welcomeMessage: "이곳이 대화의 시작점입니다! 첫 메시지를 전송하여 새로운 대화를 시작해보세요."
   },
   vietqs: {
-    home: "Bảng điều khiển",
+    home: "HOME",
     chat: "Tin nhắn",
     mail: "Thư điện tử",
     calendar: "Lịch",
@@ -222,7 +224,8 @@ export default function App() {
   const [isLightTheme, setIsLightTheme] = useState(false);
   const [activeChat, setActiveChat] = useState({ type: 'channel', id: 'general' });
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // HOME 화면에서는 기본적으로 닫아 둠
+  const [isChatbotHovered, setIsChatbotHovered] = useState(false); // 챗봇 마우스오버 트래킹
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Gemini API Key 및 모델명 보관 설정
@@ -230,13 +233,13 @@ export default function App() {
   const [geminiModel, setGeminiModel] = useState(localStorage.getItem('gemini_model') || 'gemini-3.5-flash');
   const [aiEnabled, setAiEnabled] = useState(localStorage.getItem('ai_assistant_enabled') !== 'false');
 
-  // 대시보드 위젯 설정 상태
+  // 대시보드 위젯 설정 상태 (7개 프리미엄 위젯 기본 탑재)
   const [visibleWidgets, setVisibleWidgets] = useState(() => {
     const saved = localStorage.getItem('works_dashboard_widgets');
     if (saved) {
       try { return JSON.parse(saved); } catch (e) {}
     }
-    return ['todo', 'employees', 'calendar', 'board'];
+    return ['gantt', 'kpi', 'approval', 'email', 'board', 'e_approval', 'schedule'];
   });
   const [isWidgetSettingsOpen, setIsWidgetSettingsOpen] = useState(false);
 
@@ -259,13 +262,20 @@ export default function App() {
   const socketRef = useRef(null);
   const t = TRANSLATIONS[currentWorkspace] || TRANSLATIONS.concost;
 
-  // --- 할 일 (To-Do) 상태 ---
+  // --- 할 일 (To-Do) 상태 (Naver Works style) ---
   const [todos, setTodos] = useState([
-    { id: 1, text: '그룹웨어 메신저 프로토타입 디자인 최종 피드백 반영', completed: false, date: '오늘' },
-    { id: 2, text: '베트남 지사(Viet QS) 출장 보고서 검토', completed: true, date: '어제' },
-    { id: 3, text: '건축 적산 자동화 AI 모듈 성능 지표 2차 보고', completed: false, date: '내일까지' }
+    { id: 1, text: '그룹웨어 메신저 프로토타입 디자인 최종 피드백 반영', completed: false, date: '오늘', priority: '높음', starred: true, memo: '디자인실장 영자님의 메신저 피드백을 반영하여 1단 메뉴 크기를 20% 늘리고 로고를 컨코스트 로고로 변경해야 합니다.' },
+    { id: 2, text: '베트남 지사(Viet QS) 출장 보고서 검토', completed: true, date: '어제', priority: '보통', starred: false, memo: 'Van Minh 팀장이 전송한 임대 계약 세부 항목 검토 완료 및 기안 승인 처리.' },
+    { id: 3, text: '건축 적산 자동화 AI 모듈 성능 지표 2차 보고', completed: false, date: '내일까지', priority: '높음', starred: false, memo: '회장님(AI)께서 요청하신 AI 모듈의 적산 오차 범위 2차 성과 보고서 작성.' },
+    { id: 4, text: '사내 공용 파일 드라이브 구조 설계 개선', completed: false, date: '내일', priority: '낮음', starred: false, memo: '메신저 드라이브 탭에 파일 크기 및 날짜 정렬 기능 추가 필요.' },
+    { id: 5, text: '실시간 소켓 채팅 알림 최적화 및 로깅 테스트', completed: false, date: '기한없음', priority: '보통', starred: true, memo: '동시 접속자 100명 기준 소켓 메시지 딜레이 성능 분석.' }
   ]);
   const [newTodoText, setNewTodoText] = useState('');
+  const [todoFilter, setTodoFilter] = useState('all'); // 'all', 'today', 'overdue', 'completed'
+  const [selectedTodoDetail, setSelectedTodoDetail] = useState(null);
+  const [newTodoDate, setNewTodoDate] = useState('오늘'); // '오늘', '내일', '내일까지', '기한없음'
+  const [newTodoPriority, setNewTodoPriority] = useState('보통'); // '높음', '보통', '낮음'
+  const [newTodoStarred, setNewTodoStarred] = useState(false);
 
   // --- 메일 (Mail) 데이터 ---
   const [mails, setMails] = useState([
@@ -352,6 +362,63 @@ export default function App() {
   });
 
   const [isTyping, setIsTyping] = useState(false);
+
+  // AI 챗봇 창 크기 상태
+  const [chatbotSize, setChatbotSize] = useState({ width: 380, height: 520 });
+
+  // --- 할 일 (To-Do) 핸들러 ---
+  const handleAddTodo = (e) => {
+    if (e) e.preventDefault();
+    if (!newTodoText.trim()) return;
+
+    const newTodo = {
+      id: Date.now(),
+      text: newTodoText,
+      completed: false,
+      date: newTodoDate,
+      priority: newTodoPriority,
+      starred: newTodoStarred,
+      memo: ''
+    };
+
+    setTodos([newTodo, ...todos]);
+    setNewTodoText('');
+    setNewTodoStarred(false);
+    setNewTodoDate('오늘');
+    setNewTodoPriority('보통');
+  };
+
+  const handleToggleTodo = (id) => {
+    setTodos(prev => prev.map(todo => 
+      todo.id === id ? { ...todo, completed: !todo.completed } : todo
+    ));
+    if (selectedTodoDetail && selectedTodoDetail.id === id) {
+      setSelectedTodoDetail(prev => prev ? { ...prev, completed: !prev.completed } : null);
+    }
+  };
+
+  const handleToggleStarTodo = (id) => {
+    setTodos(prev => prev.map(todo => 
+      todo.id === id ? { ...todo, starred: !todo.starred } : todo
+    ));
+    if (selectedTodoDetail && selectedTodoDetail.id === id) {
+      setSelectedTodoDetail(prev => prev ? { ...prev, starred: !prev.starred } : null);
+    }
+  };
+
+  const handleDeleteTodo = (id) => {
+    setTodos(prev => prev.filter(todo => todo.id !== id));
+    if (selectedTodoDetail && selectedTodoDetail.id === id) {
+      setSelectedTodoDetail(null);
+    }
+  };
+
+  const handleUpdateTodo = (updatedTodo) => {
+    setTodos(prev => prev.map(todo => 
+      todo.id === updatedTodo.id ? updatedTodo : todo
+    ));
+    setSelectedTodoDetail(updatedTodo);
+  };
 
   // --- 1. Notification API 권한 취득 ---
   useEffect(() => {
@@ -968,6 +1035,11 @@ export default function App() {
               return;
             }
             setCurrentMenu(menu);
+            if (menu === 'home') {
+              setIsSidebarOpen(false); // HOME 화면에서는 서브패널 공간 없애기 위해 닫음
+            } else {
+              setIsSidebarOpen(true);
+            }
             if (menu === 'chat') setActiveChat({ type: 'channel', id: 'general' });
           }}
           channels={workspaceChannels[currentWorkspace]}
@@ -976,6 +1048,7 @@ export default function App() {
           onActiveChatChange={(chat) => {
             setActiveChat(chat);
             setCurrentMenu('chat');
+            setIsSidebarOpen(true);
           }}
           onOpenModal={() => setIsModalOpen(true)}
           onOpenDmCreateModal={() => setIsDmCreateModalOpen(true)} // DM 생성 모달 콜백 추가
@@ -983,6 +1056,8 @@ export default function App() {
           isLightTheme={isLightTheme}
           onToggleTheme={() => setIsLightTheme(!isLightTheme)}
           todoCount={todos.filter(t => !t.completed).length}
+          todoFilter={todoFilter}
+          onTodoFilterChange={setTodoFilter}
           mailUnreadCount={mails.filter(m => !m.read).length}
           t={t}
           onOpenSettings={() => setIsSettingsOpen(true)}
@@ -990,7 +1065,12 @@ export default function App() {
           currentUser={currentUser}
           onLogout={handleLogout}
           isChatbotVisible={isChatbotVisible}
-          onToggleChatbotVisible={setIsChatbotVisible}
+          onToggleChatbotVisible={(visible) => {
+            setIsChatbotVisible(visible);
+            if (visible) {
+              setIsChatbotOpen(true); // 활성화 시 챗봇 창도 함께 열림
+            }
+          }}
         />
       </div>
 
@@ -1375,7 +1455,7 @@ export default function App() {
           onClick={(e) => e.stopPropagation()}
         >
           <div style={styles.settingsHeader}>
-            <h3 style={styles.settingsTitle}>⚙️ 대시보드 위젯 설정</h3>
+            <h3 style={styles.settingsTitle}>⚙️ HOME 위젯 설정</h3>
             <button 
               type="button" 
               className="close-btn"
@@ -1391,51 +1471,68 @@ export default function App() {
               <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold' }}>
                 <input 
                   type="checkbox" 
-                  checked={visibleWidgets.includes('todo')}
+                  checked={visibleWidgets.includes('gantt')}
                   onChange={(e) => {
                     const list = e.target.checked 
-                      ? [...visibleWidgets, 'todo'] 
-                      : visibleWidgets.filter(w => w !== 'todo');
+                      ? [...visibleWidgets, 'gantt'] 
+                      : visibleWidgets.filter(w => w !== 'gantt');
                     setVisibleWidgets(list);
                     localStorage.setItem('works_dashboard_widgets', JSON.stringify(list));
                   }}
                   style={{ width: '16px', height: '16px' }}
                 />
-                오늘 할 일 목록 (Todo)
+                참여중인 프로젝트 (Gantt Chart)
               </label>
             </div>
             <div style={styles.inputGroup}>
               <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold' }}>
                 <input 
                   type="checkbox" 
-                  checked={visibleWidgets.includes('employees')}
+                  checked={visibleWidgets.includes('kpi')}
                   onChange={(e) => {
                     const list = e.target.checked 
-                      ? [...visibleWidgets, 'employees'] 
-                      : visibleWidgets.filter(w => w !== 'employees');
+                      ? [...visibleWidgets, 'kpi'] 
+                      : visibleWidgets.filter(w => w !== 'kpi');
                     setVisibleWidgets(list);
                     localStorage.setItem('works_dashboard_widgets', JSON.stringify(list));
                   }}
                   style={{ width: '16px', height: '16px' }}
                 />
-                우리 회사 임직원 현황
+                KPI 성과 (Donut Chart)
               </label>
             </div>
             <div style={styles.inputGroup}>
               <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold' }}>
                 <input 
                   type="checkbox" 
-                  checked={visibleWidgets.includes('calendar')}
+                  checked={visibleWidgets.includes('approval')}
                   onChange={(e) => {
                     const list = e.target.checked 
-                      ? [...visibleWidgets, 'calendar'] 
-                      : visibleWidgets.filter(w => w !== 'calendar');
+                      ? [...visibleWidgets, 'approval'] 
+                      : visibleWidgets.filter(w => w !== 'approval');
                     setVisibleWidgets(list);
                     localStorage.setItem('works_dashboard_widgets', JSON.stringify(list));
                   }}
                   style={{ width: '16px', height: '16px' }}
                 />
-                이번 주 전사 일정
+                결재 현황 (Donut Chart)
+              </label>
+            </div>
+            <div style={styles.inputGroup}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold' }}>
+                <input 
+                  type="checkbox" 
+                  checked={visibleWidgets.includes('email')}
+                  onChange={(e) => {
+                    const list = e.target.checked 
+                      ? [...visibleWidgets, 'email'] 
+                      : visibleWidgets.filter(w => w !== 'email');
+                    setVisibleWidgets(list);
+                    localStorage.setItem('works_dashboard_widgets', JSON.stringify(list));
+                  }}
+                  style={{ width: '16px', height: '16px' }}
+                />
+                전자메일 (Email List)
               </label>
             </div>
             <div style={styles.inputGroup}>
@@ -1452,7 +1549,41 @@ export default function App() {
                   }}
                   style={{ width: '16px', height: '16px' }}
                 />
-                사내 주요 소식
+                게시판 (Board List)
+              </label>
+            </div>
+            <div style={styles.inputGroup}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold' }}>
+                <input 
+                  type="checkbox" 
+                  checked={visibleWidgets.includes('e_approval')}
+                  onChange={(e) => {
+                    const list = e.target.checked 
+                      ? [...visibleWidgets, 'e_approval'] 
+                      : visibleWidgets.filter(w => w !== 'e_approval');
+                    setVisibleWidgets(list);
+                    localStorage.setItem('works_dashboard_widgets', JSON.stringify(list));
+                  }}
+                  style={{ width: '16px', height: '16px' }}
+                />
+                전자결재 (E-Approval)
+              </label>
+            </div>
+            <div style={styles.inputGroup}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold' }}>
+                <input 
+                  type="checkbox" 
+                  checked={visibleWidgets.includes('schedule')}
+                  onChange={(e) => {
+                    const list = e.target.checked 
+                      ? [...visibleWidgets, 'schedule'] 
+                      : visibleWidgets.filter(w => w !== 'schedule');
+                    setVisibleWidgets(list);
+                    localStorage.setItem('works_dashboard_widgets', JSON.stringify(list));
+                  }}
+                  style={{ width: '16px', height: '16px' }}
+                />
+                일정관리 (Schedule)
               </label>
             </div>
           </div>
@@ -1471,17 +1602,21 @@ export default function App() {
 
       {/* 🐶🤖 귀여운 강아지 로봇 AI 챗봇 비서 플로팅 아이콘 및 ON/OFF 토글 */}
       {aiEnabled && isChatbotVisible && (
-        <div style={{
-          position: 'fixed',
-          right: '24px',
-          top: '50%',
-          transform: 'translateY(-50%)',
-          zIndex: 9998,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center'
-        }}>
-          {/* 플로팅 챗봇을 완전히 OFF 시키는 X 닫기 버튼 */}
+        <div 
+          onMouseEnter={() => setIsChatbotHovered(true)}
+          onMouseLeave={() => setIsChatbotHovered(false)}
+          style={{
+            position: 'fixed',
+            right: '24px',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            zIndex: 9998,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center'
+          }}
+        >
+          {/* 플로팅 챗봇을 완전히 OFF 시키는 X 닫기 버튼 (마우스 호버 시에만 표시) */}
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -1506,7 +1641,9 @@ export default function App() {
               cursor: 'pointer',
               boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
               zIndex: 9999,
-              transition: 'all 0.2s'
+              opacity: isChatbotHovered ? 1 : 0,
+              pointerEvents: isChatbotHovered ? 'auto' : 'none',
+              transition: 'opacity 0.2s ease-in-out'
             }}
             onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#ff4d4f'}
             onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(242, 63, 67, 0.95)'}
@@ -1553,8 +1690,8 @@ export default function App() {
           position: 'fixed',
           right: '100px',
           top: '15%',
-          width: '380px',
-          height: '520px',
+          width: `${chatbotSize.width}px`,
+          height: `${chatbotSize.height}px`,
           backgroundColor: 'rgba(31, 41, 55, 0.9)',
           backdropFilter: 'blur(20px)',
           border: '1px solid rgba(255, 255, 255, 0.1)',
@@ -1736,6 +1873,49 @@ export default function App() {
             전송
           </button>
         </form>
+
+        {/* 우측 하단 크기 조절 핸들 (Resizable) */}
+        <div
+          style={{
+            position: 'absolute',
+            right: 0,
+            bottom: 0,
+            width: '16px',
+            height: '16px',
+            cursor: 'se-resize',
+            zIndex: 10000,
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'flex-end',
+            padding: '2px'
+          }}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const startWidth = chatbotSize.width;
+            const startHeight = chatbotSize.height;
+            const startX = e.clientX;
+            const startY = e.clientY;
+            
+            const handleMouseMove = (moveEvent) => {
+              const newWidth = Math.max(300, startWidth + (moveEvent.clientX - startX));
+              const newHeight = Math.max(400, startHeight + (moveEvent.clientY - startY));
+              setChatbotSize({ width: newWidth, height: newHeight });
+            };
+            
+            const handleMouseUp = () => {
+              window.removeEventListener('mousemove', handleMouseMove);
+              window.removeEventListener('mouseup', handleMouseUp);
+            };
+            
+            window.addEventListener('mousemove', handleMouseMove);
+            window.addEventListener('mouseup', handleMouseUp);
+          }}
+        >
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ opacity: 0.6 }}>
+            <path d="M9 1L1 9M9 5L5 9M9 8L8 9" stroke="#ff6b00" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+        </div>
       </div>
 
       <style>{`
@@ -1802,7 +1982,28 @@ export default function App() {
         return (
           <div style={styles.mainContainer} className="animate-fade">
             <div style={styles.mainHeader}>
-              <h2 style={styles.mainTitle}>📊 종합 대시보드</h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <button
+                  onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-primary)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '8px',
+                    borderRadius: '8px',
+                    backgroundColor: isSidebarOpen ? 'var(--bg-secondary)' : 'transparent',
+                    transition: 'all 0.2s'
+                  }}
+                  title="메뉴 열기/닫기"
+                >
+                  <Menu size={24} />
+                </button>
+                <h2 style={styles.mainTitle}>🏠 HOME</h2>
+              </div>
               <button 
                 className="action-btn"
                 style={{
@@ -1820,66 +2021,219 @@ export default function App() {
                 }}
                 onClick={() => setIsWidgetSettingsOpen(true)}
               >
-                ⚙️ 대시보드 편집
+                ⚙️ 위젯 편집
               </button>
             </div>
 
             <div style={styles.dashboardGrid}>
-              {/* 위젯 1: AI 출근길 브리핑 (상단 와이드) */}
-              <div style={{ ...styles.widgetCard, gridColumn: '1 / -1' }}>
-                <div style={{ ...styles.widgetTitle, color: accentColor }}>
-                  🤖 AI Workspace Morning Briefing
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-                  <div style={{ fontSize: '36px' }}>🌅</div>
-                  <div>
-                    <h3 style={{ fontSize: '15px', fontWeight: '800', marginBottom: '6px', color: 'var(--text-primary)' }}>
-                      {currentUser?.userName} {currentUser?.grade || '대표님'}, 좋은 아침입니다!
-                    </h3>
-                    <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
-                      오늘 등록된 전사 협업 일정은 <strong style={{ color: accentColor }}>{calendarEvents.length}건</strong>이며, 진행중인 업무 태스크 카드가 <strong style={{ color: accentColor }}>{todos.filter(t => !t.completed).length}건</strong> 대기하고 있습니다. 
-                      최근 Viet QS 법인의 BIM 협업 드라이브에 <strong style={{ color: accentColor }}>{driveFiles.length}개</strong>의 신규 도면 파일이 업로드되었습니다.
-                    </p>
+              {/* 위젯 1: 참여중인 프로젝트 (간트 차트) */}
+              {visibleWidgets.includes('gantt') && (
+                <div style={{ ...styles.widgetCard, gridColumn: 'span 6', minWidth: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px dashed var(--border-light)', paddingBottom: '8px' }}>
+                    <div style={{ fontWeight: '800', fontSize: '0.95rem' }}>🏢 참여중인 프로젝트</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>월별 | 4월</div>
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '12px' }}>
+                    가로 스크롤로 전체 간트를 확인하세요.
+                  </div>
+                  <div style={{ overflowX: 'auto', width: '100%' }}>
+                    <table style={{ width: '100%', minWidth: '450px', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                          <th style={{ textAlign: 'left', padding: '8px 4px', width: '120px' }}>프로젝트 이름</th>
+                          <th style={{ padding: '8px 4px', width: '80px', textAlign: 'center' }}>T1</th>
+                          <th style={{ padding: '8px 4px', width: '80px', textAlign: 'center' }}>T2</th>
+                          <th style={{ padding: '8px 4px', width: '80px', textAlign: 'center' }}>T3</th>
+                          <th style={{ padding: '8px 4px', width: '80px', textAlign: 'center' }}>T4</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr style={{ borderBottom: '1px solid var(--border-light)' }}>
+                          <td style={{ padding: '12px 4px', fontWeight: '700' }}>Dự án OKR</td>
+                          <td colSpan="3" style={{ padding: '8px 4px' }}>
+                            <div style={{
+                              backgroundColor: 'rgba(255, 107, 0, 0.85)',
+                              color: '#fff',
+                              padding: '6px 12px',
+                              borderRadius: '4px',
+                              fontSize: '0.75rem',
+                              fontWeight: 'bold',
+                              textAlign: 'center',
+                              boxShadow: '0 2px 4px rgba(255,107,0,0.2)'
+                            }}>
+                              시공 85%
+                            </div>
+                          </td>
+                          <td style={{ padding: '8px 4px' }}></td>
+                        </tr>
+                        <tr style={{ borderBottom: '1px solid var(--border-light)' }}>
+                          <td style={{ padding: '12px 4px', fontWeight: '700' }}>Smart City</td>
+                          <td style={{ padding: '8px 4px' }}></td>
+                          <td style={{ padding: '8px 4px' }}></td>
+                          <td colSpan="2" style={{ padding: '8px 4px' }}>
+                            <div style={{
+                              backgroundColor: 'rgba(255, 143, 61, 0.85)',
+                              color: '#fff',
+                              padding: '6px 12px',
+                              borderRadius: '4px',
+                              fontSize: '0.75rem',
+                              fontWeight: 'bold',
+                              textAlign: 'center',
+                              boxShadow: '0 2px 4px rgba(255,143,61,0.2)'
+                            }}>
+                              설계 45%
+                            </div>
+                          </td>
+                        </tr>
+                        <tr style={{ borderBottom: '1px solid var(--border-light)' }}>
+                          <td style={{ padding: '12px 4px', fontWeight: '700' }}>App Mobile</td>
+                          <td colSpan="4" style={{ padding: '12px 4px', color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center' }}>
+                            기획 단계 (예정)
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style={{ padding: '12px 4px', fontWeight: '700' }}>Nâng cấp ERP</td>
+                          <td colSpan="4" style={{ padding: '12px 4px', color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center' }}>
+                            기획 단계 (예정)
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
                   </div>
                 </div>
-              </div>
+              )}
 
-              {/* 위젯 2: 알림 상태 */}
-              <div style={styles.widgetCard}>
-                <div style={styles.widgetTitle}>🔔 미확인 알림 상태</div>
-                <div style={{ display: 'flex', justifyContent: 'space-around', padding: '10px 0' }}>
-                  <div style={{ textAlign: 'center', cursor: 'pointer' }} onClick={() => setCurrentMenu('chat')}>
-                    <div style={{ fontSize: '24px', marginBottom: '6px' }}>💬</div>
-                    <strong style={{ fontSize: '1.1rem', color: accentColor }}>3 건</strong>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>새 메시지</div>
+              {/* 위젯 2: KPI 성과 (SVG 도넛 차트) */}
+              {visibleWidgets.includes('kpi') && (
+                <div style={{ ...styles.widgetCard, gridColumn: 'span 3', minWidth: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px dashed var(--border-light)', paddingBottom: '8px' }}>
+                    <div style={{ fontWeight: '800', fontSize: '0.95rem' }}>📊 KPI 성과</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Q1/2026</div>
                   </div>
-                  <div style={{ textAlign: 'center', cursor: 'pointer' }} onClick={() => setCurrentMenu('mail')}>
-                    <div style={{ fontSize: '24px', marginBottom: '6px' }}>📧</div>
-                    <strong style={{ fontSize: '1.1rem', color: 'var(--primary)' }}>{mails.filter(m => !m.read).length} 건</strong>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>읽지않은 메일</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '170px' }}>
+                    <div style={{ position: 'relative', width: '110px', height: '110px' }}>
+                      <svg width="110" height="110" viewBox="0 0 60 60">
+                        {/* Gray background ring */}
+                        <circle cx="30" cy="30" r="24" fill="none" stroke="var(--border-light)" strokeWidth="6" />
+                        {/* 성공 (Green) */}
+                        <circle cx="30" cy="30" r="24" fill="none" stroke="#23a55a" strokeWidth="6" 
+                                strokeDasharray="150.8" strokeDashoffset="0" transform="rotate(-90 30 30)" />
+                        {/* 지연 (Orange) */}
+                        <circle cx="30" cy="30" r="24" fill="none" stroke="#f0b232" strokeWidth="6" 
+                                strokeDasharray="150.8" strokeDashoffset="-82.25" transform="rotate(-90 30 30)" />
+                        {/* 실패 (Red) */}
+                        <circle cx="30" cy="30" r="24" fill="none" stroke="#f23f43" strokeWidth="6" 
+                                strokeDasharray="150.8" strokeDashoffset="-123.38" transform="rotate(-90 30 30)" />
+                        {/* 미처리 (Muted Gray) */}
+                        <circle cx="30" cy="30" r="24" fill="none" stroke="#949ba4" strokeWidth="6" 
+                                strokeDasharray="150.8" strokeDashoffset="-137.09" transform="rotate(-90 30 30)" />
+                      </svg>
+                      <div style={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        textAlign: 'center'
+                      }}>
+                        <div style={{ fontSize: '1.5rem', fontWeight: '800', color: 'var(--text-primary)' }}>11</div>
+                        <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>KPI 성과</div>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Legend */}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '8px 12px', fontSize: '0.75rem', fontWeight: '700', marginTop: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#23a55a' }} />
+                      <span style={{ color: 'var(--text-secondary)' }}>성공</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#f0b232' }} />
+                      <span style={{ color: 'var(--text-secondary)' }}>지연</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#f23f43' }} />
+                      <span style={{ color: 'var(--text-secondary)' }}>실패</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#949ba4' }} />
+                      <span style={{ color: 'var(--text-secondary)' }}>미처리</span>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
-              {/* 위젯 3: 오늘 할 일 */}
-              {visibleWidgets.includes('todo') && (
-                <div style={styles.widgetCard}>
-                  <div style={styles.widgetTitle}>✅ 오늘 할 일 목록</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {todos.slice(0, 3).map(todo => (
-                      <div key={todo.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', backgroundColor: 'var(--bg-primary)', borderRadius: '6px', border: '1px solid var(--border)' }}>
-                        <span style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '75%' }}>
-                          • {todo.text}
+              {/* 위젯 3: 결재 현황 (SVG 도넛 차트) */}
+              {visibleWidgets.includes('approval') && (
+                <div style={{ ...styles.widgetCard, gridColumn: 'span 3', minWidth: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px dashed var(--border-light)', paddingBottom: '8px' }}>
+                    <div style={{ fontWeight: '800', fontSize: '0.95rem' }}>📑 결재 현황</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>2026년</div>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '170px' }}>
+                    <div style={{ position: 'relative', width: '110px', height: '110px' }}>
+                      <svg width="110" height="110" viewBox="0 0 60 60">
+                        <circle cx="30" cy="30" r="24" fill="none" stroke="var(--border-light)" strokeWidth="6" />
+                        {/* 승인 (Green) */}
+                        <circle cx="30" cy="30" r="24" fill="none" stroke="#23a55a" strokeWidth="6" 
+                                strokeDasharray="150.8" strokeDashoffset="0" transform="rotate(-90 30 30)" />
+                        {/* 대기 (Orange) */}
+                        <circle cx="30" cy="30" r="24" fill="none" stroke="#f0b232" strokeWidth="6" 
+                                strokeDasharray="150.8" strokeDashoffset="-118.02" transform="rotate(-90 30 30)" />
+                      </svg>
+                      <div style={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        textAlign: 'center'
+                      }}>
+                        <div style={{ fontSize: '1.4rem', fontWeight: '800', color: 'var(--text-primary)' }}>18/23</div>
+                        <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>결재 진행</div>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Legend with columns */}
+                  <div style={{ display: 'flex', justifyContent: 'space-around', fontSize: '0.75rem', fontWeight: '800', marginTop: '10px' }}>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ color: '#23a55a', fontSize: '1rem', fontWeight: 'bold' }}>18</div>
+                      <div style={{ color: 'var(--text-secondary)' }}>승인</div>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ color: '#f0b232', fontSize: '1rem', fontWeight: 'bold' }}>5</div>
+                      <div style={{ color: 'var(--text-secondary)' }}>대기</div>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ color: 'var(--text-muted)', fontSize: '1rem', fontWeight: 'bold' }}>23</div>
+                      <div style={{ color: 'var(--text-secondary)' }}>전체</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 위젯 4: 전자메일 (받은편지함) */}
+              {visibleWidgets.includes('email') && (
+                <div style={{ ...styles.widgetCard, gridColumn: 'span 6', minWidth: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px dashed var(--border-light)', paddingBottom: '8px' }}>
+                    <div style={{ fontWeight: '800', fontSize: '0.95rem' }}>📧 전자메일</div>
+                    <button style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer' }} onClick={() => setCurrentMenu('mail')}>
+                      받은편지함
+                    </button>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '240px', overflowY: 'auto' }}>
+                    {[
+                      { sender: 'OO Xây dựng(Cổ phần)', title: 'OO 프로젝트 건축 설계 도서_Gửi tài liệu lần 1 để xác nhận', time: '2026-02-04 15:22' },
+                      { sender: 'OO Xây dựng(Cổ phần)', title: 'OO 프로젝트 건축 설계 도서_Gửi tài liệu lần 1 (Cổ phần)ConCost', time: '2026-02-04 10:05' },
+                      { sender: '보낸편지함', title: 'OOO 프로젝트 PM "OOO" Gửi 체크리스트 (Yêu cầu bổ sung)', time: '2026-02-03 14:18' },
+                      { sender: '보낸편지함', title: 'OOO 프로젝트 PM "OOO" Gửi 체크리스트', time: '2026-02-02 09:40' },
+                      { sender: 'OO Xây dựng', title: 'Trả lời câu hỏi Smart City', time: '2026-01-26 09:12' },
+                      { sender: 'OO Xây dựng', title: 'Trả lời câu hỏi 프로젝트', time: '2026-01-26 09:12' }
+                    ].map((m, idx) => (
+                      <div key={idx} style={{ padding: '8px 10px', backgroundColor: 'var(--bg-primary)', borderRadius: '6px', border: '1px solid var(--border)', fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: '2px', cursor: 'pointer' }} onClick={() => setCurrentMenu('mail')}>
+                        <span style={{ fontWeight: '800', color: 'var(--text-primary)', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+                          [{m.sender}] {m.title}
                         </span>
-                        <span style={{
-                          fontSize: '0.65rem',
-                          fontWeight: '800',
-                          padding: '2px 6px',
-                          borderRadius: '4px',
-                          backgroundColor: todo.completed ? 'rgba(35, 165, 90, 0.1)' : 'rgba(240, 178, 50, 0.1)',
-                          color: todo.completed ? '#23a55a' : '#f0b232'
-                        }}>
-                          {todo.completed ? '완료' : '진행중'}
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                          {m.sender} - {m.time}
                         </span>
                       </div>
                     ))}
@@ -1887,63 +2241,126 @@ export default function App() {
                 </div>
               )}
 
-              {/* 위젯 4: 임직원 현황 */}
-              {visibleWidgets.includes('employees') && (
-                <div style={styles.widgetCard}>
-                  <div style={styles.widgetTitle}>👥 우리 회사 임직원 현황</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.8rem', fontWeight: '700' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: 'var(--text-secondary)' }}>양사 총 임직원 수</span>
-                      <strong style={{ color: 'var(--text-primary)' }}>{allEmployees.length} 명</strong>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: 'var(--text-secondary)' }}>CON-COST 본사</span>
-                      <strong style={{ color: 'var(--text-primary)' }}>{allEmployees.filter(e => e.company === 'CON-COST').length} 명</strong>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: 'var(--text-secondary)' }}>Viet QS 지사</span>
-                      <strong style={{ color: 'var(--text-primary)' }}>{allEmployees.filter(e => e.company === 'Viet QS').length} 명</strong>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* 위젯 5: 이번 주 전사 일정 */}
-              {visibleWidgets.includes('calendar') && (
-                <div style={styles.widgetCard}>
-                  <div style={styles.widgetTitle}>📅 이번 주 전사 일정</div>
-                  <table style={{ width: '100%', fontSize: '0.8rem', borderCollapse: 'collapse', fontWeight: '700' }}>
-                    <tbody>
-                      <tr style={{ borderBottom: '1px solid var(--border-light)' }}>
-                        <td style={{ padding: '8px 0', color: accentColor }}>15일 (월)</td>
-                        <td style={{ color: 'var(--text-primary)' }}>BIM파트 주간 1차 도면 QC 납품</td>
-                      </tr>
-                      <tr style={{ borderBottom: '1px solid var(--border-light)' }}>
-                        <td style={{ padding: '8px 0', color: 'var(--text-primary)' }}>17일 (수)</td>
-                        <td style={{ color: 'var(--text-primary)' }}>Viet QS Horizon 회의</td>
-                      </tr>
-                      <tr>
-                        <td style={{ padding: '8px 0', color: 'var(--text-muted)' }}>19일 (금)</td>
-                        <td style={{ color: 'var(--text-primary)' }}>대표이사 주관 경영 보고</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {/* 위젯 6: 사내 주요 소식 */}
+              {/* 위젯 5: 게시판 */}
               {visibleWidgets.includes('board') && (
-                <div style={styles.widgetCard}>
-                  <div style={styles.widgetTitle}>📢 사내 주요 소식</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.8rem' }}>
-                    {boardPosts.slice(0, 3).map(post => (
-                      <div key={post.id} style={{ display: 'flex', justifyContent: 'space-between', cursor: 'pointer' }} onClick={() => setCurrentMenu('board')}>
-                        <span style={{ fontWeight: '700', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%' }}>
-                          {post.title}
-                        </span>
-                        <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{post.date}</span>
-                      </div>
-                    ))}
+                <div style={{ ...styles.widgetCard, gridColumn: 'span 6', minWidth: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px dashed var(--border-light)', paddingBottom: '8px' }}>
+                    <div style={{ fontWeight: '800', fontSize: '0.95rem' }}>📢 게시판</div>
+                    <button style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer' }} onClick={() => setCurrentMenu('board')}>
+                      최신 소식
+                    </button>
+                  </div>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', minWidth: '400px', borderCollapse: 'collapse', fontSize: '0.8rem', textAlign: 'left' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                          <th style={{ padding: '6px 4px', width: '70px' }}>유형</th>
+                          <th style={{ padding: '6px 4px' }}>제목</th>
+                          <th style={{ padding: '6px 4px', width: '80px' }}>작성자</th>
+                          <th style={{ padding: '6px 4px', width: '90px' }}>날짜</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[
+                          { type: '공지', typeBg: 'rgba(0, 122, 255, 0.1)', typeColor: '#007aff', title: '매뉴얼 quyết toán cuối năm 2025', author: '총무부', date: '26/01/2026' },
+                          { type: '대표이사', typeBg: 'rgba(255, 107, 0, 0.1)', typeColor: '#ff6b00', title: 'Thông điệp năm mới từ 대표이사 (2026)', author: '이사회 (BOD)', date: '26/01/2026' },
+                          { type: '프로젝트', typeBg: 'rgba(35, 165, 90, 0.1)', typeColor: '#23a55a', title: '진행률 프로젝트 _Ver.260123', author: '영업부', date: '23/01/2026' },
+                          { type: '회의록', typeBg: 'rgba(148, 155, 164, 0.1)', typeColor: 'var(--text-secondary)', title: '회의록 họp tuần (주 3 tuần 1)', author: 'PMO', date: '21/01/2026' },
+                          { type: '매뉴얼', typeBg: 'rgba(165, 85, 236, 0.1)', typeColor: '#a555ec', title: 'Sổ tay hướng dẫn ng mới vào làm', author: '총무부', date: '15/01/2026' }
+                        ].map((post, idx) => (
+                          <tr key={idx} style={{ borderBottom: '1px solid var(--border-light)', cursor: 'pointer' }} onClick={() => setCurrentMenu('board')}>
+                            <td style={{ padding: '8px 4px' }}>
+                              <span style={{
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                fontSize: '0.7rem',
+                                fontWeight: 'bold',
+                                backgroundColor: post.typeBg,
+                                color: post.typeColor
+                              }}>
+                                {post.type}
+                              </span>
+                            </td>
+                            <td style={{ padding: '8px 4px', fontWeight: '700', color: 'var(--text-primary)', maxWidth: '180px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                              {post.title}
+                            </td>
+                            <td style={{ padding: '8px 4px', color: 'var(--text-secondary)' }}>{post.author}</td>
+                            <td style={{ padding: '8px 4px', color: 'var(--text-muted)' }}>{post.date}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* 위젯 6: 전자결재 (결재 대기) */}
+              {visibleWidgets.includes('e_approval') && (
+                <div style={{ ...styles.widgetCard, gridColumn: 'span 6', minWidth: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px dashed var(--border-light)', paddingBottom: '8px' }}>
+                    <div style={{ fontWeight: '800', fontSize: '0.95rem' }}>✍️ 전자결재</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'bold' }}>결재 대기함</div>
+                  </div>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', minWidth: '400px', borderCollapse: 'collapse', fontSize: '0.8rem', textAlign: 'left' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                          <th style={{ padding: '6px 4px', width: '70px' }}>상태</th>
+                          <th style={{ padding: '6px 4px' }}>제목</th>
+                          <th style={{ padding: '6px 4px', width: '80px' }}>기안자</th>
+                          <th style={{ padding: '6px 4px', width: '90px' }}>NGÀY TẠO</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[
+                          { status: '대기', statusBg: 'rgba(240, 178, 50, 0.1)', statusColor: '#f0b232', title: 'Yêu cầu duyệt đơn Quyết toán chi phí (Vật tư)', creator: '작성자: A', date: '26/01/2026' },
+                          { status: '대기', statusBg: 'rgba(240, 178, 50, 0.1)', statusColor: '#f0b232', title: 'Yêu cầu duyệt đơn 휴가', creator: '작성자: B', date: '25/01/2026' }
+                        ].map((app, idx) => (
+                          <tr key={idx} style={{ borderBottom: '1px solid var(--border-light)', cursor: 'pointer' }}>
+                            <td style={{ padding: '10px 4px' }}>
+                              <span style={{
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                fontSize: '0.7rem',
+                                fontWeight: 'bold',
+                                backgroundColor: app.statusBg,
+                                color: app.statusColor
+                              }}>
+                                {app.status}
+                              </span>
+                            </td>
+                            <td style={{ padding: '10px 4px', fontWeight: '700', color: 'var(--text-primary)', maxWidth: '180px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                              {app.title}
+                            </td>
+                            <td style={{ padding: '10px 4px', color: 'var(--text-secondary)' }}>{app.creator}</td>
+                            <td style={{ padding: '10px 4px', color: 'var(--text-muted)' }}>{app.date}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* 위젯 7: 일정관리 */}
+              {visibleWidgets.includes('schedule') && (
+                <div style={{ ...styles.widgetCard, gridColumn: 'span 6', minWidth: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px dashed var(--border-light)', paddingBottom: '8px' }}>
+                    <div style={{ fontWeight: '800', fontSize: '0.95rem' }}>📅 일정관리</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'bold' }}>예정된 부재/휴가</div>
+                  </div>
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    height: '140px',
+                    color: 'var(--text-muted)',
+                    fontSize: '0.8rem',
+                    fontWeight: '700'
+                  }}>
+                    <CalendarIcon size={32} style={{ marginBottom: '8px', color: 'var(--text-muted)' }} />
+                    <div>예정된 부재 또는 휴가가 없습니다.</div>
                   </div>
                 </div>
               )}
@@ -2099,90 +2516,388 @@ export default function App() {
         );
 
       case 'todo':
+        const filteredTodos = todos.filter(todo => {
+          if (todoFilter === 'today') return todo.date === '오늘' && !todo.completed;
+          if (todoFilter === 'overdue') return todo.date === '어제' && !todo.completed;
+          if (todoFilter === 'completed') return todo.completed;
+          return true; // 'all'
+        });
+
         return (
           <div style={styles.mainContainer} className="animate-fade">
             <div style={styles.mainHeader}>
-              <h2 style={styles.mainTitle}>{t.todoTitle}</h2>
-              <span style={styles.metaBadge}>{currentWorkspace === 'vietqs' ? 'Chưa xong ' : '미완료 '}{todos.filter(t => !t.completed).length}{currentWorkspace === 'vietqs' ? ' việc' : '건'}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <h2 style={styles.mainTitle}>
+                  {todoFilter === 'all' && (currentWorkspace === 'vietqs' ? '📋 Tất cả việc cần làm' : '📋 전체 할 일')}
+                  {todoFilter === 'today' && (currentWorkspace === 'vietqs' ? '📅 Việc hôm nay' : '📅 오늘 할 일')}
+                  {todoFilter === 'overdue' && (currentWorkspace === 'vietqs' ? '⏰ Quá hạn' : '⏰ 기한 경과')}
+                  {todoFilter === 'completed' && (currentWorkspace === 'vietqs' ? '✅ Đã hoàn thành' : '✅ 완료된 할 일')}
+                </h2>
+                <span style={styles.metaBadge}>
+                  {filteredTodos.length}{currentWorkspace === 'vietqs' ? ' việc' : '건'}
+                </span>
+              </div>
             </div>
 
-            <div style={styles.todoContent}>
-              <form onSubmit={handleAddTodo} style={styles.todoForm}>
-                <input 
-                  type="text" 
-                  placeholder={t.todoPlaceholder} 
-                  value={newTodoText} 
-                  onChange={(e) => setNewTodoText(e.target.value)}
-                  style={styles.todoInput}
-                />
-                <button type="submit" style={{ ...styles.todoSubmitBtn, backgroundColor: accentColor }}>
-                  <Plus size={18} />
-                  {t.todoBtn}
-                </button>
-              </form>
+            <div style={styles.todoLayout}>
+              {/* 왼쪽: 할 일 목록 리스트 */}
+              <div style={styles.todoListPanel}>
+                {/* Quick Add Form (Naver Works style) */}
+                <form onSubmit={handleAddTodo} style={styles.todoQuickAddBar}>
+                  <button 
+                    type="button" 
+                    onClick={() => setNewTodoStarred(!newTodoStarred)}
+                    style={{ 
+                      background: 'none', 
+                      border: 'none', 
+                      cursor: 'pointer', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      color: newTodoStarred ? '#ffb900' : 'var(--text-muted)',
+                      padding: '4px'
+                    }}
+                    title="중요 표시"
+                  >
+                    <Star size={20} fill={newTodoStarred ? '#ffb900' : 'none'} />
+                  </button>
+                  <input 
+                    type="text" 
+                    placeholder={t.todoPlaceholder} 
+                    value={newTodoText} 
+                    onChange={(e) => setNewTodoText(e.target.value)}
+                    style={styles.todoQuickInput}
+                  />
+                  {/* Due Date Dropdown */}
+                  <select 
+                    value={newTodoDate} 
+                    onChange={(e) => setNewTodoDate(e.target.value)}
+                    style={styles.todoSelect}
+                  >
+                    <option value="오늘">📅 오늘</option>
+                    <option value="내일">📅 내일</option>
+                    <option value="내일까지">⏰ 내일까지</option>
+                    <option value="기한없음">⚪ 기한없음</option>
+                  </select>
+                  {/* Priority Dropdown */}
+                  <select 
+                    value={newTodoPriority} 
+                    onChange={(e) => setNewTodoPriority(e.target.value)}
+                    style={styles.todoSelect}
+                  >
+                    <option value="높음">🔴 높음</option>
+                    <option value="보통">🟡 보통</option>
+                    <option value="낮음">🟢 낮음</option>
+                  </select>
+                  <button type="submit" style={{ ...styles.todoAddSubmitBtn, backgroundColor: accentColor }}>
+                    <Plus size={16} />
+                    <span>추가</span>
+                  </button>
+                </form>
 
-              <div style={styles.todoList}>
-                {todos.map(todo => {
-                  let todoText = todo.text;
-                  let todoDate = todo.date;
-                  
-                  if (currentWorkspace === 'vietqs') {
-                    if (todo.text === '그룹웨어 메신저 프로토타입 디자인 최종 피드백 반영') {
-                      todoText = 'Áp dụng feedback thiết kế bản thử nghiệm Messenger';
-                    } else if (todo.text === '베트남 지사(Viet QS) 출장 보고서 검토') {
-                      todoText = 'Xem xét báo cáo chuyến công tác chi nhánh VN';
-                    } else if (todo.text === '건축 적산 자동화 AI 모듈 성능 지표 2차 보고') {
-                      todoText = 'Báo cáo chỉ số hiệu suất mô-đun AI ước lượng xây dựng';
-                    }
-                    
-                    if (todo.date === '오늘') todoDate = 'Hôm nay';
-                    else if (todo.date === '어제') todoDate = 'Hôm qua';
-                    else if (todo.date === '내일까지') todoDate = 'Đến ngày mai';
-                  }
+                {/* 할 일 목록 */}
+                <div style={styles.todoItemsContainer}>
+                  {filteredTodos.length === 0 ? (
+                    <div style={styles.todoEmptyState}>
+                      <CheckCircle size={40} style={{ color: 'var(--text-muted)', marginBottom: '12px' }} />
+                      <p>등록된 할 일이 없습니다.</p>
+                    </div>
+                  ) : (
+                    filteredTodos.map(todo => {
+                      const isSelected = selectedTodoDetail?.id === todo.id;
+                      
+                      let todoText = todo.text;
+                      let todoDate = todo.date;
+                      
+                      if (currentWorkspace === 'vietqs') {
+                        if (todo.text === '그룹웨어 메신저 프로토타입 디자인 최종 피드백 반영') {
+                          todoText = 'Áp dụng feedback thiết kế bản thử nghiệm Messenger';
+                        } else if (todo.text === '베트남 지사(Viet QS) 출장 보고서 검토') {
+                          todoText = 'Xem xét báo cáo chuyến công tác chi nhánh VN';
+                        } else if (todo.text === '건축 적산 자동화 AI 모듈 성능 지표 2차 보고') {
+                          todoText = 'Báo cáo chỉ số hiệu suất mô-đun AI ước lượng xây dựng';
+                        } else if (todo.text === '사내 공용 파일 드라이브 구조 설계 개선') {
+                          todoText = 'Cải thiện cấu trúc ổ đĩa dùng chung công ty';
+                        } else if (todo.text === '실시간 소켓 채팅 알림 최적화 및 로깅 테스트') {
+                          todoText = 'Tối ưu hóa thông báo chat socket thời gian thực';
+                        }
+                        
+                        if (todo.date === '오늘') todoDate = 'Hôm nay';
+                        else if (todo.date === '어제') todoDate = 'Hôm qua';
+                        else if (todo.date === '내일까지') todoDate = 'Đến ngày mai';
+                        else if (todo.date === '내일') todoDate = 'Ngày mai';
+                        else if (todo.date === '기한없음') todoDate = 'Không thời hạn';
+                      }
 
-                  return (
-                    <div 
-                      key={todo.id} 
-                      style={{
-                        ...styles.todoItem,
-                        opacity: todo.completed ? 0.6 : 1,
-                        borderLeft: todo.completed ? '3px solid var(--border-light)' : `3px solid ${accentColor}`
-                      }}
-                    >
-                      <div 
-                        style={styles.todoCheckArea} 
-                        onClick={() => handleToggleTodo(todo.id)}
-                      >
-                        <div style={{
-                          ...styles.todoCheckbox,
-                          backgroundColor: todo.completed ? accentColor : 'transparent',
-                          borderColor: todo.completed ? 'transparent' : 'var(--text-muted)'
-                        }}>
-                          {todo.completed && <Check size={12} style={{ color: '#ffffff' }} />}
-                        </div>
-                        <span style={{
-                          ...styles.todoText,
-                          textDecoration: todo.completed ? 'line-through' : 'none',
-                          color: todo.completed ? 'var(--text-muted)' : 'var(--text-primary)'
-                        }}>
-                          {todoText}
-                        </span>
-                      </div>
-                      <div style={styles.todoMeta}>
-                        <span style={styles.todoDateBadge}>{todoDate}</span>
-                        <button 
-                          onClick={() => handleDeleteTodo(todo.id)} 
-                          className="todo-delete-btn"
-                          style={styles.todoDeleteBtn}
-                          title="Xóa"
+                      // Priority color mapping
+                      let priorityColor = 'var(--text-muted)';
+                      let priorityBg = 'var(--bg-secondary)';
+                      let priorityBorder = 'var(--border-light)';
+                      if (todo.priority === '높음') {
+                        priorityColor = '#ef4444';
+                        priorityBg = 'rgba(239, 68, 68, 0.08)';
+                        priorityBorder = 'rgba(239, 68, 68, 0.2)';
+                      } else if (todo.priority === '보통') {
+                        priorityColor = '#f59e0b';
+                        priorityBg = 'rgba(245, 158, 11, 0.08)';
+                        priorityBorder = 'rgba(245, 158, 11, 0.2)';
+                      } else if (todo.priority === '낮음') {
+                        priorityColor = '#10b981';
+                        priorityBg = 'rgba(16, 185, 129, 0.08)';
+                        priorityBorder = 'rgba(16, 185, 129, 0.2)';
+                      }
+
+                      // Overdue date badge check
+                      const isOverdue = todo.date === '어제' && !todo.completed;
+
+                      return (
+                        <div 
+                          key={todo.id}
+                          className="todo-item-row"
+                          style={{
+                            ...styles.todoItemRow,
+                            backgroundColor: isSelected ? 'var(--bg-active)' : 'var(--bg-secondary)',
+                            borderLeft: todo.completed ? '3px solid var(--border-light)' : `3px solid ${accentColor}`
+                          }}
+                          onClick={() => setSelectedTodoDetail(todo)}
                         >
-                          <Trash2 size={16} />
-                        </button>
+                          {/* 체크박스 & 중요버튼 & 텍스트 */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
+                            {/* Circle Checkbox */}
+                            <div 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleToggleTodo(todo.id);
+                              }}
+                              style={{
+                                width: '20px',
+                                height: '20px',
+                                borderRadius: '50%',
+                                border: todo.completed ? '2px solid transparent' : '2px solid var(--text-muted)',
+                                backgroundColor: todo.completed ? accentColor : 'transparent',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s',
+                                flexShrink: 0
+                              }}
+                            >
+                              {todo.completed && <Check size={12} style={{ color: '#ffffff', strokeWidth: 3 }} />}
+                            </div>
+
+                            {/* 중요표시 별 */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleToggleStarTodo(todo.id);
+                              }}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                color: todo.starred ? '#ffb900' : 'var(--text-muted)',
+                                padding: '2px',
+                                flexShrink: 0
+                              }}
+                            >
+                              <Star size={16} fill={todo.starred ? '#ffb900' : 'none'} />
+                            </button>
+
+                            {/* 텍스트 */}
+                            <span 
+                              style={{
+                                ...styles.todoTextLabel,
+                                textDecoration: todo.completed ? 'line-through' : 'none',
+                                color: todo.completed ? 'var(--text-muted)' : 'var(--text-primary)',
+                                flex: 1,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap'
+                              }}
+                            >
+                              {todoText}
+                            </span>
+                          </div>
+
+                          {/* 메타 배지 및 액션 */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
+                            {/* 기한 배지 */}
+                            <span 
+                              style={{ 
+                                ...styles.todoBadge, 
+                                color: isOverdue ? '#ef4444' : 'var(--text-secondary)',
+                                backgroundColor: isOverdue ? 'rgba(239, 68, 68, 0.08)' : 'var(--bg-active)',
+                                border: isOverdue ? '1px solid rgba(239, 68, 68, 0.2)' : '1px solid var(--border-light)'
+                              }}
+                            >
+                              {todoDate}
+                            </span>
+
+                            {/* 우선순위 배지 */}
+                            <span 
+                              style={{ 
+                                ...styles.todoBadge, 
+                                color: priorityColor,
+                                backgroundColor: priorityBg,
+                                border: `1px solid ${priorityBorder}`
+                              }}
+                            >
+                              {todo.priority}
+                            </span>
+
+                            {/* 삭제 버튼 */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteTodo(todo.id);
+                              }}
+                              style={styles.todoRowDeleteBtn}
+                              title="삭제"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              {/* 오른쪽: 할 일 상세정보 패널 (Naver Works Drawer Style) */}
+              {selectedTodoDetail && (
+                <div style={styles.todoDetailPanel} className="animate-scale">
+                  <div style={styles.todoDetailHeader}>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      📋 {currentWorkspace === 'vietqs' ? 'Chi tiết công việc' : '할 일 상세 정보'}
+                    </h3>
+                    <button 
+                      onClick={() => setSelectedTodoDetail(null)}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+
+                  <div style={styles.todoDetailBody}>
+                    {/* 제목 수정 */}
+                    <div style={styles.todoDetailField}>
+                      <label style={styles.todoDetailLabel}>{currentWorkspace === 'vietqs' ? 'Tiêu đề' : '할 일 제목'}</label>
+                      <input 
+                        type="text"
+                        value={selectedTodoDetail.text}
+                        onChange={(e) => handleUpdateTodo({ ...selectedTodoDetail, text: e.target.value })}
+                        style={styles.todoDetailInput}
+                      />
+                    </div>
+
+                    {/* 완료 및 중요 상태 */}
+                    <div style={{ display: 'flex', gap: '16px', margin: '8px 0' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem' }}>
+                        <input 
+                          type="checkbox"
+                          checked={selectedTodoDetail.completed}
+                          onChange={() => handleToggleTodo(selectedTodoDetail.id)}
+                          style={{ accentColor }}
+                        />
+                        <span>{currentWorkspace === 'vietqs' ? 'Đã xong' : '완료 상태'}</span>
+                      </label>
+
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem' }}>
+                        <input 
+                          type="checkbox"
+                          checked={selectedTodoDetail.starred}
+                          onChange={() => handleToggleStarTodo(selectedTodoDetail.id)}
+                          style={{ accentColor }}
+                        />
+                        <span>{currentWorkspace === 'vietqs' ? 'Quan trọng (*)' : '중요 업무 (별표)'}</span>
+                      </label>
+                    </div>
+
+                    {/* 기한 및 우선순위 */}
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                      <div style={{ ...styles.todoDetailField, flex: 1 }}>
+                        <label style={styles.todoDetailLabel}>{currentWorkspace === 'vietqs' ? 'Hạn chót' : '기한 설정'}</label>
+                        <select 
+                          value={selectedTodoDetail.date}
+                          onChange={(e) => handleUpdateTodo({ ...selectedTodoDetail, date: e.target.value })}
+                          style={styles.todoDetailSelect}
+                        >
+                          <option value="오늘">📅 오늘</option>
+                          <option value="내일">📅 내일</option>
+                          <option value="내일까지">⏰ 내일까지</option>
+                          <option value="기한없음">⚪ 기한없음</option>
+                        </select>
+                      </div>
+
+                      <div style={{ ...styles.todoDetailField, flex: 1 }}>
+                        <label style={styles.todoDetailLabel}>{currentWorkspace === 'vietqs' ? 'Độ ưu tiên' : '우선순위'}</label>
+                        <select 
+                          value={selectedTodoDetail.priority}
+                          onChange={(e) => handleUpdateTodo({ ...selectedTodoDetail, priority: e.target.value })}
+                          style={styles.todoDetailSelect}
+                        >
+                          <option value="높음">🔴 높음</option>
+                          <option value="보통">🟡 보통</option>
+                          <option value="낮음">🟢 낮음</option>
+                        </select>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
+
+                    {/* 상세 설명 메모 */}
+                    <div style={styles.todoDetailField}>
+                      <label style={styles.todoDetailLabel}>{currentWorkspace === 'vietqs' ? 'Ghi chú (Memo)' : '상세 메모 (Naver Works Style)'}</label>
+                      <textarea 
+                        placeholder={currentWorkspace === 'vietqs' ? 'Nhập ghi chú chi tiết...' : '이 할 일에 대한 상세 정보를 자유롭게 기록해 보세요...'}
+                        value={selectedTodoDetail.memo || ''}
+                        onChange={(e) => handleUpdateTodo({ ...selectedTodoDetail, memo: e.target.value })}
+                        style={styles.todoDetailTextarea}
+                      />
+                    </div>
+
+                    {/* 삭제 및 닫기 버튼 */}
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                      <button 
+                        onClick={() => handleDeleteTodo(selectedTodoDetail.id)}
+                        style={{
+                          flex: 1,
+                          padding: '10px 0',
+                          backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                          border: '1px solid rgba(239, 68, 68, 0.2)',
+                          borderRadius: '8px',
+                          color: '#ef4444',
+                          fontWeight: 'bold',
+                          cursor: 'pointer',
+                          fontSize: '0.85rem',
+                          textAlign: 'center'
+                        }}
+                      >
+                        {currentWorkspace === 'vietqs' ? 'Xóa' : '삭제하기'}
+                      </button>
+                      <button 
+                        onClick={() => setSelectedTodoDetail(null)}
+                        style={{
+                          flex: 1.5,
+                          padding: '10px 0',
+                          backgroundColor: 'var(--bg-active)',
+                          border: '1px solid var(--border)',
+                          borderRadius: '8px',
+                          color: 'var(--text-primary)',
+                          fontWeight: 'bold',
+                          cursor: 'pointer',
+                          fontSize: '0.85rem',
+                          textAlign: 'center'
+                        }}
+                      >
+                        {currentWorkspace === 'vietqs' ? 'Đóng' : '닫기'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         );
@@ -2554,90 +3269,170 @@ const styles = {
     fontWeight: '500',
   },
 
-  // Todo Styles
-  todoContent: {
+  // Todo Styles (Naver Works split-pane layout)
+  todoLayout: {
+    display: 'flex',
+    gap: '20px',
+    flex: 1,
+    height: 'calc(100% - 60px)',
+    overflow: 'hidden',
+  },
+  todoListPanel: {
+    flex: 2,
     display: 'flex',
     flexDirection: 'column',
     gap: '16px',
-    maxWidth: '640px',
-    width: '100%',
-    margin: '0 auto',
+    height: '100%',
+    overflowY: 'auto',
   },
-  todoForm: {
-    display: 'flex',
-    gap: '8px',
-  },
-  todoInput: {
-    flex: 1,
-    padding: '12px 16px',
-    backgroundColor: 'var(--bg-secondary)',
-    border: '1px solid var(--border-light)',
-    borderRadius: 'var(--radius-md)',
-    color: 'var(--text-primary)',
-    fontSize: '0.95rem',
-    outline: 'none',
-  },
-  todoSubmitBtn: {
-    padding: '0 20px',
-    borderRadius: 'var(--radius-md)',
-    color: '#ffffff',
-    fontWeight: '600',
-    fontSize: '0.9rem',
+  todoQuickAddBar: {
     display: 'flex',
     alignItems: 'center',
-    gap: '6px',
+    gap: '8px',
+    backgroundColor: 'var(--bg-secondary)',
+    border: '1px solid var(--border)',
+    borderRadius: '12px',
+    padding: '8px 12px',
   },
-  todoList: {
+  todoQuickInput: {
+    flex: 1,
+    background: 'none',
+    border: 'none',
+    color: 'var(--text-primary)',
+    fontSize: '0.9rem',
+    outline: 'none',
+  },
+  todoSelect: {
+    backgroundColor: 'var(--bg-primary)',
+    border: '1px solid var(--border-light)',
+    borderRadius: '6px',
+    color: 'var(--text-secondary)',
+    padding: '4px 8px',
+    fontSize: '0.8rem',
+    outline: 'none',
+    cursor: 'pointer',
+  },
+  todoAddSubmitBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+    color: '#ffffff',
+    border: 'none',
+    borderRadius: '6px',
+    padding: '6px 12px',
+    fontSize: '0.8rem',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+  },
+  todoItemsContainer: {
     display: 'flex',
     flexDirection: 'column',
     gap: '8px',
   },
-  todoItem: {
+  todoEmptyState: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '40px 0',
+    color: 'var(--text-muted)',
+    fontSize: '0.9rem',
+  },
+  todoItemRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '12px 16px',
+    borderRadius: '10px',
+    border: '1px solid var(--border-light)',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+  },
+  todoTextLabel: {
+    fontSize: '0.9rem',
+    fontWeight: '500',
+  },
+  todoBadge: {
+    fontSize: '0.75rem',
+    padding: '2px 8px',
+    borderRadius: '6px',
+    fontWeight: '500',
+  },
+  todoRowDeleteBtn: {
+    background: 'none',
+    border: 'none',
+    color: 'var(--text-muted)',
+    cursor: 'pointer',
+    padding: '4px',
+    borderRadius: '4px',
+    display: 'flex',
+    alignItems: 'center',
+    transition: 'color 0.2s',
+  },
+  todoDetailPanel: {
+    flex: 1.2,
     backgroundColor: 'var(--bg-secondary)',
     border: '1px solid var(--border)',
-    borderRadius: 'var(--radius-md)',
-    padding: '14px 16px',
+    borderRadius: '16px',
+    padding: '20px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '16px',
+    height: '100%',
+    overflowY: 'auto',
+  },
+  todoDetailHeader: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
+    borderBottom: '1px dashed var(--border-light)',
+    paddingBottom: '12px',
   },
-  todoCheckArea: {
+  todoDetailBody: {
     display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-    cursor: 'pointer',
-    flex: 1,
+    flexDirection: 'column',
+    gap: '14px',
   },
-  todoCheckbox: {
-    width: '18px',
-    height: '18px',
-    borderRadius: '4px',
-    border: '2px solid',
+  todoDetailField: {
     display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transition: 'all var(--transition-fast)',
+    flexDirection: 'column',
+    gap: '6px',
   },
-  todoText: {
-    fontSize: '0.925rem',
-    lineHeight: '1.4',
-  },
-  todoMeta: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-  },
-  todoDateBadge: {
+  todoDetailLabel: {
     fontSize: '0.75rem',
-    backgroundColor: 'var(--bg-active)',
-    color: 'var(--text-secondary)',
-    padding: '2px 8px',
-    borderRadius: '10px',
-  },
-  todoDeleteBtn: {
     color: 'var(--text-muted)',
-    padding: '4px',
-    borderRadius: 'var(--radius-sm)',
+    fontWeight: 'bold',
+  },
+  todoDetailInput: {
+    backgroundColor: 'var(--bg-primary)',
+    border: '1px solid var(--border-light)',
+    borderRadius: '8px',
+    color: 'var(--text-primary)',
+    padding: '10px 12px',
+    fontSize: '0.9rem',
+    outline: 'none',
+  },
+  todoDetailSelect: {
+    backgroundColor: 'var(--bg-primary)',
+    border: '1px solid var(--border-light)',
+    borderRadius: '8px',
+    color: 'var(--text-primary)',
+    padding: '8px 12px',
+    fontSize: '0.85rem',
+    outline: 'none',
+    cursor: 'pointer',
+  },
+  todoDetailTextarea: {
+    backgroundColor: 'var(--bg-primary)',
+    border: '1px solid var(--border-light)',
+    borderRadius: '8px',
+    color: 'var(--text-primary)',
+    padding: '10px 12px',
+    fontSize: '0.85rem',
+    minHeight: '120px',
+    outline: 'none',
+    resize: 'vertical',
+    lineHeight: '1.5',
   },
 
   // Board Styles
@@ -2906,7 +3701,7 @@ const styles = {
   },
   dashboardGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+    gridTemplateColumns: 'repeat(12, 1fr)',
     gap: '20px',
     padding: '0',
   },

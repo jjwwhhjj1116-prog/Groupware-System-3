@@ -10,6 +10,7 @@ import {
   Mail,
   Calendar,
   Layers,
+  Clock,
   Cloud,
   CheckCircle,
   Megaphone,
@@ -46,29 +47,31 @@ export default function Sidebar({
   currentUser,
   onLogout,
   isChatbotVisible, // 추가
-  onToggleChatbotVisible // 추가
+  onToggleChatbotVisible, // 추가
+  todoFilter = 'all', // 추가
+  onTodoFilterChange // 추가
 }) {
 
   const roleLevel = getUserRoleLevel(currentUser);
 
   // 1단 글로벌 네비게이션 메뉴 정의 (다국어 바인딩)
   const menuItems = [
-    { id: 'home', label: currentWorkspace === 'vietqs' ? 'Bảng điều khiển' : '대시보드', icon: <Home size={20} /> },
-    { id: 'chat', label: t.chat, icon: <MessageSquare size={20} />, badge: 3 },
-    { id: 'mail', label: t.mail, icon: <Mail size={20} />, badge: mailUnreadCount },
-    { id: 'calendar', label: t.calendar, icon: <Calendar size={20} /> }
+    { id: 'home', label: 'HOME', icon: <Home size={29} /> },
+    { id: 'chat', label: t.chat, icon: <MessageSquare size={29} />, badge: 3 },
+    { id: 'mail', label: t.mail, icon: <Mail size={29} />, badge: mailUnreadCount },
+    { id: 'calendar', label: t.calendar, icon: <Calendar size={29} /> }
   ];
 
   // 프로젝트 칸반: PM 이상 (Level 1, 2, 3) 노출
   if (roleLevel <= 3) {
-    menuItems.push({ id: 'project', label: t.project, icon: <Layers size={20} /> });
+    menuItems.push({ id: 'project', label: t.project, icon: <Layers size={29} /> });
   }
 
   // 드라이브, 할일, 게시판: 모든 등급 노출
   menuItems.push(
-    { id: 'drive', label: t.drive, icon: <Cloud size={20} /> },
-    { id: 'todo', label: t.todo, icon: <CheckCircle size={20} />, badge: todoCount },
-    { id: 'board', label: t.board, icon: <Megaphone size={20} /> }
+    { id: 'drive', label: t.drive, icon: <Cloud size={29} /> },
+    { id: 'todo', label: t.todo, icon: <CheckCircle size={29} />, badge: todoCount },
+    { id: 'board', label: t.board, icon: <Megaphone size={29} /> }
   );
 
   // 조직도: 임원 이상 (Level 1, 2) 노출
@@ -76,7 +79,7 @@ export default function Sidebar({
     menuItems.push({ 
       id: 'hr', 
       label: currentWorkspace === 'vietqs' ? 'Sơ đồ tổ chức' : '조직도', 
-      icon: <Users size={20} /> 
+      icon: <Users size={29} /> 
     });
   }
 
@@ -141,22 +144,9 @@ export default function Sidebar({
                       fontWeight: activeChat.type === 'ai' ? '600' : '400',
                     }}
                   >
-                    <Bot size={16} style={{ color: '#ff6b00' }} />
+                  <Bot size={16} style={{ color: '#ff6b00' }} />
                     <span style={styles.itemText}>{t.aiName}</span>
                   </button>
-                  {!isChatbotVisible && (
-                    <button 
-                      onClick={() => onToggleChatbotVisible(true)}
-                      style={{
-                        ...styles.itemBtn,
-                        color: 'var(--primary)',
-                        fontWeight: '600',
-                      }}
-                    >
-                      <Bot size={16} style={{ color: 'var(--primary)' }} />
-                      <span style={styles.itemText}>🤖 플로팅 챗봇 켜기</span>
-                    </button>
-                  )}
                 </div>
               </div>
             )}
@@ -279,16 +269,32 @@ export default function Sidebar({
               <span style={styles.sectionTitle}>{t.todoManage}</span>
             </div>
             <div style={styles.sectionList}>
-              <button style={{ ...styles.itemBtn, backgroundColor: 'var(--bg-active)' }}>
+              <button 
+                onClick={() => onTodoFilterChange && onTodoFilterChange('all')}
+                style={{ ...styles.itemBtn, backgroundColor: todoFilter === 'all' ? 'var(--bg-active)' : 'transparent' }}
+              >
                 <CheckCircle size={16} style={{ color: 'var(--primary)' }} />
+                <span style={styles.itemText}>{currentWorkspace === 'vietqs' ? 'Tất cả' : '전체 할 일'}</span>
+              </button>
+              <button 
+                onClick={() => onTodoFilterChange && onTodoFilterChange('today')}
+                style={{ ...styles.itemBtn, backgroundColor: todoFilter === 'today' ? 'var(--bg-active)' : 'transparent' }}
+              >
+                <Clock size={16} style={{ color: '#0058bc' }} />
                 <span style={styles.itemText}>{t.todayTodo}</span>
                 <span style={styles.countBadge}>{todoCount}</span>
               </button>
-              <button style={styles.itemBtn}>
-                <AlertCircle size={16} style={{ color: 'var(--text-muted)' }} />
+              <button 
+                onClick={() => onTodoFilterChange && onTodoFilterChange('overdue')}
+                style={{ ...styles.itemBtn, backgroundColor: todoFilter === 'overdue' ? 'var(--bg-active)' : 'transparent' }}
+              >
+                <AlertCircle size={16} style={{ color: '#d83b01' }} />
                 <span style={styles.itemText}>{t.overdueTodo}</span>
               </button>
-              <button style={styles.itemBtn}>
+              <button 
+                onClick={() => onTodoFilterChange && onTodoFilterChange('completed')}
+                style={{ ...styles.itemBtn, backgroundColor: todoFilter === 'completed' ? 'var(--bg-active)' : 'transparent' }}
+              >
                 <CheckCircle size={16} style={{ color: '#23a55a' }} />
                 <span style={styles.itemText}>{t.completedTodo}</span>
               </button>
@@ -444,6 +450,21 @@ export default function Sidebar({
 
         {/* Global Nav Bottom Actions */}
         <div style={styles.globalActions}>
+          {/* AI Chatbot Pinned Button */}
+          <button 
+            className="action-btn"
+            style={{
+              ...styles.actionBtn,
+              borderColor: isChatbotVisible ? 'var(--primary)' : 'var(--border-light)',
+              color: isChatbotVisible ? 'var(--primary)' : 'var(--text-secondary)',
+              marginBottom: '4px'
+            }} 
+            onClick={() => onToggleChatbotVisible(true)} 
+            title="AI 챗봇 비서 활성화"
+          >
+            <Bot size={26} />
+          </button>
+
           {/* Theme Toggle */}
           <button 
             className="action-btn"
@@ -451,7 +472,7 @@ export default function Sidebar({
             onClick={onToggleTheme} 
             title={isLightTheme ? "다크 모드로 변경" : "라이트 모드로 변경"}
           >
-            {isLightTheme ? <Moon size={18} /> : <Sun size={18} />}
+            {isLightTheme ? <Moon size={26} /> : <Sun size={26} />}
           </button>
           
           <div style={styles.avatarWrapper} onClick={() => onUserClick && onUserClick(currentUser?.id)}>
@@ -463,7 +484,7 @@ export default function Sidebar({
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
                 />
               ) : (
-                <span style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>
+                <span style={{ fontSize: '0.95rem', fontWeight: 'bold' }}>
                   {currentUser?.userName ? currentUser.userName.charAt(0) : (currentWorkspace === 'vietqs' ? 'G' : '대')}
                 </span>
               )}
@@ -474,7 +495,10 @@ export default function Sidebar({
       </div>
 
       {/* 2단: Sub-Navigation Panel (Dynamic by menu) */}
-      <div style={styles.subPanel}>
+      <div style={{
+        ...styles.subPanel,
+        display: currentMenu === 'home' ? 'none' : 'flex'
+      }}>
         {/* Workspace Brand Header */}
         <div style={styles.header}>
           <div style={styles.brandWrapper}>
@@ -492,49 +516,9 @@ export default function Sidebar({
           {renderSubPanelContent()}
         </div>
 
-        {/* Profile/Footer Area */}
-        <div style={styles.profileFooter}>
-          <div style={styles.profileInfo}>
-            <div 
-              style={{ ...styles.avatarFooter, cursor: 'pointer', overflow: 'hidden' }}
-              onClick={() => onUserClick && onUserClick(currentUser?.id)}
-            >
-              {currentUser?.photoUrl ? (
-                <img 
-                  src={currentUser.photoUrl} 
-                  alt="내 사진" 
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                />
-              ) : (
-                <span>{currentUser?.userName ? currentUser.userName.charAt(0) : '대'}</span>
-              )}
-            </div>
-            <div style={styles.profileMeta}>
-              <div style={styles.profileName} title={currentUser?.userName || ''}>
-                {currentUser?.userName ? `${currentUser.userName} ${currentUser.grade || ''} (${getRoleLabel(roleLevel)})` : (currentWorkspace === 'vietqs' ? 'Giám đốc' : '대표님 (나)')}
-              </div>
-              <div style={styles.profileStatus}>
-                <span className="status-dot online" style={{ marginRight: '6px' }} />
-                {t.online}
-              </div>
-            </div>
-          </div>
+        {/* Profile/Footer Area (설정/로그아웃만 노출하여 프로필 중복 제거) */}
+        <div style={{ ...styles.profileFooter, justifyContent: 'flex-end', padding: '14px 20px' }}>
           <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-            {!isChatbotVisible && (
-              <button 
-                onClick={() => onToggleChatbotVisible(true)} 
-                style={{ 
-                  ...styles.settingsBtn, 
-                  color: 'var(--primary)', 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center',
-                }} 
-                title="AI 챗봇 복원하기 (ON)"
-              >
-                <Bot size={16} />
-              </button>
-            )}
             <button 
               onClick={onLogout} 
               style={{ ...styles.settingsBtn, color: '#ff4d4f' }} 
@@ -607,15 +591,15 @@ const styles = {
     transition: 'all var(--transition-fast)',
   },
   workspaceIconWrapper: {
-    width: '40px',
-    height: '40px',
+    width: '48px',
+    height: '48px',
     borderRadius: 'var(--radius-md)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     color: '#ffffff',
     fontWeight: '700',
-    fontSize: '1.1rem',
+    fontSize: '1.3rem',
     boxShadow: '0 2px 4px rgba(0, 0, 0, 0.15)',
     transition: 'transform var(--transition-fast)',
   },
@@ -623,14 +607,14 @@ const styles = {
     textShadow: '0 1px 1px rgba(0,0,0,0.15)',
   },
   divider: {
-    width: '24px',
+    width: '32px',
     height: '1px',
     backgroundColor: 'var(--border-light)',
     margin: '6px 0',
   },
   menuItemBtn: {
-    width: '56px',
-    height: '56px',
+    width: '68px',
+    height: '68px',
     borderRadius: 'var(--radius-md)',
     display: 'flex',
     flexDirection: 'column',
@@ -641,8 +625,9 @@ const styles = {
     transition: 'all var(--transition-fast)',
   },
   menuLabel: {
-    fontSize: '0.65rem',
-    fontWeight: '500',
+    fontSize: '0.78rem',
+    fontWeight: '600',
+    marginTop: '2px',
   },
   menuBadge: {
     position: 'absolute',
@@ -664,8 +649,8 @@ const styles = {
     gap: '12px',
   },
   actionBtn: {
-    width: '36px',
-    height: '36px',
+    width: '44px',
+    height: '44px',
     borderRadius: 'var(--radius-full)',
     display: 'flex',
     alignItems: 'center',
@@ -679,15 +664,15 @@ const styles = {
     cursor: 'pointer',
   },
   myAvatar: {
-    width: '36px',
-    height: '36px',
+    width: '44px',
+    height: '44px',
     borderRadius: 'var(--radius-md)',
     backgroundColor: 'var(--primary)',
     color: '#ffffff',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontSize: '0.8rem',
+    fontSize: '0.95rem',
     fontWeight: 'bold',
   },
   myStatus: {
