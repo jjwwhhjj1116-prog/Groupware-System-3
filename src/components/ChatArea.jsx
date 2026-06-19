@@ -1,20 +1,32 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
-  Send, 
-  Paperclip, 
-  Smile, 
-  Search, 
-  Phone, 
-  Video, 
-  MoreVertical, 
-  Hash, 
-  Bot, 
-  Image as ImageIcon,
-  Check,
-  Menu,
-  UserPlus,
-  LogOut // 추가
+   Send, 
+   Paperclip, 
+   Smile, 
+   Search, 
+   Phone, 
+   Video, 
+   MoreVertical, 
+   Hash, 
+   Bot, 
+   Image as ImageIcon,
+   Check,
+   Menu,
+   UserPlus,
+   LogOut // 추가
 } from 'lucide-react';
+import ceoDongmyungImg from '../assets/ceo_dongmyung.png';
+
+const YOUNGJA_IMAGES = {
+  hello: "https://raw.githubusercontent.com/wonseokjung/solopreneur-ai-agents/main/agents/youngja/assets/youngja_hello.png",
+  thumbsup: "https://raw.githubusercontent.com/wonseokjung/solopreneur-ai-agents/main/agents/youngja/assets/youngja_thumbsup.png",
+  success: "https://raw.githubusercontent.com/wonseokjung/solopreneur-ai-agents/main/agents/youngja/assets/youngja_success.png",
+  thinking: "https://raw.githubusercontent.com/wonseokjung/solopreneur-ai-agents/main/agents/youngja/assets/youngja_thinking.png",
+  idea: "https://raw.githubusercontent.com/wonseokjung/solopreneur-ai-agents/main/agents/youngja/assets/youngja_idea.png",
+  working: "https://raw.githubusercontent.com/wonseokjung/solopreneur-ai-agents/main/agents/youngja/assets/youngja_working.png",
+  presenting: "https://raw.githubusercontent.com/wonseokjung/solopreneur-ai-agents/main/agents/youngja/assets/youngja_presenting.png",
+  panic: "https://raw.githubusercontent.com/wonseokjung/solopreneur-ai-agents/main/agents/youngja/assets/youngja_panic.png"
+};
 
 export default function ChatArea({ 
   activeChat, 
@@ -315,7 +327,8 @@ export default function ChatArea({
             </div>
           ) : (
             messages.map((msg, index) => {
-              const isAi = msg.sender === 'youngja';
+              const isCeoBot = msg.sender === 'ceo-bot';
+              const isYoungja = msg.sender === 'youngja';
               const isMe = msg.sender === 'me';
               const isMatched = matchingMsgIds.includes(msg.id);
               const isCurrentMatch = isMatched && matchingMsgIds[currentMatchIdx] === msg.id;
@@ -336,12 +349,23 @@ export default function ChatArea({
                         onClick={() => onUserClick && onUserClick(msg.sender)}
                         style={{
                           ...styles.avatar,
-                          backgroundColor: isAi ? '#ffece6' : (msg.avatarColor || '#3f4248'),
-                          cursor: 'pointer'
+                          backgroundColor: (isCeoBot || isYoungja) ? '#ffece6' : (msg.avatarColor || '#3f4248'),
+                          cursor: 'pointer',
+                          overflow: 'hidden'
                         }}
                       >
-                        {isAi ? (
-                          <Bot size={20} style={{ color: '#ff6b00' }} />
+                        {isCeoBot ? (
+                          <img 
+                            src={ceoDongmyungImg} 
+                            alt="CEO" 
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                          />
+                        ) : isYoungja ? (
+                          <img 
+                            src={YOUNGJA_IMAGES.hello} 
+                            alt="Youngja" 
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                          />
                         ) : (
                           msg.senderName?.charAt(0)
                         )}
@@ -361,12 +385,12 @@ export default function ChatArea({
                           onClick={() => onUserClick && onUserClick(msg.sender)}
                           style={{
                             ...styles.senderName,
-                            color: isAi ? '#ff6b00' : 'var(--text-primary)',
-                            fontWeight: isAi ? '600' : '500',
+                            color: (isCeoBot || isYoungja) ? '#ff6b00' : 'var(--text-primary)',
+                            fontWeight: (isCeoBot || isYoungja) ? '600' : '500',
                             cursor: 'pointer'
                           }}
                         >
-                          {isAi ? (currentWorkspace === 'vietqs' ? '✨ AI Tư vấn Chi phí XD (Dongmyung)' : '✨ AI 공사비 컨설팅 CEO (동명)') : msg.senderName}
+                          {isCeoBot ? (currentWorkspace === 'vietqs' ? '✨ AI Tư vấn Chi phí XD (Dongmyung)' : '✨ AI 공사비 컨설팅 CEO (동명)') : msg.senderName}
                         </span>
                         <span style={styles.msgTime}>{msg.time}</span>
                       </div>
@@ -426,8 +450,12 @@ export default function ChatArea({
           {isTyping && (
             <div style={styles.msgRow} className="animate-fade">
               <div style={styles.avatarWrapper}>
-                <div style={{ ...styles.avatar, backgroundColor: '#ffece6' }}>
-                  <Bot size={20} style={{ color: '#ff6b00' }} />
+                <div style={{ ...styles.avatar, backgroundColor: 'transparent', overflow: 'hidden' }}>
+                  <img 
+                    src={ceoDongmyungImg} 
+                    alt="CEO" 
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                  />
                 </div>
               </div>
               <div style={styles.bubbleCol}>

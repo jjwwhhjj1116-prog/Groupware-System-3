@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import concostVert from '../assets/concost_logo_vert.png';
 import vietqsLogo from '../assets/vietqs_logo.png';
+import ceoDongmyungImg from '../assets/ceo_dongmyung.png';
 import { getUserRoleLevel, getRoleLabel } from '../utils/permission'; // 권한 관리 유틸 임포트
 
 export default function Sidebar({ 
@@ -169,7 +170,19 @@ export default function Sidebar({
                       fontWeight: activeChat.type === 'ai' ? '600' : '400',
                     }}
                   >
-                  <Bot size={16} style={{ color: '#ff6b00' }} />
+                    <div style={{
+                      width: '20px',
+                      height: '20px',
+                      borderRadius: 'var(--radius-sm)',
+                      overflow: 'hidden',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: 'transparent',
+                      flexShrink: 0
+                    }}>
+                      <img src={ceoDongmyungImg} alt="CEO" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    </div>
                     <span style={styles.itemText}>{t.aiName}</span>
                   </button>
                 </div>

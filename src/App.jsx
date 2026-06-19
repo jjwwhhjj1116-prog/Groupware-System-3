@@ -366,7 +366,7 @@ export default function App() {
       { id: 'vp1', sender: 'jabis', senderName: 'Trưởng phòng Jabis', content: 'Kênh dự án QA Viet QS. Mọi hoạt động kiểm định phần mềm sẽ thảo luận ở đây.', time: '오전 11:00' }
     ],
     'ai-bot': [
-      { id: 'ai1', sender: 'youngja', senderName: 'CEO 현동명 (AI)', content: '반갑네, 유종욱 실장! ✨ (주)컨코스트의 회장 현동명이라네. 건축 공사비 적산이나 회사 규정에 대해 궁금한 점이 있으면 무엇이든 물어보게나. 허허.', time: '오전 11:00', youngjaImageUrl: CEO_IMAGES.default }
+      { id: 'ai1', sender: 'ceo-bot', senderName: 'CEO 현동명 (AI)', content: '반갑네, 유종욱 실장! ✨ (주)컨코스트의 회장 현동명이라네. 건축 공사비 적산이나 회사 규정에 대해 궁금한 점이 있으면 무엇이든 물어보게나. 허허.', time: '오전 11:00', youngjaImageUrl: CEO_IMAGES.default }
     ]
   });
 
@@ -531,6 +531,24 @@ export default function App() {
 
   const handleUserClick = (senderId) => {
     // 봇 정보 처리
+    if (senderId === 'ceo-bot') {
+      setSelectedEmployee({
+        userName: '현동명 회장 (AI)',
+        company: 'CON-COST',
+        dept: '이사회',
+        grade: '회장',
+        role: 'CEO / AI 회장',
+        status: '재직',
+        email: 'ceo.dongmyung@con-cost.com',
+        phone: '010-9999-8888',
+        nationality: '대한민국',
+        workplace: '서울 본사',
+        joinDate: '1998-01-01',
+        photoUrl: ceoDongmyungImg
+      });
+      setIsHrCardOpen(true);
+      return;
+    }
     if (senderId === 'youngja') {
       setSelectedEmployee({
         userName: '영자 실장',
@@ -794,7 +812,7 @@ export default function App() {
 
       const aiMsg = {
         id: `ai-${Date.now()}`,
-        sender: 'youngja',
+        sender: 'ceo-bot',
         senderName: isViet ? '✨ AI Tư vấn Chi phí XD (Dongmyung)' : '✨ AI 공사비 컨설팅 CEO (동명)',
         content: reply,
         time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
@@ -1009,7 +1027,7 @@ export default function App() {
     setIsChatbotTyping(false);
     const aiMsg = {
       id: `cb-ai-${Date.now()}`,
-      sender: 'youngja',
+      sender: 'ceo-bot',
       senderName: isViet ? '✨ AI Tư vấn Chi phí XD (Dongmyung)' : '✨ AI 공사비 컨설팅 CEO (동명)',
       content: reply,
       time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
@@ -1805,8 +1823,12 @@ export default function App() {
                 }}
               >
                 {!isMe && (
-                  <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: '#ffece6', display: 'flex', alignItems: 'center', justifySelf: 'center', flexShrink: 0 }}>
-                    <Bot size={16} style={{ color: '#ff6b00', margin: 'auto' }} />
+                  <div style={{ width: '28px', height: '28px', borderRadius: '50%', overflow: 'hidden', display: 'flex', alignItems: 'center', justifySelf: 'center', flexShrink: 0 }}>
+                    <img 
+                      src={ceoDongmyungImg} 
+                      alt="CEO" 
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                    />
                   </div>
                 )}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', maxWidth: '75%' }}>
@@ -1840,8 +1862,12 @@ export default function App() {
           })}
           {isChatbotTyping && (
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: '#ffece6', display: 'flex' }}>
-                <Bot size={16} style={{ color: '#ff6b00', margin: 'auto' }} />
+              <div style={{ width: '28px', height: '28px', borderRadius: '50%', overflow: 'hidden', display: 'flex' }}>
+                <img 
+                  src={ceoDongmyungImg} 
+                  alt="CEO" 
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                />
               </div>
               <div style={{ padding: '8px 12px', borderRadius: '10px', backgroundColor: 'rgba(255,255,255,0.05)', display: 'flex', gap: '4px' }}>
                 <span style={{ width: '4px', height: '4px', backgroundColor: '#aaa', borderRadius: '50%', animation: 'fadeIn 1s infinite alternate' }} />
