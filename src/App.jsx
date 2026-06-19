@@ -27,6 +27,7 @@ import {
 import { getUserRoleLevel, getRoleLabel } from './utils/permission'; // 추가
 import ceoDongmyungImg from './assets/ceo_dongmyung.png';
 import ceoDongmyungThinkingImg from './assets/ceo_dongmyung_thinking.png';
+import chatbotIcon from './assets/chatbot_icon.png';
 
 // AI 영자 표정 이미지들
 const YOUNGJA_IMAGES = {
@@ -1697,29 +1698,26 @@ export default function App() {
               width: '64px',
               height: '64px',
               borderRadius: '50%',
-              backgroundColor: 'rgba(31, 41, 55, 0.8)',
-              border: '2px solid #ff6b00',
-              boxShadow: '0 8px 24px rgba(255, 107, 0, 0.3)',
+              backgroundColor: 'var(--bg-secondary)',
+              border: '2px solid var(--primary)',
+              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.25)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               cursor: 'pointer',
               backdropFilter: 'blur(8px)',
-              transition: 'all 0.3s ease'
+              transition: 'all 0.3s ease',
+              overflow: 'hidden'
             }}
             onClick={() => setIsChatbotOpen(!isChatbotOpen)}
             title="AI 비서 동명 대화하기"
             className="dog-robot-btn"
           >
-            <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M4 12c0-2 2-3 4-2v6c-2 1-4 0-4-4Z" fill="#ff6b00" />
-              <path d="M32 12c0-2-2-3-4-2v6c2 1 4 0 4-4Z" fill="#ff6b00" />
-              <rect x="7" y="7" width="22" height="20" rx="5" fill="#2b2d31" stroke="#ff6b00" strokeWidth="2" />
-              <rect x="10" y="10" width="16" height="11" rx="3" fill="#111214" />
-              <circle cx="14" cy="15" r="2.5" fill="#00ffcc" />
-              <circle cx="22" cy="15" r="2.5" fill="#00ffcc" />
-              <ellipse cx="18" cy="23" rx="2" ry="1.5" fill="#ff6b00" />
-            </svg>
+            <img 
+              src={chatbotIcon} 
+              alt="AI Chatbot Icon" 
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+            />
           </button>
         </div>
       )}
