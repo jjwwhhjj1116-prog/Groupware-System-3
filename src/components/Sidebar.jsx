@@ -44,7 +44,9 @@ export default function Sidebar({
   onOpenSettings,
   aiEnabled,
   currentUser,
-  onLogout
+  onLogout,
+  isChatbotVisible, // 추가
+  onToggleChatbotVisible // 추가
 }) {
 
   const roleLevel = getUserRoleLevel(currentUser);
@@ -139,9 +141,22 @@ export default function Sidebar({
                       fontWeight: activeChat.type === 'ai' ? '600' : '400',
                     }}
                   >
-                    <Bot size={16} style={{ color: '#ff007f' }} />
+                    <Bot size={16} style={{ color: '#ff6b00' }} />
                     <span style={styles.itemText}>{t.aiName}</span>
                   </button>
+                  {!isChatbotVisible && (
+                    <button 
+                      onClick={() => onToggleChatbotVisible(true)}
+                      style={{
+                        ...styles.itemBtn,
+                        color: 'var(--primary)',
+                        fontWeight: '600',
+                      }}
+                    >
+                      <Bot size={16} style={{ color: 'var(--primary)' }} />
+                      <span style={styles.itemText}>🤖 플로팅 챗봇 켜기</span>
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -505,6 +520,21 @@ export default function Sidebar({
             </div>
           </div>
           <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+            {!isChatbotVisible && (
+              <button 
+                onClick={() => onToggleChatbotVisible(true)} 
+                style={{ 
+                  ...styles.settingsBtn, 
+                  color: 'var(--primary)', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                }} 
+                title="AI 챗봇 복원하기 (ON)"
+              >
+                <Bot size={16} />
+              </button>
+            )}
             <button 
               onClick={onLogout} 
               style={{ ...styles.settingsBtn, color: '#ff4d4f' }} 

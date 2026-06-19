@@ -168,18 +168,18 @@ export default function HrCardModal({ isOpen, onClose, employee, onStartDm, curr
                     src={editForm.photoUrl} 
                     alt="미리보기" 
                     style={{
-                      width: '80px',
-                      height: '80px',
-                      borderRadius: '12px',
+                      width: '90px',
+                      height: '120px',
+                      borderRadius: '6px',
                       objectFit: 'cover',
                       border: '1px solid var(--border-light)'
                     }}
                   />
                 ) : (
                   <div style={{
-                    width: '80px',
-                    height: '80px',
-                    borderRadius: '12px',
+                    width: '90px',
+                    height: '120px',
+                    borderRadius: '6px',
                     backgroundColor: 'var(--bg-active)',
                     color: 'var(--text-secondary)',
                     display: 'flex',
@@ -337,8 +337,8 @@ export default function HrCardModal({ isOpen, onClose, employee, onStartDm, curr
                     alt="프로필 사진" 
                     style={{
                       width: '90px',
-                      height: '90px',
-                      borderRadius: '12px',
+                      height: '120px',
+                      borderRadius: '6px',
                       objectFit: 'cover',
                       border: '1px solid var(--border-light)',
                       boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
@@ -346,7 +346,12 @@ export default function HrCardModal({ isOpen, onClose, employee, onStartDm, curr
                     }}
                   />
                 ) : (
-                  <div style={styles.avatarLarge}>
+                  <div style={{
+                    ...styles.avatarLarge,
+                    width: '90px',
+                    height: '120px',
+                    borderRadius: '6px',
+                  }}>
                     {employee.userName.charAt(0)}
                   </div>
                 )}

@@ -12,7 +12,8 @@ import {
   Image as ImageIcon,
   Check,
   Menu,
-  UserPlus // 추가
+  UserPlus,
+  LogOut // 추가
 } from 'lucide-react';
 
 export default function ChatArea({ 
@@ -24,7 +25,8 @@ export default function ChatArea({
   onToggleSidebar,
   currentWorkspace,
   onUserClick,
-  onOpenInviteModal // 추가
+  onOpenInviteModal,
+  onExitChat // 추가
 }) {
   const [inputText, setInputText] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -32,6 +34,52 @@ export default function ChatArea({
   
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
+
+  // 대화 내역 검색용 상태
+  const [showSearchBar, setShowSearchBar] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentMatchIdx, setCurrentMatchIdx] = useState(-1);
+  const [matchingMsgIds, setMatchingMsgIds] = useState([]);
+
+  // 대화방 내 검색 로직
+  useEffect(() => {
+    if (!searchQuery.trim() || !showSearchBar) {
+      setMatchingMsgIds([]);
+      setCurrentMatchIdx(-1);
+      return;
+    }
+    const query = searchQuery.toLowerCase();
+    const ids = messages
+      .filter(msg => msg.content && msg.content.toLowerCase().includes(query))
+      .map(msg => msg.id);
+    setMatchingMsgIds(ids);
+    if (ids.length > 0) {
+      setCurrentMatchIdx(0);
+    } else {
+      setCurrentMatchIdx(-1);
+    }
+  }, [searchQuery, messages, showSearchBar]);
+
+  // currentMatchIdx가 바뀔 때 해당 메시지로 스크롤
+  useEffect(() => {
+    if (currentMatchIdx >= 0 && matchingMsgIds.length > 0) {
+      const activeId = matchingMsgIds[currentMatchIdx];
+      const element = document.getElementById(`msg-${activeId}`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }, [currentMatchIdx, matchingMsgIds]);
+
+  const handleNextSearch = () => {
+    if (matchingMsgIds.length === 0) return;
+    setCurrentMatchIdx(prev => (prev + 1) % matchingMsgIds.length);
+  };
+
+  const handlePrevSearch = () => {
+    if (matchingMsgIds.length === 0) return;
+    setCurrentMatchIdx(prev => (prev - 1 + matchingMsgIds.length) % matchingMsgIds.length);
+  };
 
   const handleDragOver = (e) => {
     e.preventDefault();
@@ -120,12 +168,141 @@ export default function ChatArea({
               <UserPlus size={18} />
             </button>
           )}
-          <button className="header-btn" style={styles.headerBtn} title="검색"><Search size={18} /></button>
+          <button 
+            className="header-btn" 
+            style={{ ...styles.headerBtn, color: showSearchBar ? 'var(--primary)' : 'var(--text-secondary)' }} 
+            onClick={() => setShowSearchBar(!showSearchBar)} 
+            title="검색"
+          >
+            <Search size={18} />
+          </button>
+          {activeChat.type !== 'ai' && (
+            <button 
+              className="header-btn" 
+              style={{
+                ...styles.headerBtn,
+                color: (activeChat.type === 'channel' && (activeChat.id === 'general' || activeChat.id === 'notice'))
+                  ? 'var(--text-muted)'
+                  : 'var(--danger)',
+                opacity: (activeChat.type === 'channel' && (activeChat.id === 'general' || activeChat.id === 'notice'))
+                  ? 0.5
+                  : 1,
+                cursor: (activeChat.type === 'channel' && (activeChat.id === 'general' || activeChat.id === 'notice'))
+                  ? 'not-allowed'
+                  : 'pointer'
+              }}
+              title={
+                (activeChat.type === 'channel' && (activeChat.id === 'general' || activeChat.id === 'notice'))
+                  ? "기본 채널은 나갈 수 없습니다"
+                  : "대화방 나가기"
+              }
+              onClick={() => {
+                if (activeChat.type === 'channel' && (activeChat.id === 'general' || activeChat.id === 'notice')) {
+                  alert("기본 채널은 나갈 수 없습니다.");
+                  return;
+                }
+                if (confirm("정말로 이 대화방을 나가시겠습니까?")) {
+                  onExitChat(activeChat);
+                }
+              }}
+            >
+              <LogOut size={18} />
+            </button>
+          )}
           <button className="header-btn" style={styles.headerBtn} title="음성 통화"><Phone size={18} /></button>
           <button className="header-btn" style={styles.headerBtn} title="화상 통화"><Video size={18} /></button>
           <button className="header-btn" style={styles.headerBtn} title="더보기"><MoreVertical size={18} /></button>
         </div>
       </div>
+
+      {/* 대화방 내 특정 문자 찾기(검색) 바 */}
+      {showSearchBar && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          padding: '8px 20px',
+          backgroundColor: 'var(--bg-tertiary)',
+          borderBottom: '1px solid var(--border-light)',
+          animation: 'slideDown 0.25s ease'
+        }}>
+          <Search size={16} style={{ color: 'var(--text-muted)' }} />
+          <input 
+            type="text"
+            placeholder="대화방 내 검색어 입력..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{
+              flex: 1,
+              padding: '6px 10px',
+              borderRadius: '6px',
+              border: '1px solid var(--border)',
+              backgroundColor: 'var(--bg-primary)',
+              color: 'var(--text-primary)',
+              fontSize: '0.85rem',
+              outline: 'none'
+            }}
+            autoFocus
+          />
+          {matchingMsgIds.length > 0 && (
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              {currentMatchIdx + 1} / {matchingMsgIds.length}
+            </span>
+          )}
+          <div style={{ display: 'flex', gap: '4px' }}>
+            <button 
+              type="button"
+              onClick={handlePrevSearch}
+              disabled={matchingMsgIds.length === 0}
+              style={{
+                padding: '4px 8px',
+                borderRadius: '4px',
+                backgroundColor: 'var(--bg-secondary)',
+                border: '1px solid var(--border)',
+                color: matchingMsgIds.length === 0 ? 'var(--text-muted)' : 'var(--text-primary)',
+                fontSize: '0.75rem',
+                cursor: matchingMsgIds.length === 0 ? 'default' : 'pointer'
+              }}
+            >
+              이전
+            </button>
+            <button 
+              type="button"
+              onClick={handleNextSearch}
+              disabled={matchingMsgIds.length === 0}
+              style={{
+                padding: '4px 8px',
+                borderRadius: '4px',
+                backgroundColor: 'var(--bg-secondary)',
+                border: '1px solid var(--border)',
+                color: matchingMsgIds.length === 0 ? 'var(--text-muted)' : 'var(--text-primary)',
+                fontSize: '0.75rem',
+                cursor: matchingMsgIds.length === 0 ? 'default' : 'pointer'
+              }}
+            >
+              다음
+            </button>
+          </div>
+          <button 
+            type="button"
+            onClick={() => {
+              setShowSearchBar(false);
+              setSearchQuery('');
+            }}
+            style={{
+              padding: '4px 8px',
+              borderRadius: '4px',
+              backgroundColor: 'transparent',
+              border: 'none',
+              color: 'var(--text-secondary)',
+              fontSize: '0.75rem',
+              cursor: 'pointer'
+            }}
+          >
+            닫기
+          </button>
+        </div>
+      )}
 
       {/* Messages Scroll Area */}
       <div style={styles.feed}>
@@ -140,6 +317,8 @@ export default function ChatArea({
             messages.map((msg, index) => {
               const isAi = msg.sender === 'youngja';
               const isMe = msg.sender === 'me';
+              const isMatched = matchingMsgIds.includes(msg.id);
+              const isCurrentMatch = isMatched && matchingMsgIds[currentMatchIdx] === msg.id;
               
               return (
                 <div 
@@ -157,12 +336,12 @@ export default function ChatArea({
                         onClick={() => onUserClick && onUserClick(msg.sender)}
                         style={{
                           ...styles.avatar,
-                          backgroundColor: isAi ? '#ffecf4' : (msg.avatarColor || '#3f4248'),
+                          backgroundColor: isAi ? '#ffece6' : (msg.avatarColor || '#3f4248'),
                           cursor: 'pointer'
                         }}
                       >
                         {isAi ? (
-                          <Bot size={20} style={{ color: '#ff007f' }} />
+                          <Bot size={20} style={{ color: '#ff6b00' }} />
                         ) : (
                           msg.senderName?.charAt(0)
                         )}
@@ -182,29 +361,41 @@ export default function ChatArea({
                           onClick={() => onUserClick && onUserClick(msg.sender)}
                           style={{
                             ...styles.senderName,
-                            color: isAi ? '#ff007f' : 'var(--text-primary)',
+                            color: isAi ? '#ff6b00' : 'var(--text-primary)',
                             fontWeight: isAi ? '600' : '500',
                             cursor: 'pointer'
                           }}
                         >
-                          {isAi ? '✨ AI 디자인실장 영자' : msg.senderName}
+                          {isAi ? (currentWorkspace === 'vietqs' ? '✨ AI Tư vấn Chi phí XD (Dongmyung)' : '✨ AI 공사비 컨설팅 CEO (동명)') : msg.senderName}
                         </span>
                         <span style={styles.msgTime}>{msg.time}</span>
                       </div>
                     )}
 
                     {/* Chat Bubble */}
-                    <div style={{
-                      ...styles.bubble,
-                      backgroundColor: isMe 
-                        ? (currentWorkspace === 'concost' ? '#ff6b00' : 'var(--primary)')
-                        : 'var(--bg-secondary)',
-                      color: isMe ? '#ffffff' : 'var(--text-primary)',
-                      borderBottomRightRadius: isMe ? '2px' : '10px',
-                      borderBottomLeftRadius: isMe ? '10px' : '2px',
-                      border: isMe ? 'none' : '1px solid var(--border-light)',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-                    }}>
+                    <div 
+                      id={`msg-${msg.id}`}
+                      style={{
+                        ...styles.bubble,
+                        backgroundColor: isCurrentMatch
+                          ? 'rgba(255, 107, 0, 0.45)'
+                          : isMatched
+                            ? 'rgba(255, 107, 0, 0.2)'
+                            : (isMe 
+                              ? (currentWorkspace === 'concost' ? '#ff6b00' : 'var(--primary)')
+                              : 'var(--bg-secondary)'),
+                        color: isMe ? '#ffffff' : 'var(--text-primary)',
+                        borderBottomRightRadius: isMe ? '2px' : '10px',
+                        borderBottomLeftRadius: isMe ? '10px' : '2px',
+                        border: isCurrentMatch 
+                          ? '1px solid #ff6b00' 
+                          : (isMe ? 'none' : '1px solid var(--border-light)'),
+                        boxShadow: isCurrentMatch 
+                          ? '0 0 10px rgba(255, 107, 0, 0.4)' 
+                          : '0 2px 4px rgba(0,0,0,0.05)',
+                        transition: 'background-color 0.2s, border 0.2s, box-shadow 0.2s'
+                      }}
+                    >
                       <div style={styles.msgText}>{msg.content}</div>
 
                       {/* Display AI Character Image if present */}
@@ -235,14 +426,14 @@ export default function ChatArea({
           {isTyping && (
             <div style={styles.msgRow} className="animate-fade">
               <div style={styles.avatarWrapper}>
-                <div style={{ ...styles.avatar, backgroundColor: '#ffecf4' }}>
-                  <Bot size={20} style={{ color: '#ff007f' }} />
+                <div style={{ ...styles.avatar, backgroundColor: '#ffece6' }}>
+                  <Bot size={20} style={{ color: '#ff6b00' }} />
                 </div>
               </div>
               <div style={styles.bubbleCol}>
                 <div style={styles.senderMeta}>
-                  <span style={{ ...styles.senderName, color: '#ff007f', fontWeight: '600' }}>
-                    AI 디자인실장 영자
+                  <span style={{ ...styles.senderName, color: '#ff6b00', fontWeight: '600' }}>
+                    {currentWorkspace === 'vietqs' ? '✨ AI Tư vấn Chi phí XD (Dongmyung)' : '✨ AI 공사비 컨설팅 CEO (동명)'}
                   </span>
                 </div>
                 <div style={styles.typingBubble}>
@@ -347,7 +538,7 @@ export default function ChatArea({
             onKeyDown={handleKeyPress}
             placeholder={
               activeChat.type === 'ai' 
-                ? "디자인실장 영자에게 질문해보세요! (예: 'CONCOST 로고 어울리는 다크모드 색 추천해줘')" 
+                ? (currentWorkspace === 'vietqs' ? "AI 챗봇 동명에게 질문해보세요... (예: 'Tư vấn chi phí xây dựng')" : "AI 챗봇 동명 회장님께 질문해보세요! (예: '공사비 적산 및 메신저 사용 규정 알려줘')")
                 : `${chatTitle}에 메시지 전송...`
             }
             style={styles.textarea}

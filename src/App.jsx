@@ -23,6 +23,8 @@ import {
   ShieldAlert // 추가
 } from 'lucide-react';
 import { getUserRoleLevel, getRoleLabel } from './utils/permission'; // 추가
+import ceoDongmyungImg from './assets/ceo_dongmyung.png';
+import ceoDongmyungThinkingImg from './assets/ceo_dongmyung_thinking.png';
 
 // AI 영자 표정 이미지들
 const YOUNGJA_IMAGES = {
@@ -34,6 +36,12 @@ const YOUNGJA_IMAGES = {
   working: "https://raw.githubusercontent.com/wonseokjung/solopreneur-ai-agents/main/agents/youngja/assets/youngja_working.png",
   presenting: "https://raw.githubusercontent.com/wonseokjung/solopreneur-ai-agents/main/agents/youngja/assets/youngja_presenting.png",
   panic: "https://raw.githubusercontent.com/wonseokjung/solopreneur-ai-agents/main/agents/youngja/assets/youngja_panic.png"
+};
+
+// AI CEO 동명 표정 이미지들
+const CEO_IMAGES = {
+  default: ceoDongmyungImg,
+  thinking: ceoDongmyungThinkingImg
 };
 
 // --- 다국어 번역 사전 ---
@@ -50,7 +58,7 @@ const TRANSLATIONS = {
     channels: "채널",
     dms: "다이렉트 메시지",
     aiAssistant: "AI 어시스턴트",
-    aiName: "✨ AI 디자인실장 (영자)",
+    aiName: "✨ AI 공사비 컨설팅 CEO (동명)",
     addChannel: "채널 추가",
     addTodo: "일정 추가",
     addProject: "프로젝트 생성",
@@ -114,7 +122,7 @@ const TRANSLATIONS = {
     channels: "Kênh",
     dms: "Tin nhắn trực tiếp",
     aiAssistant: "Trợ lý AI",
-    aiName: "✨ Trưởng phòng thiết kế AI (Youngja)",
+    aiName: "✨ AI Tư vấn Chi phí XD (Dongmyung)",
     addChannel: "Thêm kênh",
     addTodo: "Thêm lịch",
     addProject: "Tạo dự án",
@@ -239,11 +247,12 @@ export default function App() {
   const [inviteSearchQuery, setInviteSearchQuery] = useState('');
 
   // 🐶🤖 AI 챗봇 비서 플로팅 대화창 상태
+  const [isChatbotVisible, setIsChatbotVisible] = useState(true); // 플로팅 자체의 ON/OFF 토글 상태
   const [isChatbotOpen, setIsChatbotOpen] = useState(false);
   const [chatbotPos, setChatbotPos] = useState({ x: 0, y: 0 });
   const [chatbotText, setChatbotText] = useState('');
   const [chatbotMessages, setChatbotMessages] = useState([
-    { id: 'cb-1', sender: 'youngja', senderName: 'AI 디자인실장 영자', content: '안녕하세요, 대표님! 🐶🤖 귀여운 강아지 로봇 비서 영자입니다. 어떤 업무를 도와드릴까요? 메신저 테마나 디자인, 혹은 사내 규정에 대해 물어보세요!', time: '오전 11:00' }
+    { id: 'cb-1', sender: 'youngja', senderName: 'CEO 현동명 (AI)', content: '반갑네, 유종욱 실장. 내가 바로 (주)컨코스트의 회장 현동명이라네. 건축 공사비 적산이나 회사 규정에 대해 궁금한 점이 있으면 무엇이든 물어보게나. 허허.', time: '오전 11:00' }
   ]);
   const [isChatbotTyping, setIsChatbotTyping] = useState(false);
 
@@ -338,7 +347,7 @@ export default function App() {
       { id: 'vp1', sender: 'jabis', senderName: 'Trưởng phòng Jabis', content: 'Kênh dự án QA Viet QS. Mọi hoạt động kiểm định phần mềm sẽ thảo luận ở đây.', time: '오전 11:00' }
     ],
     'ai-bot': [
-      { id: 'ai1', sender: 'youngja', senderName: '영자 실장', content: '안녕하세요, 대표님! ✨ 디자인실장 영자입니다. 저에게 메신저 디자인 테마나 로고 색상에 대해 질문해 보세요! 🎨', time: '오전 11:00', youngjaImageUrl: YOUNGJA_IMAGES.hello }
+      { id: 'ai1', sender: 'youngja', senderName: 'CEO 현동명 (AI)', content: '반갑네, 유종욱 실장! ✨ (주)컨코스트의 회장 현동명이라네. 건축 공사비 적산이나 회사 규정에 대해 궁금한 점이 있으면 무엇이든 물어보게나. 허허.', time: '오전 11:00', youngjaImageUrl: CEO_IMAGES.default }
     ]
   });
 
@@ -544,10 +553,10 @@ export default function App() {
       if (updatedBotMsgs.length > 0 && updatedBotMsgs[0].sender === 'youngja') {
         updatedBotMsgs[0] = {
           ...updatedBotMsgs[0],
-          senderName: isViet ? '✨ Trưởng phòng thiết kế AI (Youngja)' : '✨ AI 디자인실장 영자',
+          senderName: isViet ? '✨ AI Tư vấn Chi phí XD (Dongmyung)' : '✨ AI 공사비 컨설팅 CEO (동명)',
           content: isViet 
-            ? `Xin chào Giám đốc! ✨ Tôi là Youngja, Trưởng phòng thiết kế AI. Ngài có thể hỏi tôi về chủ đề màu sắc thiết kế hoặc logo của Viet QS! 🎨\n\n💡 Ví dụ:\n- "Logo Viet QS màu sắc như thế nào"\n- "Tư vấn phối màu Dark Mode đẹp"\n- "Xin chào Youngja"`
-            : `안녕하세요, 대표님! ✨ 디자인실장 영자입니다. 저에게 메신저 디자인 테마나 로고 색상에 대해 질문해 보세요! 🎨\n\n💡 예를 들면:\n- "CONCOST 로고 어울리는 색 추천해줘"\n- "VIETQS 로고 디자인 분석해줘"\n- "이쁜 메신저 다크모드 팁"`
+            ? `Xin chào Giám đốc! ✨ Tôi là Dongmyung, AI Tư vấn Chi phí Xây dựng. Ngài có thể hỏi tôi về quy định dự toán hoặc các điều lệ công ty! 🏢\n\n💡 Ví dụ:\n- "Quy định tính toán chi phí xây dựng như thế nào"\n- "Tư vấn thiết kế hoặc quy định công ty"\n- "Xin chào Dongmyung"`
+            : `반갑네, 유종욱 실장! ✨ (주)컨코스트의 회장 현동명이라네. 건축 공사비 적산이나 회사 규정에 대해 궁금한 점이 있으면 무엇이든 물어보게나. 허허.\n\n💡 예를 들면:\n- "건축 공사비 적산 규정이 어떻게 됩니까?"\n- "회사 메신저 사용 규정 알려줘"\n- "BIM 적산 자동화 추진 현황은?"`
         };
       }
       return {
@@ -601,11 +610,12 @@ export default function App() {
     try {
       // RAG 컨셉을 위해 사내 Context 주입 (임직원 정보, 계약 정보, 회사 디자인 룰)
       const systemContext = `
-      너는 (주)컨코스트 및 베트남 지사 Viet QS의 유능하고 상냥한 AI 디자인실장 '영자'이다.
-      아래 사내 지식 정보를 기반으로 대표님의 질문에 정교하게 답변해야 한다.
+      너는 (주)컨코스트 및 베트남 지사 Viet QS의 대표이사이자 회장인 '현동명'이다.
+      아래 사내 지식 정보를 기반으로 임직원들의 질문에 정교하게 답변해야 한다.
       
       [사내 임직원 명부 (RAG DB)]
-      - 박용진 수석 (IT개발본부, 연락처: 010-9988-1234, 소속: 본사)
+      - 유종욱 실장 (개발 TF팀 실장, 관리자 권한)
+      - 박용진 수석 (IT개발본부 수석, 관리자 권한, 연락처: 010-9988-1234, 소속: 본사)
       - 김현지 과장 (경영지원본부, 연락처: 010-5566-7788, 소속: 본사)
       - Nguyen Van Minh (Viet QS 베트남 지사 대표, 하노이 오피스 임대차 계약 총괄)
       
@@ -613,11 +623,13 @@ export default function App() {
       - CONCOST: 메인 컬러 주황색 (#ff6b00). 역동성과 활력을 상징. 차콜 다크모드와 환상적인 대비를 이룸.
       - Viet QS: 메인 컬러 딥블루 (#0058bc). 신뢰성과 IT 품질 보증을 상징. 그린 빌딩 로고와 조합됨.
       
-      [답변 주의사항]
-      - 본인을 "저 영자가요~" 혹은 "디자인실장 영자"라고 지칭해라.
-      - 대표님에게 무한한 신뢰를 담아 "~요!", "~답니다!" 체를 써서 상냥하게 답해라.
-      - 대답은 베트남 지사 모드(${isVietMode ? '참' : '거짓'})인 경우 베트남어(Tiếng Việt) 위주 또는 한국어와 섞어서 친절하게 해라.
-      - 항상 명확하고 실용적인 수치나 정보를 포함해라.
+      [답변 주의사항 및 말투 페르소나]
+      - 본인은 (주)컨코스트의 회장 '현동명'이다. 대답할 때 3인칭으로 부르지 말고 본인을 "나 현동명 회장" 또는 "이 늙은이" 등으로 소탈하게 칭해라.
+      - 메신저의 주 사용자인 유종욱 실장을 향해 "유 실장", "유종욱 실장"이라고 부르며 아랫사람을 아끼는 연륜 있고 따뜻한 회장님 투를 사용하라.
+      - 말투는 정중하고 연륜 있는 어조('~하게나', '허허', '~라네', '~했네', '그렇지 않겠나?')를 엄격히 유지하라.
+      - 건축 공사비 적산, BIM 적산 자동화, 그리고 사내 규정에 대한 질문에 대해 깊이 있는 경영적/기술적 조언을 담아라.
+      - 대답은 베트남 지사 모드(${isVietMode ? '참' : '거짓'})인 경우 베트남어(Tiếng Việt)를 적절히 섞어서 회장님답게 격려해 주어라.
+      - 항상 구체적이고 실질적인 정보와 수치를 언급하여 대답의 신뢰도를 높여라.
       `;
 
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${geminiKey}`;
@@ -672,32 +684,32 @@ export default function App() {
 
       // 1) 실제 Gemini API 호출 시도
       let reply = await askGeminiAI(content, isViet);
-      let imageKey = 'thumbsup';
+      let imageKey = 'default';
 
       // 2) API Key가 없거나 실패 시 기존 로컬 시나리오 작동 (Mock 모드)
       if (!reply) {
         await new Promise(resolve => setTimeout(resolve, 1500));
         const query = content.toLowerCase();
         if (isViet) {
-          if (query.includes('logo') || query.includes('viet qs')) {
-            reply = `Thưa Giám đốc! Logo của Viet QS mang tính nhận diện rất cao 💙\n\nTông màu chủ đạo là Xanh dương đậm (#0058bc) tượng trưng cho uy tín và công nghệ thông tin thông minh, kết hợp cùng dải màu xanh lá cây tượng trưng cho sự tăng trưởng bền vững.`;
-            imageKey = 'presenting';
+          if (query.includes('quy định') || query.includes('chi phí') || query.includes('dự toán')) {
+            reply = `Này Giám đốc! Quy định tính toán chi phí xây dựng và dự toán công trình dựa trên định mức nhà nước hiện hành 🏢\n\nChúng tôi kiểm soát chặt chẽ sai số trong khoảng ±5%. Các kỹ sư phải bám sát bản vẽ BIM để bóc tách khối lượng chi tiết.`;
+            imageKey = 'thinking';
           } else {
-            reply = `Cảm ơn Giám đốc! Ý kiến của ngài thật tuyệt vời. 👍✨ 저 자비스 개발부장도 이 멋진 베트남어 지사 메신저 빌드에 자부심을 느낍니다!`;
-            imageKey = 'success';
+            reply = `Chào Giám đốc! Tôi rất ấn tượng với ý tưởng của ngài. 👍 Cùng nhau phát triển phần mềm dự toán tự động thông minh này nhé!`;
+            imageKey = 'default';
           }
         } else {
-          if (query.includes('로고') || query.includes('concost') || query.includes('색')) {
-            reply = `대표님! CONCOST 로고는 주황색(#ff6b00) 포인트로 역동성을 살린 멋진 BI입니다. 어두운 배경과 최적의 대비를 이루며, 1단 글로벌 메뉴 구성과도 아주 잘 녹아들어요! 🎨`;
-            imageKey = 'idea';
+          if (query.includes('적산') || query.includes('공사비') || query.includes('규정')) {
+            reply = `유 실장! 건축 공사비 적산 규정은 국토부 표준품셈과 우리 회사 내부 단가 DB 기준을 엄격히 준수해야 하네. 특히 오차율 3% 이내 유지가 핵심이지. 허허. 자세한 품의 가이드는 드라이브의 '2026_인사규정_통합안.pdf'를 참고하게나.`;
+            imageKey = 'thinking';
           } else {
-            reply = `대표님, 정말 훌륭한 질문이에요! 👍 자비스 개발부장과 영자 실장이 힘을 합쳐 이 시스템을 더욱 고도화해 나갈게요. 충성! 🫡`;
-            imageKey = 'working';
+            reply = `유 실장, 좋은 생각일세! 👍 자비스 부장과 함께 이번 적산 자동화 메신저 모듈을 멋지게 빌드해 주게나. 기대가 크네. 허허.`;
+            imageKey = 'default';
           }
         }
       } else {
-        // 실제 API 성공 시 표정 이미지 무작위/상황 매핑
-        imageKey = reply.includes('감사') || reply.includes('cảm ơn') ? 'success' : 'idea';
+        // 실제 API 성공 시 표정 이미지 매핑
+        imageKey = reply.includes('생각') || reply.includes('고민') || reply.includes('적산') ? 'thinking' : 'default';
       }
 
       setIsTyping(false);
@@ -705,10 +717,10 @@ export default function App() {
       const aiMsg = {
         id: `ai-${Date.now()}`,
         sender: 'youngja',
-        senderName: isViet ? '✨ Trưởng phòng thiết kế AI (Youngja)' : '✨ AI 디자인실장 영자',
+        senderName: isViet ? '✨ AI Tư vấn Chi phí XD (Dongmyung)' : '✨ AI 공사비 컨설팅 CEO (동명)',
         content: reply,
         time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
-        youngjaImageUrl: YOUNGJA_IMAGES[imageKey]
+        youngjaImageUrl: CEO_IMAGES[imageKey]
       };
 
       setMessages(prev => ({
@@ -755,6 +767,28 @@ export default function App() {
     }));
 
     setActiveChat({ type: 'channel', id: newId });
+  };
+
+  // 채팅방 나가기 처리
+  const handleExitChat = (chat) => {
+    if (!chat) return;
+
+    if (chat.type === 'channel') {
+      if (chat.id === 'general' || chat.id === 'notice') {
+        alert('기본 채널은 나갈 수 없습니다.');
+        return;
+      }
+      setWorkspaceChannels(prev => ({
+        ...prev,
+        [currentWorkspace]: prev[currentWorkspace].filter(c => c.id !== chat.id)
+      }));
+    } else if (chat.type === 'dm') {
+      setDms(prev => prev.filter(d => d.id !== chat.id));
+    }
+
+    // 기본 방으로 전환
+    setActiveChat({ type: 'channel', id: 'general' });
+    alert('대화방에서 나갔습니다.');
   };
 
   // 사용자 초대 핸들러 (채널 초대 또는 DM -> 그룹 대화방 승격)
@@ -869,7 +903,7 @@ export default function App() {
     const userMsg = {
       id: `cb-user-${Date.now()}`,
       sender: 'me',
-      senderName: currentWorkspace === 'vietqs' ? 'Giám đốc' : '대표님',
+      senderName: currentUser?.userName || (currentWorkspace === 'vietqs' ? 'Giám đốc' : '유종욱 실장'),
       content: chatbotText.trim(),
       time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
     };
@@ -881,27 +915,27 @@ export default function App() {
 
     const isViet = currentWorkspace === 'vietqs';
     let reply = await askGeminiAI(prompt, isViet);
-    let imageKey = 'thumbsup';
+    let imageKey = 'default';
 
     if (!reply) {
       await new Promise(resolve => setTimeout(resolve, 1200));
       if (isViet) {
-        reply = `Thưa Giám đốc! Tôi là Robot cưng hỗ trợ của ngài 🐶🤖. Vui lòng thiết lập API Key trong cài đặt (⚙️) để kích hoạt toàn bộ tính năng RAG thực tế!`;
+        reply = `Thưa Giám đốc! Tôi là Dongmyung, AI hỗ trợ 🐶🤖. Vui lòng thiết lập API Key trong cài đặt (⚙️) để kích hoạt toàn bộ tính năng RAG thực tế!`;
       } else {
-        reply = `대표님! 🐶🤖 설정(⚙️)에서 Google Gemini API Key를 등록하시면 실시간 RAG와 완벽한 AI 맞춤 비서 서비스를 제공해드릴 수 있어요. 지금은 데모 모드랍니다!`;
+        reply = `유 실장! 🐶🤖 설정(⚙️)에서 Google Gemini API Key를 등록하면 실시간 RAG와 완벽한 AI 맞춤 조언 서비스를 제공해줄 수 있네. 지금은 데모 모드라네. 허허.`;
       }
     } else {
-      imageKey = reply.includes('감사') || reply.includes('cảm ơn') ? 'success' : 'idea';
+      imageKey = reply.includes('생각') || reply.includes('고민') || reply.includes('적산') ? 'thinking' : 'default';
     }
 
     setIsChatbotTyping(false);
     const aiMsg = {
       id: `cb-ai-${Date.now()}`,
       sender: 'youngja',
-      senderName: isViet ? '✨ Trưởng phòng thiết kế AI (Youngja)' : '✨ AI 디자인실장 영자',
+      senderName: isViet ? '✨ AI Tư vấn Chi phí XD (Dongmyung)' : '✨ AI 공사비 컨설팅 CEO (동명)',
       content: reply,
       time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
-      youngjaImageUrl: YOUNGJA_IMAGES[imageKey]
+      youngjaImageUrl: CEO_IMAGES[imageKey]
     };
 
     setChatbotMessages(prev => [...prev, aiMsg]);
@@ -955,6 +989,8 @@ export default function App() {
           aiEnabled={aiEnabled}
           currentUser={currentUser}
           onLogout={handleLogout}
+          isChatbotVisible={isChatbotVisible}
+          onToggleChatbotVisible={setIsChatbotVisible}
         />
       </div>
 
@@ -1433,41 +1469,83 @@ export default function App() {
         </div>
       </div>
 
-      {/* 🐶🤖 귀여운 강아지 로봇 AI 챗봇 비서 플로팅 아이콘 */}
-      <button
-        style={{
+      {/* 🐶🤖 귀여운 강아지 로봇 AI 챗봇 비서 플로팅 아이콘 및 ON/OFF 토글 */}
+      {aiEnabled && isChatbotVisible && (
+        <div style={{
           position: 'fixed',
           right: '24px',
           top: '50%',
           transform: 'translateY(-50%)',
-          width: '64px',
-          height: '64px',
-          borderRadius: '50%',
-          backgroundColor: 'rgba(31, 41, 55, 0.8)',
-          border: '2px solid #ff6b00',
-          boxShadow: '0 8px 24px rgba(255, 107, 0, 0.3)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
           zIndex: 9998,
-          cursor: 'pointer',
-          backdropFilter: 'blur(8px)',
-          transition: 'all 0.3s ease'
-        }}
-        onClick={() => setIsChatbotOpen(!isChatbotOpen)}
-        title="AI 비서 영자 대화하기"
-        className="dog-robot-btn"
-      >
-        <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M4 12c0-2 2-3 4-2v6c-2 1-4 0-4-4Z" fill="#ff6b00" />
-          <path d="M32 12c0-2-2-3-4-2v6c2 1 4 0 4-4Z" fill="#ff6b00" />
-          <rect x="7" y="7" width="22" height="20" rx="5" fill="#2b2d31" stroke="#ff6b00" strokeWidth="2" />
-          <rect x="10" y="10" width="16" height="11" rx="3" fill="#111214" />
-          <circle cx="14" cy="15" r="2.5" fill="#00ffcc" />
-          <circle cx="22" cy="15" r="2.5" fill="#00ffcc" />
-          <ellipse cx="18" cy="23" rx="2" ry="1.5" fill="#ff6b00" />
-        </svg>
-      </button>
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center'
+        }}>
+          {/* 플로팅 챗봇을 완전히 OFF 시키는 X 닫기 버튼 */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsChatbotVisible(false);
+              setIsChatbotOpen(false);
+            }}
+            style={{
+              position: 'absolute',
+              top: '-8px',
+              right: '-8px',
+              width: '22px',
+              height: '22px',
+              borderRadius: '50%',
+              backgroundColor: 'rgba(242, 63, 67, 0.95)',
+              color: '#ffffff',
+              border: '1.5px solid rgba(255, 255, 255, 0.2)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '11px',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+              zIndex: 9999,
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#ff4d4f'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(242, 63, 67, 0.95)'}
+            title="플로팅 챗봇 끄기 (OFF)"
+          >
+            ✕
+          </button>
+          
+          <button
+            style={{
+              width: '64px',
+              height: '64px',
+              borderRadius: '50%',
+              backgroundColor: 'rgba(31, 41, 55, 0.8)',
+              border: '2px solid #ff6b00',
+              boxShadow: '0 8px 24px rgba(255, 107, 0, 0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              backdropFilter: 'blur(8px)',
+              transition: 'all 0.3s ease'
+            }}
+            onClick={() => setIsChatbotOpen(!isChatbotOpen)}
+            title="AI 비서 동명 대화하기"
+            className="dog-robot-btn"
+          >
+            <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M4 12c0-2 2-3 4-2v6c-2 1-4 0-4-4Z" fill="#ff6b00" />
+              <path d="M32 12c0-2-2-3-4-2v6c2 1 4 0 4-4Z" fill="#ff6b00" />
+              <rect x="7" y="7" width="22" height="20" rx="5" fill="#2b2d31" stroke="#ff6b00" strokeWidth="2" />
+              <rect x="10" y="10" width="16" height="11" rx="3" fill="#111214" />
+              <circle cx="14" cy="15" r="2.5" fill="#00ffcc" />
+              <circle cx="22" cy="15" r="2.5" fill="#00ffcc" />
+              <ellipse cx="18" cy="23" rx="2" ry="1.5" fill="#ff6b00" />
+            </svg>
+          </button>
+        </div>
+      )}
 
       {/* 🐶🤖 AI 챗봇 비서 대화창 */}
       <div 
@@ -1542,7 +1620,7 @@ export default function App() {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold', fontSize: '0.9rem' }}>
-            <span>🐶🤖 AI 비서 영자 (gemini-3.5-flash)</span>
+            <span>🐶🤖 AI CEO 동명 회장님 (gemini-3.5-flash)</span>
           </div>
           <button 
             onClick={() => setIsChatbotOpen(false)} 
@@ -1568,13 +1646,13 @@ export default function App() {
                 }}
               >
                 {!isMe && (
-                  <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: '#ffecf4', display: 'flex', alignItems: 'center', justifySelf: 'center', flexShrink: 0 }}>
-                    <Bot size={16} style={{ color: '#ff007f', margin: 'auto' }} />
+                  <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: '#ffece6', display: 'flex', alignItems: 'center', justifySelf: 'center', flexShrink: 0 }}>
+                    <Bot size={16} style={{ color: '#ff6b00', margin: 'auto' }} />
                   </div>
                 )}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', maxWidth: '75%' }}>
                   {!isMe && (
-                    <span style={{ fontSize: '0.7rem', color: '#ff007f', fontWeight: 'bold' }}>{msg.senderName}</span>
+                    <span style={{ fontSize: '0.7rem', color: '#ff6b00', fontWeight: 'bold' }}>{msg.senderName}</span>
                   )}
                   <div 
                     style={{
@@ -1603,8 +1681,8 @@ export default function App() {
           })}
           {isChatbotTyping && (
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: '#ffecf4', display: 'flex' }}>
-                <Bot size={16} style={{ color: '#ff007f', margin: 'auto' }} />
+              <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: '#ffece6', display: 'flex' }}>
+                <Bot size={16} style={{ color: '#ff6b00', margin: 'auto' }} />
               </div>
               <div style={{ padding: '8px 12px', borderRadius: '10px', backgroundColor: 'rgba(255,255,255,0.05)', display: 'flex', gap: '4px' }}>
                 <span style={{ width: '4px', height: '4px', backgroundColor: '#aaa', borderRadius: '50%', animation: 'fadeIn 1s infinite alternate' }} />
@@ -1716,6 +1794,7 @@ export default function App() {
             currentWorkspace={currentWorkspace}
             onUserClick={handleUserClick}
             onOpenInviteModal={() => setIsInviteModalOpen(true)} // 초대 모달 콜백 추가
+            onExitChat={handleExitChat} // 추가
           />
         );
 
