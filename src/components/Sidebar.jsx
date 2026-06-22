@@ -690,8 +690,8 @@ export default function Sidebar({
           >
             <Bot size={26} />
           </button>
- 
-          {/* Settings Button */}
+
+          {/* Theme Toggle (다크모드 설정) */}
           <button 
             className="action-btn"
             style={{
@@ -699,64 +699,8 @@ export default function Sidebar({
               borderColor: 'rgba(255,255,255,0.08)',
               transition: 'all 0.2s ease',
               cursor: 'pointer',
-              outline: 'none'
-            }} 
-            onClick={onOpenSettings} 
-            title="환경 설정"
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = 'var(--primary)';
-              e.currentTarget.style.color = 'var(--primary)';
-              e.currentTarget.style.boxShadow = '0 0 10px rgba(255,107,0,0.2)';
-              e.currentTarget.style.transform = 'translateY(-1px)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
-              e.currentTarget.style.color = 'var(--text-secondary)';
-              e.currentTarget.style.boxShadow = 'none';
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}
-          >
-            <Settings size={26} />
-          </button>
- 
-          {/* Logout Button */}
-          <button 
-            className="action-btn"
-            style={{ 
-              ...styles.actionBtn, 
-              color: '#ff4d4f',
-              borderColor: 'rgba(255,255,255,0.08)',
-              transition: 'all 0.2s ease',
-              cursor: 'pointer',
-              outline: 'none'
-            }} 
-            onClick={onLogout} 
-            title="로그아웃"
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = '#ff4d4f';
-              e.currentTarget.style.backgroundColor = 'rgba(255, 77, 79, 0.08)';
-              e.currentTarget.style.boxShadow = '0 0 10px rgba(255,77,79,0.2)';
-              e.currentTarget.style.transform = 'translateY(-1px)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
-              e.currentTarget.style.backgroundColor = 'var(--bg-secondary)';
-              e.currentTarget.style.boxShadow = 'none';
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}
-          >
-            <LogOutIcon size={24} />
-          </button>
- 
-          {/* Theme Toggle */}
-          <button 
-            className="action-btn"
-            style={{
-              ...styles.actionBtn,
-              borderColor: 'rgba(255,255,255,0.08)',
-              transition: 'all 0.2s ease',
-              cursor: 'pointer',
-              outline: 'none'
+              outline: 'none',
+              marginBottom: '4px'
             }} 
             onClick={onToggleTheme} 
             title={isLightTheme ? "다크 모드로 변경" : "라이트 모드로 변경"}
@@ -774,6 +718,35 @@ export default function Sidebar({
             }}
           >
             {isLightTheme ? <Moon size={26} /> : <Sun size={26} />}
+          </button>
+
+          {/* Settings Button */}
+          <button 
+            className="action-btn"
+            style={{
+              ...styles.actionBtn,
+              borderColor: 'rgba(255,255,255,0.08)',
+              transition: 'all 0.2s ease',
+              cursor: 'pointer',
+              outline: 'none',
+              marginBottom: '4px'
+            }} 
+            onClick={onOpenSettings} 
+            title="환경 설정"
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = 'var(--primary)';
+              e.currentTarget.style.color = 'var(--primary)';
+              e.currentTarget.style.boxShadow = '0 0 10px rgba(255,107,0,0.2)';
+              e.currentTarget.style.transform = 'translateY(-1px)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
+              e.currentTarget.style.color = 'var(--text-secondary)';
+              e.currentTarget.style.boxShadow = 'none';
+              e.currentTarget.style.transform = 'translateY(0)';
+            }}
+          >
+            <Settings size={26} />
           </button>
           
           <div style={styles.avatarWrapper} onClick={() => onUserClick && onUserClick(currentUser?.id)}>

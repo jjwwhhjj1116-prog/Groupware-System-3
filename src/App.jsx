@@ -311,7 +311,7 @@ export default function App() {
 
   const [currentWorkspace, setCurrentWorkspace] = useState('concost'); // 'concost' or 'vietqs'
   const [currentMenu, setCurrentMenu] = useState('home'); // 'home', 'chat', 'mail', etc.
-  const [isLightTheme, setIsLightTheme] = useState(false);
+  const [isLightTheme, setIsLightTheme] = useState(true);
   const [activeChat, setActiveChat] = useState({ type: 'channel', id: 'general' });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // HOME 화면에서는 기본적으로 닫아 둠
@@ -1593,6 +1593,7 @@ export default function App() {
           setCurrentUser(updatedUser);
           sessionStorage.setItem('currentUser', JSON.stringify(updatedUser));
         }}
+        onLogout={handleLogout}
       />
 
       {/* 새 DM 생성 모달 */}

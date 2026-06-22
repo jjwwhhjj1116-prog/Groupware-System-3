@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Mail, Phone, MapPin, Building, ShieldAlert, MessageSquare, Edit2, Save, Trash2 } from 'lucide-react';
 import { getUserRoleLevel } from '../utils/permission'; // 권한 유틸 임포트
 
-export default function HrCardModal({ isOpen, onClose, employee, onStartDm, currentUser, onRefreshEmployees, onUpdateCurrentUser }) {
+export default function HrCardModal({ isOpen, onClose, employee, onStartDm, currentUser, onRefreshEmployees, onUpdateCurrentUser, onLogout }) {
   if (!isOpen || !employee) return null;
 
   const [isEditing, setIsEditing] = useState(false);
@@ -395,13 +395,41 @@ export default function HrCardModal({ isOpen, onClose, employee, onStartDm, curr
 
               <div style={styles.footerActions}>
                 {(isAdmin || isSelf) && (
-                  <div style={{ display: 'flex', gap: '8px', marginRight: 'auto' }}>
+                  <div style={{ display: 'flex', gap: '8px', marginRight: 'auto', alignItems: 'center' }}>
                     <button style={styles.editBtn} onClick={() => setIsEditing(true)}>
                       <Edit2 size={13} style={{ marginRight: '4px' }} /> 정보 수정
                     </button>
                     {isAdmin && (
                       <button style={styles.deleteBtn} onClick={handleDelete}>
                         <Trash2 size={13} style={{ marginRight: '4px' }} /> 퇴사 처리
+                      </button>
+                    )}
+                    {isSelf && onLogout && (
+                      <button 
+                        type="button"
+                        style={{
+                          ...styles.deleteBtn,
+                          backgroundColor: 'transparent',
+                          color: '#ff4d4f',
+                          border: '1px solid #ff4d4f',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          padding: '7px 12px',
+                          fontSize: '0.8rem',
+                          fontWeight: 'bold',
+                          borderRadius: '6px',
+                          transition: 'all 0.2s'
+                        }} 
+                        onClick={() => {
+                          if (confirm('정말 로그아웃 하시겠습니까?')) {
+                            onLogout();
+                            onClose();
+                          }
+                        }}
+                      >
+                        로그아웃
                       </button>
                     )}
                   </div>
