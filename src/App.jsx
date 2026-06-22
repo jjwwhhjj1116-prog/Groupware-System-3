@@ -11,7 +11,9 @@ import {
   Plus, 
   Trash2, 
   Check, 
+  Mail,
   Mail as MailIcon, 
+  Calendar,
   Calendar as CalendarIcon, 
   Bot, 
   Folder, 
@@ -23,7 +25,13 @@ import {
   ShieldAlert, // 추가
   Menu,
   Star,
-  Home
+  Home,
+  MessageSquare,
+  CheckCircle,
+  Layers,
+  Megaphone,
+  Users,
+  AlertCircle
 } from 'lucide-react';
 import { getUserRoleLevel, getRoleLabel } from './utils/permission'; // 추가
 import ceoDongmyungImg from './assets/ceo_dongmyung.png';
