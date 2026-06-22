@@ -40,6 +40,7 @@ export default function Sidebar({
   onUserClick, // 사용자 클릭 콜백 추가
   isLightTheme,
   onToggleTheme,
+  chatUnreadCount, // 추가
   todoCount,
   mailUnreadCount,
   t, // 다국어 사전 객체 전달받음
@@ -83,7 +84,7 @@ export default function Sidebar({
   // 1단 글로벌 네비게이션 메뉴 정의 (네이버웍스 스타일 고유 컬러 및 입체적 fill 적용)
   const menuItems = [
     { id: 'home', label: 'HOME', icon: <Home size={28} style={{ color: '#007aff', fill: '#007aff1f', strokeWidth: 2 }} />, color: '#007aff' },
-    { id: 'chat', label: t.chat, icon: <MessageSquare size={28} style={{ color: '#2eb67d', fill: '#2eb67d1f', strokeWidth: 2 }} />, color: '#2eb67d', badge: 3 },
+    { id: 'chat', label: t.chat, icon: <MessageSquare size={28} style={{ color: '#2eb67d', fill: '#2eb67d1f', strokeWidth: 2 }} />, color: '#2eb67d', badge: chatUnreadCount },
     { id: 'mail', label: t.mail, icon: <Mail size={28} style={{ color: '#0058bc', fill: '#0058bc1f', strokeWidth: 2 }} />, color: '#0058bc', badge: mailUnreadCount },
     { id: 'calendar', label: t.calendar, icon: <Calendar size={28} style={{ color: '#8a2be2', fill: '#8a2be21f', strokeWidth: 2 }} />, color: '#8a2be2' }
   ];
@@ -448,7 +449,7 @@ export default function Sidebar({
               <div style={{ width: '100%', height: '4px', backgroundColor: 'var(--bg-secondary)', borderRadius: '2px', overflow: 'hidden' }}>
                 <div style={{ width: '1%', height: '100%', backgroundColor: '#007aff' }} />
               </div>
-              <div style={{ marginTop: '2px', fontSize: '0.65rem', color: 'var(--text-muted)' }}>© NAVER Cloud Corp.</div>
+              <div style={{ marginTop: '2px', fontSize: '0.65rem', color: 'var(--text-muted)' }}>© CON-COST & VIET QS</div>
             </div>
           </div>
         );

@@ -312,6 +312,18 @@ export default function App() {
   const [currentWorkspace, setCurrentWorkspace] = useState('concost'); // 'concost' or 'vietqs'
   const [currentMenu, setCurrentMenu] = useState('home'); // 'home', 'chat', 'mail', etc.
   const [isLightTheme, setIsLightTheme] = useState(true);
+  const [chatUnreadCount, setChatUnreadCount] = useState(3); // 안읽은 채팅 카운트 기본 3
+  const [todoUnreadCount, setTodoUnreadCount] = useState(4); // 미확인 할 일 카운트
+  const [mailUnreadCount, setMailUnreadCount] = useState(4); // 미확인 메일 카운트
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false); // 알림 센터 팝오버 토글
+  const [selectedEventForView, setSelectedEventForView] = useState(null); // 상세조회 모달용 이벤트 객체
+  const [calendarFilter, setCalendarFilter] = useState('all'); // 일정 필터
+  const [currentYear, setCurrentYear] = useState(2026);
+  const [currentMonth, setCurrentMonth] = useState(5); // 6월 (0-indexed)
+  const [isEventModalOpen, setIsEventModalOpen] = useState(false);
+  const [selectedDay, setSelectedDay] = useState(null);
+  const [eventTitle, setEventTitle] = useState('');
+  const [eventType, setEventType] = useState('meeting');
   const [activeChat, setActiveChat] = useState({ type: 'channel', id: 'general' });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // HOME 화면에서는 기본적으로 닫아 둠
@@ -452,8 +464,8 @@ export default function App() {
 
   // --- 메일 (Mail) 데이터 ---
   const [mails, setMails] = useState([
-    { id: 101, sender: 'NAVER WORKS', title: '[네이버웍스 코어] 신청 완료 안내', date: '6. 16. 11:48', read: false, important: false, desc: '[받은메일함] 신청 완료 안내 - 네이버웍스 코어 상품의 가입 및 신청이 완료되었습니다. 이제 모바일 앱과 PC 웹을 통해 스마트하게 업무를 시작해보세요.' },
-    { id: 102, sender: 'NAVER WORKS', title: '환영합니다! 지금부터 NAVER WORKS를 이용해 업무를 시작해볼까요?', date: '6. 16. 11:47', read: false, important: false, desc: '[받은메일함] 환영합니다! 지금부터 NAVER WORKS를 이용해 업무를 시작해볼까요? 네이버웍스에 가입하신 것을 진심으로 환영합니다.' },
+    { id: 101, sender: 'CON-COST IT지원팀', title: '[그룹웨어 코어] 신규 협업 메신저 개설 완료 안내', date: '6. 16. 11:48', read: false, important: false, desc: '[받은메일함] 신규 개설 안내 - 컨코스트 그룹웨어 메신저의 개설 및 가입 신청이 정상 완료되었습니다. 모바일 앱과 PC 웹을 통해 소통을 시작해보세요.' },
+    { id: 102, sender: 'CON-COST IT지원팀', title: '환영합니다! 지금부터 그룹웨어 시스템을 이용해 업무를 시작해볼까요?', date: '6. 16. 11:47', read: false, important: false, desc: '[받은메일함] 환영합니다! 신규 스마트 협업 시스템에 가입하신 것을 진심으로 환영합니다. 원활한 소통과 유연한 협업으로 회사의 성장을 함께 만들어가길 바랍니다.' },
     { id: 1, sender: '김현지 과장 (컨코스트)', title: '[긴급] 2026년 하반기 경영전략 회의 안건 제출 요청', date: '6. 16. 11:20', read: false, important: true, desc: '[긴급] 2026년 하반기 경영전략 회의 안건 제출 요청 - 대표님, 금일 오후 5시까지 경영전략 회의 안건 관련 부서별 취합본 피드백을 부탁드립니다.' },
     { id: 2, sender: 'Nguyen Van Minh (Viet QS)', title: '베트남 하노이 오피스 임대 계약 갱신 세부 항목 전달', date: '6. 15. 09:15', read: false, important: false, desc: '베트남 하노이 오피스 임대 계약 갱신 세부 항목 전달 - Hà Nội Office 3층 임대 계약 연장 관련 회계 품의 및 도면 세부 사안을 첨부하오니 기안 결재 부탁드립니다.' },
     { id: 3, sender: '인사노무팀', title: '[공지] 2026년 하절기 집중 휴가 기간 운영 안내의 건', date: '6. 14. 14:30', read: true, important: false, desc: '[공지] 2026년 하절기 집중 휴가 기간 운영 안내의 건 - 사내 규정에 의거하여 하절기 리프레시 집중 휴가 신청에 대한 결재 및 일정을 공유합니다.' }
@@ -462,10 +474,10 @@ export default function App() {
 
   // --- 캘린더 (Calendar) 일정 ---
   const [calendarEvents, setCalendarEvents] = useState([
-    { day: 15, title: '메신저 개발 킥오프', type: 'meeting' },
-    { day: 18, title: '디자인실장 영자 미팅', type: 'design' },
-    { day: 22, title: '베트남 지사 화상 회의', type: 'viet' },
-    { day: 25, title: 'TF팀 중간 발표회', type: 'tf' }
+    { id: 1, year: 2026, month: 5, day: 15, title: '메신저 개발 킥오프', type: 'meeting' },
+    { id: 2, year: 2026, month: 5, day: 18, title: '디자인실장 영자 미팅', type: 'design' },
+    { id: 3, year: 2026, month: 5, day: 22, title: '베트남 지사 화상 회의', type: 'viet' },
+    { id: 4, year: 2026, month: 5, day: 25, title: 'TF팀 중간 발표회', type: 'tf' }
   ]);
 
   // --- 드라이브 (Drive) 파일 ---
@@ -1397,9 +1409,10 @@ export default function App() {
               setCurrentMenu('chat');
               setActiveChat({ type: 'channel', id: 'general' });
               setIsSidebarOpen(true);
+              setChatUnreadCount(0);
             },
             fillIcon: true,
-            badgeCount: 3
+            badgeCount: chatUnreadCount
           })}
           {renderHeaderIcon({
             id: 'mail',
@@ -1409,9 +1422,10 @@ export default function App() {
             onClick: () => {
               setCurrentMenu('mail');
               setIsSidebarOpen(true);
+              setMailUnreadCount(0);
             },
             fillIcon: true,
-            badgeCount: mails.filter(m => !m.read).length
+            badgeCount: mailUnreadCount
           })}
           {renderHeaderIcon({
             id: 'calendar',
@@ -1432,9 +1446,10 @@ export default function App() {
             onClick: () => {
               setCurrentMenu('todo');
               setIsSidebarOpen(true);
+              setTodoUnreadCount(0);
             },
             fillIcon: true,
-            badgeCount: todos.filter(t => !t.completed).length
+            badgeCount: todoUnreadCount
           })}
 
           <div style={{ width: '1px', height: '18px', backgroundColor: 'var(--border-light)', margin: '0 4px' }} />
@@ -1454,8 +1469,8 @@ export default function App() {
             icon: Megaphone,
             color: '#ff3b30',
             title: '미확인 알림',
-            onClick: () => alert('새로운 메시지가 3건 있습니다.'),
-            badgeCount: 3
+            onClick: () => setIsNotificationOpen(!isNotificationOpen),
+            badgeCount: chatUnreadCount + mailUnreadCount + todoUnreadCount
           })}
           
           {/* 조직도 */}
@@ -1501,6 +1516,162 @@ export default function App() {
           >
             {currentUser?.userName ? currentUser.userName.charAt(0) : '대'}
           </div>
+
+          {/* 알림 센터 팝오버 */}
+          {isNotificationOpen && (
+            <div style={{
+              position: 'absolute',
+              top: '46px',
+              right: '46px',
+              width: '320px',
+              backgroundColor: 'var(--bg-widget)',
+              border: '1px solid var(--border-widget)',
+              borderRadius: '12px',
+              boxShadow: 'var(--shadow-widget)',
+              padding: '16px',
+              zIndex: 9999,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px'
+            }} className="animate-fade">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px dashed var(--border-light)', paddingBottom: '8px' }}>
+                <span style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-primary)' }}>🔔 미확인 알림 (Notifications)</span>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <button 
+                    onClick={() => {
+                      setChatUnreadCount(0);
+                      setTodoUnreadCount(0);
+                      setMailUnreadCount(0);
+                    }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--primary)',
+                      fontSize: '0.72rem',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      backgroundColor: 'rgba(0,122,255,0.08)'
+                    }}
+                  >
+                    모두 읽음
+                  </button>
+                  <button 
+                    onClick={() => setIsNotificationOpen(false)}
+                    style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1rem', display: 'flex', alignItems: 'center' }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '240px', overflowY: 'auto' }}>
+                {chatUnreadCount > 0 && (
+                  <div 
+                    onClick={() => {
+                      setCurrentMenu('chat');
+                      setActiveChat({ type: 'channel', id: 'general' });
+                      setChatUnreadCount(0);
+                      setIsSidebarOpen(true);
+                      setIsNotificationOpen(false);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '10px 12px',
+                      backgroundColor: 'var(--bg-primary)',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-light)',
+                      cursor: 'pointer',
+                      transition: 'transform 0.15s'
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.transform = 'translateX(2px)'}
+                    onMouseLeave={e => e.currentTarget.style.transform = 'translateX(0)'}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '1.2rem' }}>💬</span>
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: '800', color: 'var(--text-primary)' }}>새로운 메시지</span>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>확인하지 않은 채팅 메시지</span>
+                      </div>
+                    </div>
+                    <span style={{ backgroundColor: 'var(--primary)', color: '#ffffff', fontSize: '0.75rem', fontWeight: 'bold', borderRadius: '10px', padding: '2px 8px' }}>{chatUnreadCount}</span>
+                  </div>
+                )}
+                {mailUnreadCount > 0 && (
+                  <div 
+                    onClick={() => {
+                      setCurrentMenu('mail');
+                      setMailUnreadCount(0);
+                      setIsSidebarOpen(true);
+                      setIsNotificationOpen(false);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '10px 12px',
+                      backgroundColor: 'var(--bg-primary)',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-light)',
+                      cursor: 'pointer',
+                      transition: 'transform 0.15s'
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.transform = 'translateX(2px)'}
+                    onMouseLeave={e => e.currentTarget.style.transform = 'translateX(0)'}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '1.2rem' }}>📧</span>
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: '800', color: 'var(--text-primary)' }}>읽지않은 메일</span>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>수신된 업무 메일 확인</span>
+                      </div>
+                    </div>
+                    <span style={{ backgroundColor: '#0058bc', color: '#ffffff', fontSize: '0.75rem', fontWeight: 'bold', borderRadius: '10px', padding: '2px 8px' }}>{mailUnreadCount}</span>
+                  </div>
+                )}
+                {todoUnreadCount > 0 && (
+                  <div 
+                    onClick={() => {
+                      setCurrentMenu('todo');
+                      setTodoUnreadCount(0);
+                      setIsSidebarOpen(true);
+                      setIsNotificationOpen(false);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '10px 12px',
+                      backgroundColor: 'var(--bg-primary)',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-light)',
+                      cursor: 'pointer',
+                      transition: 'transform 0.15s'
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.transform = 'translateX(2px)'}
+                    onMouseLeave={e => e.currentTarget.style.transform = 'translateX(0)'}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '1.2rem' }}>✅</span>
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: '800', color: 'var(--text-primary)' }}>미확인 할 일</span>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>처리 대기 중인 업무 할 일</span>
+                      </div>
+                    </div>
+                    <span style={{ backgroundColor: '#ff2d55', color: '#ffffff', fontSize: '0.75rem', fontWeight: 'bold', borderRadius: '10px', padding: '2px 8px' }}>{todoUnreadCount}</span>
+                  </div>
+                )}
+                {chatUnreadCount === 0 && mailUnreadCount === 0 && todoUnreadCount === 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px 0', color: 'var(--text-muted)', gap: '8px' }}>
+                    <span style={{ fontSize: '1.5rem' }}>🎉</span>
+                    <span style={{ fontSize: '0.78rem' }}>새로운 알림이 없습니다.</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </header>
 
@@ -1531,7 +1702,14 @@ export default function App() {
               } else {
                 setIsSidebarOpen(true);
               }
-              if (menu === 'chat') setActiveChat({ type: 'channel', id: 'general' });
+              if (menu === 'chat') {
+                setActiveChat({ type: 'channel', id: 'general' });
+                setChatUnreadCount(0);
+              } else if (menu === 'mail') {
+                setMailUnreadCount(0);
+              } else if (menu === 'todo') {
+                setTodoUnreadCount(0);
+              }
             }}
             channels={workspaceChannels[currentWorkspace]}
             dms={dms}
@@ -1540,16 +1718,18 @@ export default function App() {
               setActiveChat(chat);
               setCurrentMenu('chat');
               setIsSidebarOpen(true);
+              setChatUnreadCount(0);
             }}
             onOpenModal={() => setIsModalOpen(true)}
             onOpenDmCreateModal={() => setIsDmCreateModalOpen(true)} // DM 생성 모달 콜백 추가
             onUserClick={handleUserClick}
             isLightTheme={isLightTheme}
             onToggleTheme={() => setIsLightTheme(!isLightTheme)}
-            todoCount={todos.filter(t => !t.completed).length}
+            chatUnreadCount={currentMenu === 'chat' ? 0 : chatUnreadCount}
+            todoCount={currentMenu === 'todo' ? 0 : todoUnreadCount}
             todoFilter={todoFilter}
             onTodoFilterChange={setTodoFilter}
-            mailUnreadCount={mails.filter(m => !m.read).length}
+            mailUnreadCount={currentMenu === 'mail' ? 0 : mailUnreadCount}
             t={t}
             onOpenSettings={() => setIsSettingsOpen(true)}
             aiEnabled={aiEnabled}
@@ -2758,16 +2938,21 @@ export default function App() {
                 <div style={{ fontWeight: '800', fontSize: '0.95rem', marginBottom: '14px', borderBottom: '1px dashed var(--border-light)', paddingBottom: '8px' }}>
                   🔔 {currentWorkspace === 'vietqs' ? 'Trạng thái thông báo chưa đọc' : '미확인 알림 상태'}
                 </div>
-                <div style={{ display: 'flex', justifycontent: 'space-around', padding: '10px 0' }}>
-                  <div style={{ textAlign: 'center', cursor: 'pointer', flex: 1 }} onClick={() => { setActiveChat({ type: 'channel', id: 'general' }); setCurrentMenu('chat'); }}>
+                <div style={{ display: 'flex', justifyContent: 'space-around', padding: '10px 0' }}>
+                  <div style={{ textAlign: 'center', cursor: 'pointer', flex: 1 }} onClick={() => { setActiveChat({ type: 'channel', id: 'general' }); setCurrentMenu('chat'); setChatUnreadCount(0); setIsSidebarOpen(true); }}>
                     <div style={{ fontSize: '24px', marginBottom: '6px' }}>💬</div>
-                    <strong style={{ fontSize: '1.1rem', color: 'var(--primary)' }}>3 {currentWorkspace === 'vietqs' ? 'tin nhắn' : '건'}</strong>
+                    <strong style={{ fontSize: '1.1rem', color: 'var(--primary)' }}>{chatUnreadCount} {currentWorkspace === 'vietqs' ? 'tin nhắn' : '건'}</strong>
                     <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>{currentWorkspace === 'vietqs' ? 'Tin nhắn mới' : '새 메시지'}</div>
                   </div>
-                  <div style={{ textAlign: 'center', cursor: 'pointer', flex: 1 }} onClick={() => setCurrentMenu('mail')}>
+                  <div style={{ textAlign: 'center', cursor: 'pointer', flex: 1 }} onClick={() => { setCurrentMenu('mail'); setMailUnreadCount(0); setIsSidebarOpen(true); }}>
                     <div style={{ fontSize: '24px', marginBottom: '6px' }}>📧</div>
-                    <strong style={{ fontSize: '1.1rem', color: '#007aff' }}>{mails.filter(m => !m.read).length} {currentWorkspace === 'vietqs' ? 'thư' : '건'}</strong>
+                    <strong style={{ fontSize: '1.1rem', color: '#0058bc' }}>{mailUnreadCount} {currentWorkspace === 'vietqs' ? 'thư' : '건'}</strong>
                     <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>{currentWorkspace === 'vietqs' ? 'Thư chưa đọc' : '읽지않은 메일'}</div>
+                  </div>
+                  <div style={{ textAlign: 'center', cursor: 'pointer', flex: 1 }} onClick={() => { setCurrentMenu('todo'); setTodoUnreadCount(0); setIsSidebarOpen(true); }}>
+                    <div style={{ fontSize: '24px', marginBottom: '6px' }}>✅</div>
+                    <strong style={{ fontSize: '1.1rem', color: '#ff2d55' }}>{todoUnreadCount} {currentWorkspace === 'vietqs' ? 'việc' : '건'}</strong>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>{currentWorkspace === 'vietqs' ? 'Việc cần làm' : '미확인 할 일'}</div>
                   </div>
                 </div>
               </div>
@@ -2841,28 +3026,54 @@ export default function App() {
                       {currentWorkspace === 'vietqs' ? 'Lịch' : '캘린더'}
                     </button>
                   </div>
-                  <table style={{ width: '100%', fontSize: '0.8rem', borderCollapse: 'collapse', fontWeight: '700' }}>
-                    <tbody>
-                      <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                        <td style={{ padding: '8px 0', color: 'var(--primary)', width: '70px' }}>15일 (오늘)</td>
-                        <td style={{ padding: '8px 0', color: 'var(--text-primary)' }}>
-                          {currentWorkspace === 'vietqs' ? 'BIM QC bàn giao bản vẽ đợt 1' : 'BIM파트 주간 1차 도면 QC 납품'}
-                        </td>
-                      </tr>
-                      <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                        <td style={{ padding: '8px 0', color: 'var(--text-secondary)' }}>17일 (수)</td>
-                        <td style={{ padding: '8px 0', color: 'var(--text-primary)' }}>
-                          {currentWorkspace === 'vietqs' ? 'Họp công trình Viet QS Horizon/Foundation' : 'Viet QS Horizon/Foundation 공정 회의'}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td style={{ padding: '8px 0', color: 'var(--text-muted)' }}>19일 (금)</td>
-                        <td style={{ padding: '8px 0', color: 'var(--text-primary)' }}>
-                          {currentWorkspace === 'vietqs' ? 'Họp báo cáo quản lý và Đàm thoại' : '대표이사 주관 경영 보고 및 간담회'}
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
+                  <div style={{ maxHeight: '150px', overflowY: 'auto' }}>
+                    <table style={{ width: '100%', fontSize: '0.8rem', borderCollapse: 'collapse', fontWeight: '700' }}>
+                      <tbody>
+                        {calendarEvents.length === 0 ? (
+                          <tr>
+                            <td colSpan="2" style={{ padding: '20px 0', textAlign: 'center', color: 'var(--text-muted)' }}>
+                              {currentWorkspace === 'vietqs' ? 'Không có lịch trình nào.' : '등록된 일정이 없습니다.'}
+                            </td>
+                          </tr>
+                        ) : (
+                          calendarEvents
+                            .sort((a, b) => {
+                              if (a.year !== b.year) return a.year - b.year;
+                              if (a.month !== b.month) return a.month - b.month;
+                              return a.day - b.day;
+                            })
+                            .slice(0, 4)
+                            .map((event, index, arr) => {
+                              const isLast = index === arr.length - 1;
+                              
+                              let eventTitle = event.title;
+                              if (currentWorkspace === 'vietqs') {
+                                if (event.title === '메신저 개발 킥오프') eventTitle = 'Kick-off phát triển';
+                                else if (event.title === '디자인실장 영자 미팅') eventTitle = 'Họp với P.Thiết kế';
+                                else if (event.title === '베트남 지사 화상 회의') eventTitle = 'Họp trực tuyến VN';
+                                else if (event.title === 'TF팀 중간 발표회') eventTitle = 'Báo cáo giữa kỳ TF';
+                              }
+
+                              const daysKo = ['일', '월', '화', '수', '목', '금', '토'];
+                              const daysVi = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+                              const dayOfWeek = new Date(event.year, event.month, event.day).getDay();
+                              const dayName = currentWorkspace === 'vietqs' ? daysVi[dayOfWeek] : daysKo[dayOfWeek];
+                              
+                              return (
+                                <tr key={event.id} style={{ borderBottom: isLast ? 'none' : '1px solid var(--border-light)' }}>
+                                  <td style={{ padding: '8px 0', color: 'var(--primary)', width: '90px' }}>
+                                    {event.month + 1}.{event.day} ({dayName})
+                                  </td>
+                                  <td style={{ padding: '8px 0', color: 'var(--text-primary)' }}>
+                                    {eventTitle}
+                                  </td>
+                                </tr>
+                              );
+                            })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
 
@@ -2902,7 +3113,7 @@ export default function App() {
           />
         );
 
-      case 'mail':
+      case 'mail': {
         const unreadCount = mails.filter(m => !m.read).length;
         const isViet = currentWorkspace === 'vietqs';
         return (
@@ -3010,13 +3221,13 @@ export default function App() {
                       // 베트남어 지원 분기 처리
                       if (currentWorkspace === 'vietqs') {
                         if (mail.id === 101) {
-                          senderName = 'NAVER WORKS';
-                          mailTitle = '[Naver Works Core] Thông báo hoàn tất đăng ký';
-                          mailDesc = 'Đăng ký dịch vụ Naver Works Core đã hoàn tất. Hãy bắt đầu công việc thông minh ngay bây giờ.';
+                          senderName = 'CON-COST IT Support';
+                          mailTitle = '[CON-COST Core] Thông báo hoàn tất đăng ký';
+                          mailDesc = 'Đăng ký dịch vụ CON-COST Core đã hoàn tất. Hãy bắt đầu công việc thông minh ngay bây giờ.';
                         } else if (mail.id === 102) {
-                          senderName = 'NAVER WORKS';
-                          mailTitle = 'Chào mừng! Bắt đầu sử dụng NAVER WORKS để làm việc hiệu quả';
-                          mailDesc = 'Chúng tôi nhiệt lệ chào mừng bạn đến với Naver Works. Nâng cao giao tiếp và cộng tác hiệu quả.';
+                          senderName = 'CON-COST IT Support';
+                          mailTitle = 'Chào mừng! Bắt đầu sử dụng CON-COST Works để làm việc hiệu quả';
+                          mailDesc = 'Chúng tôi nhiệt lệ chào mừng bạn đến với CON-COST Works. Nâng cao giao tiếp và cộng tác hiệu quả.';
                         } else if (mail.id === 1) {
                           senderName = 'Trưởng phòng Kim Hyun-ji';
                           mailTitle = '[Khẩn] Yêu cầu gửi nội dung cuộc họp chiến lược';
@@ -3227,60 +3438,682 @@ export default function App() {
             </div>
           </div>
         );
+      }
 
-      case 'calendar':
-        const days = Array.from({ length: 30 }, (_, i) => i + 1);
-        const weekdays = currentWorkspace === 'vietqs' 
+      case 'calendar': {
+        const isConcost = currentWorkspace === 'concost';
+        const accentColor = isConcost ? '#ff6b00' : 'var(--primary)';
+        const isViet = currentWorkspace === 'vietqs';
+
+        // 1. 달력 날짜 계산
+        const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+        const firstDayIndex = new Date(currentYear, currentMonth, 1).getDay();
+        const prevDaysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+
+        const cells = [];
+        // 이전 달 날짜들
+        for (let i = firstDayIndex - 1; i >= 0; i--) {
+          cells.push({
+            day: prevDaysInMonth - i,
+            isCurrentMonth: false,
+            monthOffset: -1,
+            year: currentMonth === 0 ? currentYear - 1 : currentYear,
+            month: currentMonth === 0 ? 11 : currentMonth - 1
+          });
+        }
+        // 현재 달 날짜들
+        for (let i = 1; i <= daysInMonth; i++) {
+          cells.push({
+            day: i,
+            isCurrentMonth: true,
+            monthOffset: 0,
+            year: currentYear,
+            month: currentMonth
+          });
+        }
+        // 다음 달 날짜들 (42칸 기준 채우기)
+        const remaining = 42 - cells.length;
+        for (let i = 1; i <= remaining; i++) {
+          cells.push({
+            day: i,
+            isCurrentMonth: false,
+            monthOffset: 1,
+            year: currentMonth === 11 ? currentYear + 1 : currentYear,
+            month: currentMonth === 11 ? 0 : currentMonth + 1
+          });
+        }
+
+        const weekdays = isViet 
           ? ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'] 
           : ['일', '월', '화', '수', '목', '금', '토'];
 
+        const handlePrevMonth = () => {
+          if (currentMonth === 0) {
+            setCurrentMonth(11);
+            setCurrentYear(prev => prev - 1);
+          } else {
+            setCurrentMonth(prev => prev - 1);
+          }
+        };
+
+        const handleNextMonth = () => {
+          if (currentMonth === 11) {
+            setCurrentMonth(0);
+            setCurrentYear(prev => prev + 1);
+          } else {
+            setCurrentMonth(prev => prev + 1);
+          }
+        };
+
+        const handleOpenAddEvent = (dayInfo) => {
+          setSelectedDay(dayInfo);
+          setEventTitle('');
+          setEventType('meeting');
+          setIsEventModalOpen(true);
+        };
+
         return (
-          <div style={styles.mainContainer} className="animate-fade">
-            <div style={styles.mainHeader}>
-              <h2 style={styles.mainTitle}>{t.calendarTitle}</h2>
-              <span style={styles.metaBadge}>{currentWorkspace === 'vietqs' ? 'Tháng 6 năm 2026' : '2026년 6월'}</span>
+          <div style={{ ...styles.mainContainer, display: 'flex', flexDirection: 'column', padding: '20px' }} className="animate-fade">
+            {/* 캘린더 컨트롤러 상단 바 */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: '20px',
+              backgroundColor: 'var(--bg-widget)',
+              padding: '12px 20px',
+              borderRadius: '12px',
+              border: '1px solid var(--border-widget)',
+              boxShadow: 'var(--shadow-widget)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <button 
+                  type="button"
+                  onClick={handlePrevMonth}
+                  style={{
+                    backgroundColor: 'var(--bg-secondary)',
+                    border: '1px solid var(--border-light)',
+                    color: 'var(--text-primary)',
+                    borderRadius: '6px',
+                    padding: '6px 12px',
+                    fontSize: '0.8rem',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    transition: 'background-color 0.2s'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'}
+                  onMouseLeave={e => e.currentTarget.style.backgroundColor = 'var(--bg-secondary)'}
+                >
+                  ◀ {isViet ? 'Tháng trước' : '이전달'}
+                </button>
+
+                {/* 년도/월 점프 드롭다운 */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <select
+                    value={currentYear}
+                    onChange={e => setCurrentYear(parseInt(e.target.value, 10))}
+                    style={{
+                      padding: '6px 10px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--border-light)',
+                      backgroundColor: 'var(--bg-primary)',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.82rem',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      outline: 'none'
+                    }}
+                  >
+                    {[2024, 2025, 2026, 2027, 2028, 2029, 2030].map(y => (
+                      <option key={y} value={y}>{y}년</option>
+                    ))}
+                  </select>
+
+                  <select
+                    value={currentMonth}
+                    onChange={e => setCurrentMonth(parseInt(e.target.value, 10))}
+                    style={{
+                      padding: '6px 10px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--border-light)',
+                      backgroundColor: 'var(--bg-primary)',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.82rem',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      outline: 'none'
+                    }}
+                  >
+                    {Array.from({ length: 12 }, (_, i) => (
+                      <option key={i} value={i}>{i + 1}월</option>
+                    ))}
+                  </select>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const today = new Date();
+                      setCurrentYear(today.getFullYear());
+                      setCurrentMonth(today.getMonth());
+                    }}
+                    style={{
+                      backgroundColor: accentColor,
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '6px',
+                      padding: '6px 12px',
+                      fontSize: '0.8rem',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      marginLeft: '4px'
+                    }}
+                  >
+                    {isViet ? 'Hôm nay' : '오늘'}
+                  </button>
+                </div>
+
+                <button 
+                  type="button"
+                  onClick={handleNextMonth}
+                  style={{
+                    backgroundColor: 'var(--bg-secondary)',
+                    border: '1px solid var(--border-light)',
+                    color: 'var(--text-primary)',
+                    borderRadius: '6px',
+                    padding: '6px 12px',
+                    fontSize: '0.8rem',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    transition: 'background-color 0.2s'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'}
+                  onMouseLeave={e => e.currentTarget.style.backgroundColor = 'var(--bg-secondary)'}
+                >
+                  {isViet ? 'Tháng sau' : '다음달'} ▶
+                </button>
+              </div>
+
+              {/* 일정 유형 필터 */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--text-secondary)' }}>
+                  {isViet ? 'Lọc:' : '필터:'}
+                </span>
+                <select
+                  value={calendarFilter}
+                  onChange={e => setCalendarFilter(e.target.value)}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border-light)',
+                    backgroundColor: 'var(--bg-primary)',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.82rem',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    outline: 'none'
+                  }}
+                >
+                  <option value="all">{isViet ? 'Tất cả' : '전체보기'}</option>
+                  <option value="meeting">{isViet ? 'Họp' : '🔴 회의'}</option>
+                  <option value="design">{isViet ? 'Thiết kế' : '💖 미팅'}</option>
+                  <option value="viet">{isViet ? 'Công ty' : '🟢 전사'}</option>
+                  <option value="tf">{isViet ? 'Dự án TF' : '🟣 TF팀'}</option>
+                  <option value="personal">{isViet ? 'Cá nhân' : '🔵 개인'}</option>
+                </select>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => handleOpenAddEvent({ day: new Date().getDate(), isCurrentMonth: true, monthOffset: 0, year: currentYear, month: currentMonth })}
+                style={{
+                  backgroundColor: accentColor,
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '8px 16px',
+                  fontSize: '0.82rem',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                }}
+              >
+                <span>➕</span> {isViet ? 'Đăng ký lịch' : '일정 등록'}
+              </button>
             </div>
 
-            <div style={styles.calendarWrapper}>
-              {weekdays.map(d => (
-                <div key={d} style={styles.dayHeader}>{d}</div>
-              ))}
-              
-              <div style={styles.calendarCellEmpty} />
-
-              {days.map(d => {
-                const dayEvents = calendarEvents.filter(e => e.day === d);
+            {/* 달력 날짜 목록 그리드 */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(7, 1fr)',
+              gap: '14px', // 스샷 스타일 매칭을 위해 갭 확대
+              flex: 1,
+              overflowY: 'auto'
+            }}>
+              {weekdays.map((d, index) => {
+                let color = 'var(--text-secondary)';
+                if (index === 0) color = '#f23f43'; // 일요일 빨강
+                if (index === 6) color = '#007aff'; // 토요일 파랑
                 return (
-                  <div key={d} className="calendar-cell" style={styles.calendarCell}>
-                    <div style={styles.cellDayNum}>{d}</div>
-                    <div style={styles.cellEvents}>
-                      {dayEvents.map((e, idx) => {
+                  <div key={d} style={{
+                    padding: '8px',
+                    textAlign: 'center',
+                    fontSize: '0.82rem',
+                    fontWeight: '800',
+                    color: color,
+                    borderBottom: '2px solid var(--border-light)',
+                    marginBottom: '4px'
+                  }}>{d}</div>
+                );
+              })}
+
+              {cells.map((cell, idx) => {
+                const dayEvents = calendarEvents.filter(e => {
+                  const matchDate = e.year === cell.year && e.month === cell.month && e.day === cell.day;
+                  if (!matchDate) return false;
+                  if (calendarFilter === 'all') return true;
+                  return e.type === calendarFilter;
+                });
+                
+                // 오늘 날짜 체크
+                const today = new Date();
+                const isToday = today.getFullYear() === cell.year && today.getMonth() === cell.month && today.getDate() === cell.day;
+
+                // 요일 색상 계산 (일요일 0, 토요일 6)
+                const dayOfWeek = new Date(cell.year, cell.month, cell.day).getDay();
+                let numColor = 'var(--text-primary)';
+                if (!cell.isCurrentMonth) {
+                  numColor = 'var(--text-muted)';
+                } else if (dayOfWeek === 0) {
+                  numColor = '#f23f43'; // 일요일 빨강
+                } else if (dayOfWeek === 6) {
+                  numColor = '#007aff'; // 토요일 파랑
+                }
+
+                // 대표 이벤트에 따른 가로막대 바 컬러 매칭 (실장님 스샷 모방용)
+                let bottomBarColor = 'transparent';
+                if (dayEvents.length > 0) {
+                  const firstType = dayEvents[0].type;
+                  bottomBarColor = firstType === 'meeting' ? '#ff9500' : (firstType === 'design' ? '#ff2d55' : (firstType === 'viet' ? '#2eb67d' : (firstType === 'tf' ? '#8a2be2' : '#52c41a')));
+                }
+
+                return (
+                  <div 
+                    key={idx} 
+                    className="calendar-cell-card animate-fade"
+                    style={{
+                      backgroundColor: 'var(--bg-widget)',
+                      borderRadius: '12px',
+                      border: isToday ? `2px solid ${accentColor}` : (isLightTheme ? '1.5px solid rgba(0,0,0,0.06)' : '1.5px solid rgba(255,255,255,0.06)'),
+                      boxShadow: isToday 
+                        ? `0 0 12px ${accentColor}30` 
+                        : (isLightTheme ? '0 4px 12px rgba(0,0,0,0.04)' : '0 4px 12px rgba(0,0,0,0.35)'),
+                      padding: '12px 12px 16px 12px',
+                      minHeight: '110px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px',
+                      cursor: 'pointer',
+                      position: 'relative',
+                      opacity: cell.isCurrentMonth ? 1 : 0.4,
+                      transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                    }}
+                    onClick={() => handleOpenAddEvent(cell)}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = isToday 
+                        ? `0 0 16px ${accentColor}40` 
+                        : (isLightTheme ? '0 8px 16px rgba(0,0,0,0.07)' : '0 8px 20px rgba(0,0,0,0.45)');
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = isToday 
+                        ? `0 0 12px ${accentColor}30` 
+                        : (isLightTheme ? '0 4px 12px rgba(0,0,0,0.04)' : '0 4px 12px rgba(0,0,0,0.35)');
+                    }}
+                  >
+                    {/* 날짜 숫자 */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between'
+                    }}>
+                      <span style={{
+                        fontSize: '0.85rem',
+                        fontWeight: '800',
+                        backgroundColor: isToday ? accentColor : 'transparent',
+                        color: isToday ? '#ffffff' : numColor,
+                        width: isToday ? '22px' : 'auto',
+                        height: isToday ? '22px' : 'auto',
+                        borderRadius: isToday ? '50%' : 'none',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
+                        {cell.day}
+                      </span>
+                      {isToday && (
+                        <span style={{ fontSize: '9px', fontWeight: 'bold', color: accentColor }}>TODAY</span>
+                      )}
+                    </div>
+
+                    {/* 일정 리스트 */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1, overflowY: 'auto' }}>
+                      {dayEvents.map((e, index) => {
                         let eventTitle = e.title;
-                        if (currentWorkspace === 'vietqs') {
+                        if (isViet) {
                           if (e.title === '메신저 개발 킥오프') eventTitle = 'Kick-off phát triển';
                           else if (e.title === '디자인실장 영자 미팅') eventTitle = 'Họp với P.Thiết kế';
                           else if (e.title === '베트남 지사 화상 회의') eventTitle = 'Họp trực tuyến VN';
                           else if (e.title === 'TF팀 중간 발표회') eventTitle = 'Báo cáo giữa kỳ TF';
                         }
+
+                        const chipColor = e.type === 'meeting' ? '#ff9500' : (e.type === 'design' ? '#ff2d55' : (e.type === 'viet' ? '#2eb67d' : (e.type === 'tf' ? '#8a2be2' : '#52c41a')));
+                        
                         return (
                           <div 
-                            key={idx} 
+                            key={index} 
                             style={{
-                              ...styles.eventChip,
-                              backgroundColor: e.type === 'meeting' ? accentColor : (e.type === 'design' ? '#ff007f' : '#23a55a')
+                              fontSize: '0.72rem',
+                              fontWeight: '700',
+                              color: '#ffffff',
+                              backgroundColor: chipColor,
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              lineHeight: 1.3,
+                              cursor: 'pointer',
+                              transition: 'transform 0.1s'
                             }}
+                            title={eventTitle}
+                            onClick={(ev) => {
+                              ev.stopPropagation(); // 카드 클릭(등록 모달) 전파 방지
+                              setSelectedEventForView(e);
+                            }}
+                            onMouseEnter={ev => ev.currentTarget.style.transform = 'scale(1.03)'}
+                            onMouseLeave={ev => ev.currentTarget.style.transform = 'scale(1)'}
                           >
                             {eventTitle}
                           </div>
                         );
                       })}
                     </div>
+
+                    {/* 하단 브랜드 가로막대 바 (실장님 캘린더 스샷 전면 매칭) */}
+                    <div style={{
+                      position: 'absolute',
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      height: '6px', // 6px로 두께를 늘려 스샷 효과 극대화
+                      backgroundColor: bottomBarColor,
+                      borderBottomLeftRadius: '11px',
+                      borderBottomRightRadius: '11px'
+                    }} />
                   </div>
                 );
               })}
             </div>
+
+            {/* --- 일정 등록 모달 --- */}
+            {isEventModalOpen && selectedDay && (
+              <div style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: 'rgba(0,0,0,0.5)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 99999,
+                backdropFilter: 'blur(3px)'
+              }} onClick={() => setIsEventModalOpen(false)}>
+                <div style={{
+                  backgroundColor: 'var(--bg-widget)',
+                  border: '1px solid var(--border-widget)',
+                  borderRadius: '12px',
+                  boxShadow: 'var(--shadow-widget)',
+                  width: '380px',
+                  padding: '20px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '16px'
+                }} onClick={e => e.stopPropagation()}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h4 style={{ fontSize: '1rem', fontWeight: '800', color: 'var(--text-primary)' }}>
+                      📅 {selectedDay.year}년 {selectedDay.month + 1}월 {selectedDay.day}일 일정 추가
+                    </h4>
+                    <button 
+                      type="button"
+                      onClick={() => setIsEventModalOpen(false)}
+                      style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.1rem' }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 'bold' }}>일정 제목</label>
+                    <input 
+                      type="text" 
+                      placeholder="회의 또는 일정을 입력하세요"
+                      value={eventTitle}
+                      onChange={e => setEventTitle(e.target.value)}
+                      style={{
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        border: '1px solid var(--border-light)',
+                        backgroundColor: 'var(--bg-primary)',
+                        color: 'var(--text-primary)',
+                        fontSize: '0.85rem',
+                        outline: 'none'
+                      }}
+                      autoFocus
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 'bold' }}>일정 구분</label>
+                    <select
+                      value={eventType}
+                      onChange={e => setEventType(e.target.value)}
+                      style={{
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        border: '1px solid var(--border-light)',
+                        backgroundColor: 'var(--bg-primary)',
+                        color: 'var(--text-primary)',
+                        fontSize: '0.85rem',
+                        outline: 'none',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <option value="meeting">🔴 회의 (Meeting)</option>
+                      <option value="design">💖 미팅 (Design)</option>
+                      <option value="viet">🟢 전사 협업 (Viet QS)</option>
+                      <option value="tf">🟣 TF 프로젝트 (TF Team)</option>
+                      <option value="personal">🔵 개인 일정 (Personal)</option>
+                    </select>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '4px' }}>
+                    <button 
+                      type="button"
+                      onClick={() => setIsEventModalOpen(false)}
+                      style={{
+                        backgroundColor: 'var(--bg-secondary)',
+                        color: 'var(--text-primary)',
+                        border: '1px solid var(--border-light)',
+                        borderRadius: '6px',
+                        padding: '8px 14px',
+                        fontSize: '0.8rem',
+                        fontWeight: 'bold',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      취소
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        if (!eventTitle.trim()) {
+                          alert('일정 제목을 입력해주세요.');
+                          return;
+                        }
+                        const newEvent = {
+                          id: Date.now(),
+                          year: selectedDay.year,
+                          month: selectedDay.month,
+                          day: selectedDay.day,
+                          title: eventTitle.trim(),
+                          type: eventType
+                        };
+                        setCalendarEvents(prev => [...prev, newEvent]);
+                        setIsEventModalOpen(false);
+                      }}
+                      style={{
+                        backgroundColor: accentColor,
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: '6px',
+                        padding: '8px 14px',
+                        fontSize: '0.8rem',
+                        fontWeight: 'bold',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      등록
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* --- 일정 상세조회 및 삭제 모달 --- */}
+            {selectedEventForView && (
+              <div style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: 'rgba(0,0,0,0.5)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 99999,
+                backdropFilter: 'blur(3px)'
+              }} onClick={() => setSelectedEventForView(null)}>
+                <div style={{
+                  backgroundColor: 'var(--bg-widget)',
+                  border: '1px solid var(--border-widget)',
+                  borderRadius: '12px',
+                  boxShadow: 'var(--shadow-widget)',
+                  width: '380px',
+                  padding: '20px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '16px'
+                }} onClick={e => e.stopPropagation()}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h4 style={{ fontSize: '1rem', fontWeight: '800', color: 'var(--text-primary)' }}>
+                      📅 {selectedEventForView.year}년 {selectedEventForView.month + 1}월 {selectedEventForView.day}일 일정 상세
+                    </h4>
+                    <button 
+                      type="button"
+                      onClick={() => setSelectedEventForView(null)}
+                      style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.1rem' }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 'bold' }}>일정 제목</span>
+                    <div style={{
+                      padding: '10px 14px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--border-light)',
+                      backgroundColor: 'var(--bg-primary)',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.88rem',
+                      fontWeight: '700'
+                    }}>
+                      {selectedEventForView.title}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 'bold' }}>일정 구분</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{
+                        fontSize: '0.75rem',
+                        fontWeight: '700',
+                        color: '#ffffff',
+                        backgroundColor: selectedEventForView.type === 'meeting' ? '#ff9500' : (selectedEventForView.type === 'design' ? '#ff2d55' : (selectedEventForView.type === 'viet' ? '#2eb67d' : (selectedEventForView.type === 'tf' ? '#8a2be2' : '#52c41a'))),
+                        padding: '4px 10px',
+                        borderRadius: '4px'
+                      }}>
+                        {selectedEventForView.type === 'meeting' && '🔴 회의 (Meeting)'}
+                        {selectedEventForView.type === 'design' && '💖 미팅 (Design)'}
+                        {selectedEventForView.type === 'viet' && '🟢 전사 협업 (Viet QS)'}
+                        {selectedEventForView.type === 'tf' && '🟣 TF 프로젝트 (TF Team)'}
+                        {selectedEventForView.type === 'personal' && '🔵 개인 일정 (Personal)'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '8px' }}>
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        if (confirm('이 일정을 삭제하시겠습니까?')) {
+                          setCalendarEvents(prev => prev.filter(ev => ev.id !== selectedEventForView.id));
+                          setSelectedEventForView(null);
+                        }
+                      }}
+                      style={{
+                        backgroundColor: 'var(--danger)',
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: '6px',
+                        padding: '8px 14px',
+                        fontSize: '0.8rem',
+                        fontWeight: 'bold',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      삭제
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => setSelectedEventForView(null)}
+                      style={{
+                        backgroundColor: 'var(--bg-secondary)',
+                        color: 'var(--text-primary)',
+                        border: '1px solid var(--border-light)',
+                        borderRadius: '6px',
+                        padding: '8px 14px',
+                        fontSize: '0.8rem',
+                        fontWeight: 'bold',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      닫기
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         );
+      }
 
       case 'todo':
         const filteredTodos = todos.filter(todo => {
@@ -4445,6 +5278,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '12px',
+    position: 'relative',
   },
   headerIconBtn: {
     background: 'none',
