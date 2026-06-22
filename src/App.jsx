@@ -22,7 +22,8 @@ import {
   Database,
   ShieldAlert, // 추가
   Menu,
-  Star
+  Star,
+  Home
 } from 'lucide-react';
 import { getUserRoleLevel, getRoleLabel } from './utils/permission'; // 추가
 import ceoDongmyungImg from './assets/ceo_dongmyung.png';
