@@ -36,9 +36,15 @@
 
   --border: #1f2023;
   --border-light: #3f4248;
-
+ 
   --sidebar-width: 86px;
   --subpanel-width: 260px;
+ 
+  /* Dashboard & Widget Themes (Dark Mode Default) */
+  --bg-dashboard: #0a0d14;
+  --bg-widget: #161b26;
+  --border-widget: rgba(255, 255, 255, 0.08);
+  --shadow-widget: 0 12px 28px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 /* Light Mode (if preferred or toggled) */
@@ -59,6 +65,12 @@
 
   --border: #e3e5e8;
   --border-light: #ebedef;
+ 
+  /* Dashboard & Widget Themes (Light Mode Override) */
+  --bg-dashboard: #f0f2f5;
+  --bg-widget: #ffffff;
+  --border-widget: rgba(0, 0, 0, 0.08);
+  --shadow-widget: 0 12px 24px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 /* Global Reset */

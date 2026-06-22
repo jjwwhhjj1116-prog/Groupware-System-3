@@ -452,9 +452,11 @@ export default function App() {
 
   // --- 메일 (Mail) 데이터 ---
   const [mails, setMails] = useState([
-    { id: 1, sender: '김현지 과장 (컨코스트)', title: '[긴급] 2026년 하반기 경영전략 회의 안건 제출 요청', date: '오전 11:20', read: false, important: true, desc: '대표님, 금일 오후 5시까지 경영전략 회의 안건 관련 부서별 취합본 피드백을 부탁드립니다.' },
-    { id: 2, sender: 'Nguyen Van Minh (Viet QS)', title: '베트남 하노이 오피스 임대 계약 갱신 세부 항목 전달', date: '오전 09:15', read: false, important: false, desc: 'Hà Nội Office 3층 임대 계약 연장 관련 회계 품의 및 도면 세부 사안을 첨부하오니 기안 결재 부탁드립니다.' },
-    { id: 3, sender: '인사노무팀', title: '[공지] 2026년 하절기 집중 휴가 기간 운영 안내의 건', date: '어제', read: true, important: false, desc: '사내 규정에 의거하여 하절기 리프레시 집중 휴가 신청에 대한 결재 및 일정을 공유합니다.' }
+    { id: 101, sender: 'NAVER WORKS', title: '[네이버웍스 코어] 신청 완료 안내', date: '6. 16. 11:48', read: false, important: false, desc: '[받은메일함] 신청 완료 안내 - 네이버웍스 코어 상품의 가입 및 신청이 완료되었습니다. 이제 모바일 앱과 PC 웹을 통해 스마트하게 업무를 시작해보세요.' },
+    { id: 102, sender: 'NAVER WORKS', title: '환영합니다! 지금부터 NAVER WORKS를 이용해 업무를 시작해볼까요?', date: '6. 16. 11:47', read: false, important: false, desc: '[받은메일함] 환영합니다! 지금부터 NAVER WORKS를 이용해 업무를 시작해볼까요? 네이버웍스에 가입하신 것을 진심으로 환영합니다.' },
+    { id: 1, sender: '김현지 과장 (컨코스트)', title: '[긴급] 2026년 하반기 경영전략 회의 안건 제출 요청', date: '6. 16. 11:20', read: false, important: true, desc: '[긴급] 2026년 하반기 경영전략 회의 안건 제출 요청 - 대표님, 금일 오후 5시까지 경영전략 회의 안건 관련 부서별 취합본 피드백을 부탁드립니다.' },
+    { id: 2, sender: 'Nguyen Van Minh (Viet QS)', title: '베트남 하노이 오피스 임대 계약 갱신 세부 항목 전달', date: '6. 15. 09:15', read: false, important: false, desc: '베트남 하노이 오피스 임대 계약 갱신 세부 항목 전달 - Hà Nội Office 3층 임대 계약 연장 관련 회계 품의 및 도면 세부 사안을 첨부하오니 기안 결재 부탁드립니다.' },
+    { id: 3, sender: '인사노무팀', title: '[공지] 2026년 하절기 집중 휴가 기간 운영 안내의 건', date: '6. 14. 14:30', read: true, important: false, desc: '[공지] 2026년 하절기 집중 휴가 기간 운영 안내의 건 - 사내 규정에 의거하여 하절기 리프레시 집중 휴가 신청에 대한 결재 및 일정을 공유합니다.' }
   ]);
   const [selectedMail, setSelectedMail] = useState(null);
 
@@ -2900,85 +2902,327 @@ export default function App() {
         );
 
       case 'mail':
+        const unreadCount = mails.filter(m => !m.read).length;
+        const isViet = currentWorkspace === 'vietqs';
         return (
-          <div style={styles.mainContainer} className="animate-fade">
-            <div style={styles.mainHeader}>
-              <h2 style={styles.mainTitle}>{t.mailTitle}</h2>
-              <div style={styles.mainHeaderRight}>
-                <span style={styles.metaBadge}>{t.unread} {mails.filter(m => !m.read).length}{t.cases}</span>
+          <div style={{ ...styles.mainContainer, padding: 0, display: 'flex', flexDirection: 'column', height: '100%' }} className="animate-fade">
+            {/* 1. 상단 툴바 */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '10px 20px',
+              backgroundColor: 'var(--bg-secondary)',
+              borderBottom: '1px solid var(--border)',
+              fontSize: '0.8rem',
+              color: 'var(--text-secondary)',
+              flexShrink: 0
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {selectedMail ? (
+                  <>
+                    <button 
+                      style={{
+                        ...styles.mailToolbarBtn,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        fontWeight: '700',
+                        color: 'var(--primary)',
+                        borderColor: 'var(--primary)'
+                      }} 
+                      onClick={() => setSelectedMail(null)}
+                    >
+                      ◀ {isViet ? 'Danh sách' : '목록'}
+                    </button>
+                    <div style={{ width: '1px', height: '14px', backgroundColor: 'var(--border-light)', margin: '0 6px' }} />
+                  </>
+                ) : (
+                  <>
+                    <div style={{ display: 'flex', alignItems: 'center', marginRight: '6px' }}>
+                      <input type="checkbox" style={{ cursor: 'pointer', width: '15px', height: '15px' }} />
+                      <span style={{ fontSize: '10px', marginLeft: '2px', cursor: 'pointer', color: 'var(--text-muted)' }}>▼</span>
+                    </div>
+                  </>
+                )}
+                
+                <button style={styles.mailToolbarBtn} onClick={() => {
+                  if (selectedMail) {
+                    setMails(prev => prev.map(m => m.id === selectedMail.id ? { ...m, read: !m.read } : m));
+                    setSelectedMail(prev => prev ? { ...prev, read: !prev.read } : null);
+                  } else {
+                    alert(isViet ? 'Vui lòng chọn thư.' : '메일을 선택해 주세요.');
+                  }
+                }}>{isViet ? 'Đã đọc' : '읽음'}</button>
+                <button style={styles.mailToolbarBtn} onClick={() => {
+                  if (selectedMail) {
+                    setMails(prev => prev.filter(m => m.id !== selectedMail.id));
+                    setSelectedMail(null);
+                  } else {
+                    alert(isViet ? 'Vui lòng chọn thư.' : '메일을 선택해 주세요.');
+                  }
+                }}>{isViet ? 'Xóa' : '삭제'}</button>
+                <button style={styles.mailToolbarBtn} onClick={() => alert(isViet ? 'Báo cáo Spam' : '스팸신고')}>{isViet ? 'Báo cáo Spam' : '스팸신고'}</button>
+                
+                <div style={{ width: '1px', height: '14px', backgroundColor: 'var(--border-light)', margin: '0 6px' }} />
+                
+                <button style={styles.mailToolbarBtn} onClick={() => alert(isViet ? 'Trả lời' : '답장')}>{isViet ? 'Trả lời' : '답장'}</button>
+                <button style={styles.mailToolbarBtn} onClick={() => alert(isViet ? 'Trả lời tất cả' : '전체답장')}>{isViet ? 'Trả lời tất cả' : '전체답장'}</button>
+                <button style={styles.mailToolbarBtn} onClick={() => alert(isViet ? 'Chuyển tiếp' : '전달')}>{isViet ? 'Chuyển tiếp' : '전달'}</button>
+                <button style={styles.mailToolbarBtn} onClick={() => alert(isViet ? 'Di chuyển' : '이동')}>{isViet ? 'Di chuyển' : '이동'}</button>
+                <button style={styles.mailToolbarBtn} onClick={() => alert(isViet ? 'Nhắc nhở' : 'Nhắc nhở')}>{isViet ? 'Nhắc nhở' : '리마인드'}</button>
+              </div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {!selectedMail && (
+                  <>
+                    <span>{isViet ? 'Chưa đọc' : '안읽음'} <strong>{unreadCount}</strong>{isViet ? ' thư' : '건'}</span>
+                    <div style={{ width: '1px', height: '12px', backgroundColor: 'var(--border-light)' }} />
+                    <span style={{ cursor: 'pointer' }} onClick={() => alert('설정')}>⚙️</span>
+                  </>
+                )}
               </div>
             </div>
 
-            <div style={styles.mailBody}>
-              <div style={styles.mailListWrapper}>
-                {mails.map(mail => {
-                  let senderName = mail.sender;
-                  let mailTitle = mail.title;
-                  let mailDesc = mail.desc;
-                  
-                  if (currentWorkspace === 'vietqs') {
-                    if (mail.id === 1) {
-                      senderName = 'Trưởng phòng Kim Hyun-ji';
-                      mailTitle = '[Khẩn] Yêu cầu gửi nội dung cuộc họp chiến lược';
-                      mailDesc = 'Thưa Giám đốc, xin vui lòng gửi ý kiến chỉ đạo đối với dự thảo chiến lược kinh doanh trước 5h chiều nay.';
-                    } else if (mail.id === 3) {
-                      senderName = 'Phòng Nhân sự';
-                      mailTitle = '[Thông báo] Quy định kỳ nghỉ hè tập trung năm 2026';
-                      mailDesc = 'Theo nội quy công ty, chúng tôi xin chia sẻ quy trình phê duyệt nghỉ mát tập trung hè 2026.';
-                    }
-                  }
+            {/* 2. 메일 본문 레이아웃 (목록 혹은 상세 단일 꽉 찬 뷰) */}
+            <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+              {!selectedMail ? (
+                /* 꽉 찬 메일 목록 */
+                <div style={{
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  overflowY: 'auto',
+                  backgroundColor: 'var(--bg-dashboard)'
+                }}>
+                  {mails.length === 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)', gap: '10px' }}>
+                      <MailIcon size={48} style={{ color: 'var(--text-muted)' }} />
+                      <div>{isViet ? 'Không có thư nào.' : '메일이 없습니다.'}</div>
+                    </div>
+                  ) : (
+                    mails.map(mail => {
+                      const isSelected = selectedMail?.id === mail.id;
+                      let senderName = mail.sender;
+                      let mailTitle = mail.title;
+                      let mailDesc = mail.desc;
 
-                  return (
-                    <div 
-                      key={mail.id} 
-                      className="mail-item"
-                      style={{
-                        ...styles.mailItem,
-                        borderLeft: mail.important ? `3px solid ${accentColor}` : '3px solid transparent',
-                        backgroundColor: selectedMail?.id === mail.id ? 'var(--bg-active)' : 'var(--bg-secondary)'
-                      }}
-                      onClick={() => {
-                        setSelectedMail({ ...mail, sender: senderName, title: mailTitle, desc: mailDesc });
-                        setMails(prev => prev.map(m => m.id === mail.id ? { ...m, read: true } : m));
-                      }}
-                    >
-                      <div style={styles.mailItemHeader}>
-                        <span style={{ ...styles.mailSender, fontWeight: !mail.read ? '700' : '400' }}>
-                          {senderName}
-                        </span>
-                        <span style={styles.mailDate}>{mail.date}</span>
-                      </div>
-                      <div style={{
-                        ...styles.mailSubject,
-                        fontWeight: !mail.read ? '700' : '400',
-                        color: !mail.read ? 'var(--text-primary)' : 'var(--text-secondary)'
+                      // 베트남어 지원 분기 처리
+                      if (currentWorkspace === 'vietqs') {
+                        if (mail.id === 101) {
+                          senderName = 'NAVER WORKS';
+                          mailTitle = '[Naver Works Core] Thông báo hoàn tất đăng ký';
+                          mailDesc = 'Đăng ký dịch vụ Naver Works Core đã hoàn tất. Hãy bắt đầu công việc thông minh ngay bây giờ.';
+                        } else if (mail.id === 102) {
+                          senderName = 'NAVER WORKS';
+                          mailTitle = 'Chào mừng! Bắt đầu sử dụng NAVER WORKS để làm việc hiệu quả';
+                          mailDesc = 'Chúng tôi nhiệt lệ chào mừng bạn đến với Naver Works. Nâng cao giao tiếp và cộng tác hiệu quả.';
+                        } else if (mail.id === 1) {
+                          senderName = 'Trưởng phòng Kim Hyun-ji';
+                          mailTitle = '[Khẩn] Yêu cầu gửi nội dung cuộc họp chiến lược';
+                          mailDesc = 'Thưa Giám đốc, xin vui lòng gửi ý kiến chỉ đạo đối với dự thảo chiến lược kinh doanh trước 5h chiều nay.';
+                        } else if (mail.id === 3) {
+                          senderName = 'Phòng Nhân sự';
+                          mailTitle = '[Thông báo] Quy định kỳ nghỉ hè tập trung năm 2026';
+                          mailDesc = 'Theo nội quy công ty, chúng tôi xin chia sẻ quy trình phê duyệt nghỉ mát tập trung hè 2026.';
+                        }
+                      }
+
+                      return (
+                        <div 
+                          key={mail.id} 
+                          className="mail-item-row"
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            padding: '14px 20px',
+                            borderBottom: '1px solid var(--border-light)',
+                            cursor: 'pointer',
+                            transition: 'background-color 0.15s ease',
+                            backgroundColor: isSelected ? 'var(--bg-active)' : 'transparent',
+                            position: 'relative'
+                          }}
+                          onClick={() => {
+                            setSelectedMail({ ...mail, sender: senderName, title: mailTitle, desc: mailDesc });
+                            setMails(prev => prev.map(m => m.id === mail.id ? { ...m, read: true } : m));
+                          }}
+                        >
+                          {/* 선택 시 좌측 파란색 세로줄 */}
+                          {isSelected && (
+                            <div style={{
+                              position: 'absolute',
+                              left: 0,
+                              top: 0,
+                              bottom: 0,
+                              width: '4px',
+                              backgroundColor: '#007aff'
+                            }} />
+                          )}
+
+                          {/* 체크박스 */}
+                          <input 
+                            type="checkbox" 
+                            onClick={(e) => e.stopPropagation()} 
+                            style={{ marginRight: '12px', cursor: 'pointer', width: '15px', height: '15px' }} 
+                          />
+
+                          {/* 중요 표시 */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setMails(prev => prev.map(m => m.id === mail.id ? { ...m, important: !m.important } : m));
+                            }}
+                            style={{
+                              border: 'none',
+                              backgroundColor: 'transparent',
+                              marginRight: '12px',
+                              cursor: 'pointer',
+                              color: mail.important ? '#ffb900' : 'var(--text-muted)',
+                              display: 'flex',
+                              alignItems: 'center'
+                            }}
+                          >
+                            <Star size={16} fill={mail.important ? '#ffb900' : 'none'} stroke={mail.important ? '#ffb900' : 'var(--text-muted)'} />
+                          </button>
+
+                          {/* W 로고 */}
+                          <div style={{
+                            width: '22px',
+                            height: '22px',
+                            borderRadius: '4px',
+                            backgroundColor: 'var(--bg-secondary)',
+                            color: 'var(--text-secondary)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '11px',
+                            fontWeight: '800',
+                            marginRight: '20px',
+                            border: '1px solid var(--border-light)',
+                            flexShrink: 0
+                          }}>
+                            W
+                          </div>
+
+                          {/* 발신자 */}
+                          <div style={{
+                            width: '150px',
+                            fontSize: '0.85rem',
+                            fontWeight: !mail.read ? '700' : '400',
+                            color: !mail.read ? 'var(--text-primary)' : 'var(--text-secondary)',
+                            marginRight: '20px',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            flexShrink: 0
+                          }}>
+                            {senderName}
+                          </div>
+
+                          {/* TO 배지 */}
+                          <div style={{
+                            width: '22px',
+                            height: '22px',
+                            borderRadius: '50%',
+                            backgroundColor: 'var(--bg-secondary)',
+                            color: 'var(--text-secondary)',
+                            border: '1px solid var(--border-light)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '8px',
+                            fontWeight: 'bold',
+                            marginRight: '16px',
+                            flexShrink: 0
+                          }}>
+                            TO
+                          </div>
+
+                          {/* 제목 및 본문 요약 (세로 정렬) */}
+                          <div style={{
+                            flex: 1,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '3px',
+                            overflow: 'hidden',
+                            marginRight: '20px'
+                          }}>
+                            <div style={{
+                              fontSize: '0.875rem',
+                              fontWeight: !mail.read ? '700' : '400',
+                              color: !mail.read ? 'var(--text-primary)' : 'var(--text-secondary)',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis'
+                            }}>
+                              {mailTitle}
+                            </div>
+                            <div style={{
+                              fontSize: '0.78rem',
+                              color: 'var(--text-muted)',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis'
+                            }}>
+                              {mailDesc}
+                            </div>
+                          </div>
+
+                          {/* 날짜 */}
+                          <div style={{
+                            fontSize: '0.8rem',
+                            color: 'var(--text-muted)',
+                            width: '100px',
+                            textAlign: 'right',
+                            flexShrink: 0
+                          }}>
+                            {mail.date}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              ) : (
+                /* 꽉 찬 메일 상세 */
+                <div style={{ flex: 1, overflowY: 'auto', backgroundColor: 'var(--bg-widget)', padding: '24px 32px' }} className="animate-scale">
+                  <div style={{ borderBottom: '1px solid var(--border)', paddingBottom: '18px', marginBottom: '20px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                      <span style={{ 
+                        backgroundColor: 'rgba(0,199,60,0.15)', 
+                        color: '#00c73c', 
+                        fontSize: '10px', 
+                        fontWeight: 'bold', 
+                        padding: '2px 8px', 
+                        borderRadius: '4px',
+                        border: '1px solid rgba(0,199,60,0.3)'
                       }}>
-                        {mailTitle}
-                      </div>
+                        {isViet ? 'Hộp thư đến' : '받은메일함'}
+                      </span>
+                      <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--text-primary)' }}>{selectedMail.title}</h3>
                     </div>
-                  );
-                })}
-              </div>
-
-              <div style={styles.mailDetailWrapper}>
-                {selectedMail ? (
-                  <div style={styles.mailDetail} className="animate-scale">
-                    <div style={styles.detailHeader}>
-                      <h3 style={styles.detailSubject}>{selectedMail.title}</h3>
-                      <div style={styles.detailMeta}>
-                        <div>{currentWorkspace === 'vietqs' ? 'Người gửi: ' : '보낸사람: '}<strong>{selectedMail.sender}</strong></div>
-                        <div style={styles.detailTime}>{selectedMail.date}</div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                      <div>
+                        {isViet ? 'Người gửi: ' : '보낸사람: '}
+                        <strong style={{ color: 'var(--text-primary)' }}>{selectedMail.sender}</strong>
                       </div>
+                      <div>{selectedMail.date}</div>
                     </div>
-                    <div style={styles.detailBody}>{selectedMail.desc}</div>
                   </div>
-                ) : (
-                  <div style={styles.emptyDetail}>
-                    <MailIcon size={40} style={{ color: 'var(--text-muted)', marginBottom: '12px' }} />
-                    <p>{currentWorkspace === 'vietqs' ? 'Vui lòng chọn thư từ danh sách để xem chi tiết.' : '상세 메일 내용을 보시려면 목록에서 메일을 선택해 주세요.'}</p>
+                  <div style={{
+                    fontSize: '0.95rem',
+                    lineHeight: '1.75',
+                    color: 'var(--text-primary)',
+                    whiteSpace: 'pre-wrap',
+                    backgroundColor: 'var(--bg-dashboard)',
+                    padding: '24px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border)',
+                    minHeight: '200px'
+                  }}>
+                    {selectedMail.desc}
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           </div>
         );
@@ -3614,7 +3858,7 @@ const styles = {
     flex: 1,
     height: '100%',
     padding: '24px',
-    backgroundColor: '#0a0d14', // 어두운 카본 블랙 계열로 대비 극대화
+    backgroundColor: 'var(--bg-dashboard)', // CSS 변수 연동으로 테마 겹침 현상 해결!
     color: 'var(--text-primary)',
     overflowY: 'auto'
   },
@@ -3650,6 +3894,17 @@ const styles = {
   },
 
   // Mail Styles
+  mailToolbarBtn: {
+    padding: '5px 12px',
+    borderRadius: '6px',
+    border: '1px solid var(--border-light)',
+    backgroundColor: 'var(--bg-primary)',
+    cursor: 'pointer',
+    fontSize: '0.78rem',
+    fontWeight: '600',
+    color: 'var(--text-primary)',
+    transition: 'all 0.15s ease',
+  },
   mailBody: {
     display: 'flex',
     flex: 1,
@@ -4384,11 +4639,11 @@ const styles = {
     padding: '0',
   },
   widgetCard: {
-    backgroundColor: '#161b26', // 기존 var(--bg-secondary)보다 살짝 더 밝은 다크그레이로 대비 향상
-    border: '1px solid rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'var(--bg-widget)', // CSS 변수 연동
+    border: '1px solid var(--border-widget)', // CSS 변수 연동
     borderRadius: '16px',
     padding: '24px 20px 20px 20px', // 탑라인 공간을 위해 상단 패딩 추가
-    boxShadow: '0 12px 28px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
+    boxShadow: 'var(--shadow-widget)', // CSS 변수 연동
     position: 'relative',
     overflow: 'hidden',
     transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
