@@ -877,6 +877,8 @@ const styles = {
     padding: '12px 0',
     alignItems: 'center',
     borderRight: '1px solid var(--border)',
+    overflowY: 'auto',
+    overflowX: 'hidden',
   },
   workspaceList: {
     display: 'flex',
