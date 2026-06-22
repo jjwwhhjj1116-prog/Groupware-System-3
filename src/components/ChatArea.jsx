@@ -42,6 +42,9 @@ export default function ChatArea({
 }) {
   const [inputText, setInputText] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [translatedMessages, setTranslatedMessages] = useState({});
+  const [translatingIds, setTranslatingIds] = useState(new Set());
+  const [pickerTab, setPickerTab] = useState('emoji');
   const messagesEndRef = useRef(null);
   
   const [isDragging, setIsDragging] = useState(false);
@@ -144,6 +147,88 @@ export default function ChatArea({
 
   const addEmoji = (emoji) => {
     setInputText(prev => prev + emoji);
+    setShowEmojiPicker(false);
+  };
+
+  const handleTranslate = async (msgId, text, hasRealtimeTrans = false) => {
+    const isShowing = (translatedMessages[msgId] && translatedMessages[msgId] !== 'hide') || (!translatedMessages[msgId] && hasRealtimeTrans);
+    
+    if (isShowing) {
+      setTranslatedMessages(prev => ({
+        ...prev,
+        [msgId]: 'hide'
+      }));
+      return;
+    }
+
+    if (translatedMessages[msgId] === 'hide' && hasRealtimeTrans) {
+      setTranslatedMessages(prev => {
+        const next = { ...prev };
+        delete next[msgId];
+        return next;
+      });
+      return;
+    }
+
+    const apiKey = localStorage.getItem('gemini_api_key') || '';
+    if (!apiKey) {
+      alert('⚙️ 설정에서 Gemini API Key를 등록해야 번역 기능이 작동합니다.');
+      return;
+    }
+
+    const model = localStorage.getItem('gemini_model') || 'gemini-1.5-flash';
+
+    setTranslatingIds(prev => {
+      const next = new Set(prev);
+      next.add(msgId);
+      return next;
+    });
+
+    const promptText = `너는 다국어 번역기이다. 아래 입력 텍스트를 감지하여 적절하게 번역해라.
+- 만약 한국어(Korean)인 경우: 영어(English)와 베트남어(Vietnamese)로 번역해라.
+- 만약 베트남어(Vietnamese)인 경우: 한국어(Korean)와 영어(English)로 번역해라.
+- 만약 영어(English)인 경우: 한국어(Korean)와 베트남어(Vietnamese)로 번역해라.
+
+결과는 반드시 아래의 포맷으로만 응답하고 다른 부연설명은 절대 하지 마라:
+[🇺🇸 English]: <영어 번역본>
+[🇻🇳 Tiếng Việt]: <베트남어 번역본>
+(만약 입력 언어에 영어나 베트남어가 포함된다면, 타겟에 맞추어 [🇰🇷 한국어] 등으로 언어 이름을 표시해라.)
+
+입력 텍스트:
+"${text}"`;
+
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: promptText }] }]
+        })
+      });
+
+      if (!response.ok) throw new Error('Gemini API translation call failed');
+      const data = await response.json();
+      if (data.candidates && data.candidates[0].content.parts[0].text) {
+        const resultText = data.candidates[0].content.parts[0].text.trim();
+        setTranslatedMessages(prev => ({ ...prev, [msgId]: resultText }));
+      } else {
+        alert('번역 실패 (API 응답 에러)');
+      }
+    } catch (err) {
+      console.error('Translation error:', err);
+      alert('네트워크 오류가 발생했거나 API Key가 올바르지 않습니다.');
+    } finally {
+      setTranslatingIds(prev => {
+        const next = new Set(prev);
+        next.delete(msgId);
+        return next;
+      });
+    }
+  };
+
+  const handleSendSticker = (imageUrl) => {
+    onSendMessage('', imageUrl);
     setShowEmojiPicker(false);
   };
 
@@ -401,30 +486,41 @@ export default function ChatArea({
                       id={`msg-${msg.id}`}
                       style={{
                         ...styles.bubble,
-                        backgroundColor: isCurrentMatch
-                          ? 'rgba(255, 107, 0, 0.45)'
-                          : isMatched
-                            ? 'rgba(255, 107, 0, 0.2)'
-                            : (isMe 
-                              ? (currentWorkspace === 'concost' ? '#ff6b00' : 'var(--primary)')
-                              : 'var(--bg-secondary)'),
+                        backgroundColor: (msg.youngjaImageUrl && !msg.content)
+                          ? 'transparent'
+                          : isCurrentMatch
+                            ? 'rgba(255, 107, 0, 0.45)'
+                            : isMatched
+                              ? 'rgba(255, 107, 0, 0.2)'
+                              : (isMe 
+                                ? (currentWorkspace === 'concost' ? '#ff6b00' : 'var(--primary)')
+                                : 'var(--bg-secondary)'),
                         color: isMe ? '#ffffff' : 'var(--text-primary)',
                         borderBottomRightRadius: isMe ? '2px' : '10px',
                         borderBottomLeftRadius: isMe ? '10px' : '2px',
-                        border: isCurrentMatch 
-                          ? '1px solid #ff6b00' 
-                          : (isMe ? 'none' : '1px solid var(--border-light)'),
-                        boxShadow: isCurrentMatch 
-                          ? '0 0 10px rgba(255, 107, 0, 0.4)' 
-                          : '0 2px 4px rgba(0,0,0,0.05)',
-                        transition: 'background-color 0.2s, border 0.2s, box-shadow 0.2s'
+                        border: (msg.youngjaImageUrl && !msg.content)
+                          ? 'none'
+                          : isCurrentMatch 
+                            ? '1px solid #ff6b00' 
+                            : (isMe ? 'none' : '1px solid var(--border-light)'),
+                        boxShadow: (msg.youngjaImageUrl && !msg.content)
+                          ? 'none'
+                          : isCurrentMatch 
+                            ? '0 0 10px rgba(255, 107, 0, 0.4)' 
+                            : '0 2px 4px rgba(0,0,0,0.05)',
+                        transition: 'background-color 0.2s, border 0.2s, box-shadow 0.2s',
+                        padding: (msg.youngjaImageUrl && !msg.content) ? '0' : '10px 14px'
                       }}
                     >
-                      <div style={styles.msgText}>{msg.content}</div>
+                      {msg.content && <div style={styles.msgText}>{msg.content}</div>}
 
                       {/* Display AI Character Image if present */}
                       {msg.youngjaImageUrl && (
-                        <div style={styles.aiImgContainer}>
+                        <div style={{
+                          ...styles.aiImgContainer,
+                          maxWidth: (msg.youngjaImageUrl && !msg.content) ? '120px' : '220px',
+                          marginTop: msg.content ? '10px' : '0'
+                        }}>
                           <img 
                             src={msg.youngjaImageUrl} 
                             alt="AI 영자 이미지" 
@@ -432,7 +528,64 @@ export default function ChatArea({
                           />
                         </div>
                       )}
+
+                      {/* 번역 텍스트 */}
+                      {translatedMessages[msg.id] !== 'hide' && (translatedMessages[msg.id] || msg.translation) && (
+                        <div style={{
+                          marginTop: '6px',
+                          paddingTop: '6px',
+                          borderTop: isMe ? '1px dashed rgba(255,255,255,0.4)' : '1px dashed var(--border)',
+                          fontSize: '0.825rem',
+                          lineHeight: '1.45',
+                          whiteSpace: 'pre-wrap',
+                          color: isMe ? '#ffffff' : 'var(--text-secondary)'
+                        }}>
+                          {translatedMessages[msg.id] && translatedMessages[msg.id] !== 'hide' ? translatedMessages[msg.id] : msg.translation}
+                        </div>
+                      )}
+                      {translatingIds.has(msg.id) && (
+                        <div style={{
+                          marginTop: '6px',
+                          paddingTop: '6px',
+                          borderTop: isMe ? '1px dashed rgba(255,255,255,0.4)' : '1px dashed var(--border)',
+                          fontSize: '0.75rem',
+                          fontStyle: 'italic',
+                          opacity: 0.8
+                        }}>
+                          ⚡ 번역 중...
+                        </div>
+                      )}
                     </div>
+
+                    {/* 번역 버튼 링크 (봇 메시지가 아니고 텍스트 내용이 있을 때만 노출) */}
+                    {!isCeoBot && msg.content && (
+                      <div style={{ 
+                        marginTop: '2px', 
+                        display: 'flex', 
+                        gap: '6px', 
+                        justifyContent: isMe ? 'flex-end' : 'flex-start',
+                        width: '100%'
+                      }}>
+                        <span 
+                          style={{ 
+                            fontSize: '0.75rem', 
+                            color: isMe ? 'rgba(255,255,255,0.7)' : 'var(--primary)', 
+                            textDecoration: 'underline', 
+                            cursor: 'pointer', 
+                            fontWeight: 'bold',
+                            userSelect: 'none'
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleTranslate(msg.id, msg.content, !!msg.translation);
+                          }}
+                        >
+                          {(translatedMessages[msg.id] && translatedMessages[msg.id] !== 'hide') || (!translatedMessages[msg.id] && msg.translation) 
+                            ? '번역 닫기' 
+                            : '🌐 번역'}
+                        </span>
+                      </div>
+                    )}
 
                     {isMe && (
                       <div style={styles.myTimeMeta}>
@@ -605,17 +758,86 @@ export default function ChatArea({
         {/* Emoji Picker Popover */}
         {showEmojiPicker && (
           <div style={styles.emojiPicker} className="glass-panel animate-scale">
-            {['😀','😃','😄','😁','😆','😅','😂','🤣','😊','😇','🙂','🙃','😉','😌','😍','🥰','😘','😗','😙','😚','😋','😛','😝','😜','🤪','🤨','🧐','🤓','😎','🤩','🥳','😏','😒','😞','😔','😟','😕','🙁','☹️','😣','😖','😫','😩','🥺','😢','😭','😤','😠','😡','🤬'].map(emoji => (
+            {/* 탭 헤더 */}
+            <div style={styles.pickerTabContainer}>
               <button 
-                type="button" 
-                key={emoji} 
-                className="picker-emoji-btn"
-                style={styles.pickerEmojiBtn} 
-                onClick={() => addEmoji(emoji)}
+                type="button"
+                onClick={() => setPickerTab('emoji')}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: pickerTab === 'emoji' ? 'var(--primary)' : 'var(--text-muted)',
+                  fontWeight: pickerTab === 'emoji' ? 'bold' : 'normal',
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  padding: '4px 8px',
+                  borderBottom: pickerTab === 'emoji' ? '2px solid var(--primary)' : 'none'
+                }}
               >
-                {emoji}
+                기본 이모지
               </button>
-            ))}
+              <button 
+                type="button"
+                onClick={() => setPickerTab('sticker')}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: pickerTab === 'sticker' ? 'var(--primary)' : 'var(--text-muted)',
+                  fontWeight: pickerTab === 'sticker' ? 'bold' : 'normal',
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  padding: '4px 8px',
+                  borderBottom: pickerTab === 'sticker' ? '2px solid var(--primary)' : 'none'
+                }}
+              >
+                영자 스티커
+              </button>
+            </div>
+
+            {/* 탭 컨텐츠 */}
+            <div style={styles.pickerContent}>
+              {pickerTab === 'emoji' ? (
+                ['😀','😃','😄','😁','😆','😅','😂','🤣','😊','😇','🙂','🙃','😉','😌','😍','🥰','😘','😗','😙','😚','😋','😛','😝','😜','🤪','🤨','🧐','🤓','😎','🤩','🥳','😏','😒','😞','😔','😟','😕','🙁','☹️','😣','😖','😫','😩','🥺','😢','😭','😤','😠','😡','🤬'].map(emoji => (
+                  <button 
+                    type="button" 
+                    key={emoji} 
+                    className="picker-emoji-btn"
+                    style={styles.pickerEmojiBtn} 
+                    onClick={() => addEmoji(emoji)}
+                  >
+                    {emoji}
+                  </button>
+                ))
+              ) : (
+                Object.keys(YOUNGJA_IMAGES).map(key => (
+                  <button 
+                    type="button" 
+                    key={key} 
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      padding: '2px',
+                      cursor: 'pointer',
+                      borderRadius: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'transform var(--transition-fast)'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
+                    onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                    onClick={() => handleSendSticker(YOUNGJA_IMAGES[key])}
+                    title={key}
+                  >
+                    <img 
+                      src={YOUNGJA_IMAGES[key]} 
+                      alt={key} 
+                      style={{ width: '32px', height: '32px', objectFit: 'contain' }}
+                    />
+                  </button>
+                ))
+              )}
+            </div>
           </div>
         )}
       </form>
@@ -856,15 +1078,27 @@ const styles = {
     bottom: '80px',
     right: '20px',
     width: '320px',
-    height: '200px',
+    height: '240px',
     borderRadius: 'var(--radius-lg)',
     padding: '12px',
-    display: 'grid',
-    gridTemplateColumns: 'repeat(8, 1fr)',
-    gap: '6px',
-    overflowY: 'auto',
+    display: 'flex',
+    flexDirection: 'column',
     boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)',
     zIndex: 100,
+  },
+  pickerTabContainer: {
+    display: 'flex',
+    justifyContent: 'space-around',
+    borderBottom: '1px solid var(--border)',
+    paddingBottom: '8px',
+    marginBottom: '8px',
+  },
+  pickerContent: {
+    flex: 1,
+    display: 'grid',
+    gridTemplateColumns: 'repeat(7, 1fr)',
+    gap: '6px',
+    overflowY: 'auto',
   },
   pickerEmojiBtn: {
     fontSize: '1.25rem',

@@ -277,12 +277,22 @@ const playNotificationSound = () => {
     console.error('Audio Play Error:', e);
   }
 };
-
 export default function App() {
   const [currentUser, setCurrentUser] = useState(() => {
     const saved = sessionStorage.getItem('currentUser');
     return saved ? JSON.parse(saved) : null;
   });
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  // Gemini API Key 및 모델명 보관 설정
+  const [geminiKey, setGeminiKey] = useState(localStorage.getItem('gemini_api_key') || '');
+  const [geminiModel, setGeminiModel] = useState(localStorage.getItem('gemini_model') || 'gemini-1.5-flash');
+  const [aiEnabled, setAiEnabled] = useState(localStorage.getItem('ai_assistant_enabled') !== 'false');
+  const [realtimeTrans, setRealtimeTrans] = useState(() => localStorage.getItem('realtime_translation') === 'true');
+  const [desktopNotif, setDesktopNotif] = useState(() => localStorage.getItem('settings_desktop_notif') !== 'false');
+  const [soundEnabled, setSoundEnabled] = useState(() => localStorage.getItem('settings_sound') !== 'false');
+  const [currentLang, setCurrentLang] = useState(() => localStorage.getItem('settings_lang') || 'ko');
+  const [accentColor, setAccentColor] = useState(() => localStorage.getItem('settings_accent_color') || 'CON-COST');
   const [allEmployees, setAllEmployees] = useState([]);
   const [isHrCardOpen, setIsHrCardOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
@@ -303,12 +313,6 @@ export default function App() {
     localStorage.setItem('sidebar_subpanel_width', String(width));
   };
   const [isChatbotHovered, setIsChatbotHovered] = useState(false); // 챗봇 마우스오버 트래킹
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-
-  // Gemini API Key 및 모델명 보관 설정
-  const [geminiKey, setGeminiKey] = useState(localStorage.getItem('gemini_api_key') || '');
-  const [geminiModel, setGeminiModel] = useState(localStorage.getItem('gemini_model') || 'gemini-3.5-flash');
-  const [aiEnabled, setAiEnabled] = useState(localStorage.getItem('ai_assistant_enabled') !== 'false');
 
   // 대시보드 위젯 설정 상태 (7개 프리미엄 위젯 기본 탑재)
   const [visibleWidgets, setVisibleWidgets] = useState(() => {
@@ -534,6 +538,24 @@ export default function App() {
     // 메시지 수신 리스너
     socket.on('message:receive', (msg) => {
       const chatKey = msg.channelId; // channelId가 곧 chatKey
+
+      // 내 로컬에서 실시간 번역이 활성화되어 있고 수신 메시지에 번역 정보가 없을 때
+      if (msg.content && !msg.youngjaImageUrl && !msg.translation) {
+        const apiKey = localStorage.getItem('gemini_api_key') || '';
+        const isTransActive = localStorage.getItem('realtime_translation') === 'true';
+        if (apiKey && isTransActive) {
+          translateMessageContent(msg.content).then(transText => {
+            if (transText) {
+              setMessages(prev => {
+                const list = prev[chatKey] || [];
+                const updated = list.map(m => m.id === msg.id ? { ...m, translation: transText } : m);
+                return { ...prev, [chatKey]: updated };
+              });
+            }
+          });
+        }
+      }
+
       setMessages(prev => ({
         ...prev,
         [chatKey]: [...(prev[chatKey] || []), msg]
@@ -552,7 +574,7 @@ export default function App() {
     return () => {
       socket.disconnect();
     };
-  }, [currentWorkspace, currentUser]);
+  }, [currentWorkspace, currentUser, geminiKey, realtimeTrans]);
 
   const fetchEmployees = async () => {
     try {
@@ -816,19 +838,66 @@ export default function App() {
     }
   };
 
-  const handleSendMessage = async (content) => {
+  const translateMessageContent = async (text) => {
+    const apiKey = geminiKey || localStorage.getItem('gemini_api_key') || '';
+    const isTransActive = realtimeTrans || localStorage.getItem('realtime_translation') === 'true';
+    if (!apiKey || !isTransActive || !text) return null;
+
+    const model = geminiModel || localStorage.getItem('gemini_model') || 'gemini-1.5-flash';
+    const promptText = `너는 다국어 번역기이다. 아래 입력 텍스트를 감지하여 적절하게 번역해라.
+- 만약 한국어(Korean)인 경우: 영어(English)와 베트남어(Vietnamese)로 번역해라.
+- 만약 베트남어(Vietnamese)인 경우: 한국어(Korean)와 영어(English)로 번역해라.
+- 만약 영어(English)인 경우: 한국어(Korean)와 베트남어(Vietnamese)로 번역해라.
+
+결과는 반드시 아래의 포맷으로만 응답하고 다른 부연설명은 절대 하지 마라:
+[🇺🇸 English]: <영어 번역본>
+[🇻🇳 Tiếng Việt]: <베트남어 번역본>
+(만약 입력 언어에 영어나 베트남어가 포함된다면, 타겟에 맞추어 [🇰🇷 한국어] 등으로 언어 이름을 표시해라.)
+
+입력 텍스트:
+"${text}"`;
+
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: promptText }] }]
+        })
+      });
+
+      if (!response.ok) throw new Error('Gemini API translation call failed');
+      const data = await response.json();
+      if (data.candidates && data.candidates[0].content.parts[0].text) {
+        return data.candidates[0].content.parts[0].text.trim();
+      }
+    } catch (err) {
+      console.error('[Realtime Translation Error]', err);
+    }
+    return null;
+  };
+
+  const handleSendMessage = async (content, youngjaImageUrl = null) => {
     const chatKey = getChatKey();
     const now = new Date();
     const timeStr = now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
     const isViet = currentWorkspace === 'vietqs';
 
+    let autoTranslation = null;
+    if (content && !youngjaImageUrl) {
+      autoTranslation = await translateMessageContent(content);
+    }
+
     const newMsg = {
       id: `m-${Date.now()}`,
       sender: 'me',
       senderName: isViet ? 'Giám đốc' : '대표님',
-      content,
+      content: content || '',
       time: timeStr,
-      channelId: chatKey // 소켓 전송 식별자
+      channelId: chatKey, // 소켓 전송 식별자
+      youngjaImageUrl,
+      translation: autoTranslation
     };
 
     // 로컬 상태 반영
@@ -1048,6 +1117,11 @@ export default function App() {
     setGeminiKey(localStorage.getItem('gemini_api_key') || '');
     setGeminiModel(localStorage.getItem('gemini_model') || 'gemini-1.5-flash');
     setAiEnabled(localStorage.getItem('ai_assistant_enabled') !== 'false');
+    setRealtimeTrans(localStorage.getItem('realtime_translation') === 'true');
+    setDesktopNotif(localStorage.getItem('settings_desktop_notif') !== 'false');
+    setSoundEnabled(localStorage.getItem('settings_sound') !== 'false');
+    setCurrentLang(localStorage.getItem('settings_lang') || 'ko');
+    setAccentColor(localStorage.getItem('settings_accent_color') || 'CON-COST');
     setIsSettingsOpen(false);
   };
 
@@ -1056,6 +1130,18 @@ export default function App() {
     localStorage.setItem('gemini_api_key', geminiKey);
     localStorage.setItem('gemini_model', geminiModel);
     localStorage.setItem('ai_assistant_enabled', String(aiEnabled));
+    localStorage.setItem('realtime_translation', String(realtimeTrans));
+    localStorage.setItem('settings_desktop_notif', String(desktopNotif));
+    localStorage.setItem('settings_sound', String(soundEnabled));
+    localStorage.setItem('settings_lang', currentLang);
+    localStorage.setItem('settings_accent_color', accentColor);
+
+    if (accentColor === 'CON-COST') {
+      setCurrentWorkspace('concost');
+    } else if (accentColor === 'Viet QS') {
+      setCurrentWorkspace('vietqs');
+    }
+
     setIsSettingsOpen(false);
     playNotificationSound();
   };
@@ -1111,72 +1197,184 @@ export default function App() {
   }
 
   return (
-    <div className="app-container">
-      {/* 1단 & 2단 사이드바 */}
-      <div style={{ display: 'flex', height: '100%', zIndex: 50 }}>
-        <Sidebar
-          currentWorkspace={currentWorkspace}
-          onWorkspaceChange={(ws) => {
-            setCurrentWorkspace(ws);
-            setActiveChat({ type: 'channel', id: 'general' });
-          }}
-          currentMenu={currentMenu}
-          onMenuChange={(menu) => {
-            const roleLevel = getUserRoleLevel(currentUser);
-            if (menu === 'hr' && roleLevel > 2) {
-              alert(currentWorkspace === 'vietqs' ? 'Không có quyền truy cập.' : '접근 권한이 없습니다. (임원 이상 접근 가능)');
-              return;
-            }
-            if (menu === 'project' && roleLevel > 3) {
-              alert(currentWorkspace === 'vietqs' ? 'Không có quyền truy cập.' : '접근 권한이 없습니다. (PM 이상 접근 가능)');
-              return;
-            }
-            setCurrentMenu(menu);
-            if (menu === 'home') {
-              setIsSidebarOpen(false); // HOME 화면에서는 서브패널 공간 없애기 위해 닫음
-            } else {
-              setIsSidebarOpen(true);
-            }
-            if (menu === 'chat') setActiveChat({ type: 'channel', id: 'general' });
-          }}
-          channels={workspaceChannels[currentWorkspace]}
-          dms={dms}
-          activeChat={activeChat}
-          onActiveChatChange={(chat) => {
-            setActiveChat(chat);
-            setCurrentMenu('chat');
-            setIsSidebarOpen(true);
-          }}
-          onOpenModal={() => setIsModalOpen(true)}
-          onOpenDmCreateModal={() => setIsDmCreateModalOpen(true)} // DM 생성 모달 콜백 추가
-          onUserClick={handleUserClick}
-          isLightTheme={isLightTheme}
-          onToggleTheme={() => setIsLightTheme(!isLightTheme)}
-          todoCount={todos.filter(t => !t.completed).length}
-          todoFilter={todoFilter}
-          onTodoFilterChange={setTodoFilter}
-          mailUnreadCount={mails.filter(m => !m.read).length}
-          t={t}
-          onOpenSettings={() => setIsSettingsOpen(true)}
-          aiEnabled={aiEnabled}
-          currentUser={currentUser}
-          onLogout={handleLogout}
-          isChatbotVisible={isChatbotVisible}
-          onToggleChatbotVisible={(visible) => {
-            setIsChatbotVisible(visible);
-            if (visible) {
-              setIsChatbotOpen(true); // 활성화 시 챗봇 창도 함께 열림
-            }
-          }}
-          isSidebarOpen={isSidebarOpen}
-          subPanelWidth={subPanelWidth}
-          onSubPanelWidthChange={handleSubPanelWidthChange}
-        />
-      </div>
+    <div className="app-container" style={{ flexDirection: 'column' }}>
+      {/* 1. 상단 탑바 헤더 (네이버웍스 / Stitch 스타일) */}
+      <header className="app-header" style={styles.appHeader}>
+        <div style={styles.headerLeft}>
+          <Home size={20} style={{ color: 'var(--primary)' }} />
+          <span style={styles.headerTitle}>
+            {currentMenu === 'home' ? 'HOME' : 
+             currentMenu === 'chat' ? t.chat : 
+             currentMenu === 'mail' ? t.mail : 
+             currentMenu === 'calendar' ? t.calendar : 
+             currentMenu === 'project' ? t.project : 
+             currentMenu === 'drive' ? t.drive : 
+             currentMenu === 'todo' ? t.todo : 
+             currentMenu === 'board' ? t.board : 
+             currentMenu === 'hr' ? (currentWorkspace === 'vietqs' ? 'Sơ đồ tổ chức' : '조직도') : 'Works'}
+          </span>
+        </div>
 
-      {/* 3단 메인 뷰포트 */}
-      <div style={{ flex: 1, height: '100%', display: 'flex', flexDirection: 'column', position: 'relative' }}>
-        {renderMainContent()}
+        <div style={styles.headerRight}>
+          {/* 탑바 글로벌 메뉴 아이콘들 */}
+          <button 
+            style={{ ...styles.headerIconBtn, color: currentMenu === 'home' ? '#007aff' : 'var(--text-secondary)' }}
+            onClick={() => {
+              setCurrentMenu('home');
+              setIsSidebarOpen(false);
+            }}
+            title="대시보드"
+          >
+            <Home size={20} style={{ fill: currentMenu === 'home' ? '#007aff' : 'none' }} />
+          </button>
+          <button 
+            style={{ ...styles.headerIconBtn, color: currentMenu === 'chat' ? '#2eb67d' : 'var(--text-secondary)' }}
+            onClick={() => {
+              setCurrentMenu('chat');
+              setActiveChat({ type: 'channel', id: 'general' });
+              setIsSidebarOpen(true);
+            }}
+            title="메시지"
+          >
+            <MessageSquare size={20} style={{ fill: currentMenu === 'chat' ? '#2eb67d' : 'none' }} />
+          </button>
+          <button 
+            style={{ ...styles.headerIconBtn, color: currentMenu === 'mail' ? '#0058bc' : 'var(--text-secondary)' }}
+            onClick={() => {
+              setCurrentMenu('mail');
+              setIsSidebarOpen(true);
+            }}
+            title="메일"
+          >
+            <Mail size={20} style={{ fill: currentMenu === 'mail' ? '#0058bc' : 'none' }} />
+          </button>
+          <button 
+            style={{ ...styles.headerIconBtn, color: currentMenu === 'calendar' ? '#8a2be2' : 'var(--text-secondary)' }}
+            onClick={() => {
+              setCurrentMenu('calendar');
+              setIsSidebarOpen(true);
+            }}
+            title="캘린더"
+          >
+            <Calendar size={20} style={{ fill: currentMenu === 'calendar' ? '#8a2be2' : 'none' }} />
+          </button>
+          <button 
+            style={{ ...styles.headerIconBtn, color: currentMenu === 'todo' ? '#00bfff' : 'var(--text-secondary)' }}
+            onClick={() => {
+              setCurrentMenu('todo');
+              setIsSidebarOpen(true);
+            }}
+            title="할 일"
+          >
+            <CheckCircle size={20} style={{ fill: currentMenu === 'todo' ? '#00bfff' : 'none' }} />
+          </button>
+
+          <div style={{ width: '1px', height: '16px', backgroundColor: 'var(--border-light)', margin: '0 8px' }} />
+
+          {/* 격자메뉴 */}
+          <button style={styles.headerIconBtn} title="앱 디렉토리" onClick={() => alert('앱 디렉토리 목록을 호출합니다.')}><Layers size={20} /></button>
+          {/* 알림 종 */}
+          <button style={styles.headerIconBtn} title="미확인 알림" onClick={() => alert('새로운 메시지가 3건 있습니다.')}><Megaphone size={20} /></button>
+          {/* 조직도 */}
+          <button 
+            style={{ ...styles.headerIconBtn, color: currentMenu === 'hr' ? 'var(--primary)' : 'var(--text-secondary)' }} 
+            title="조직도" 
+            onClick={() => {
+              const roleLevel = getUserRoleLevel(currentUser);
+              if (roleLevel > 2) {
+                alert('접근 권한이 없습니다. (임원 이상 접근 가능)');
+                return;
+              }
+              setCurrentMenu('hr');
+              setIsSidebarOpen(true);
+            }}
+          >
+            <Users size={20} />
+          </button>
+          {/* 도움말 */}
+          <button style={styles.headerIconBtn} title="도움말" onClick={() => alert('도움말 안내입니다.')}><AlertCircle size={20} /></button>
+          {/* 설정 톱니바퀴 */}
+          <button style={styles.headerIconBtn} title="환경 설정" onClick={() => setIsSettingsOpen(true)}><Settings size={20} /></button>
+          
+          {/* 사용자 아바타 */}
+          <div 
+            style={styles.headerAvatar}
+            onClick={() => handleUserClick(currentUser?.id)}
+            title="내 프로필"
+          >
+            {currentUser?.userName ? currentUser.userName.charAt(0) : '대'}
+          </div>
+        </div>
+      </header>
+
+      {/* 2. 본문 및 사이드바 영역 */}
+      <div style={{ display: 'flex', flex: 1, height: 'calc(100vh - 50px)', overflow: 'hidden' }}>
+        {/* 1단 & 2단 사이드바 */}
+        <div style={{ display: 'flex', height: '100%', zIndex: 50 }}>
+          <Sidebar
+            currentWorkspace={currentWorkspace}
+            onWorkspaceChange={(ws) => {
+              setCurrentWorkspace(ws);
+              setActiveChat({ type: 'channel', id: 'general' });
+            }}
+            currentMenu={currentMenu}
+            onMenuChange={(menu) => {
+              const roleLevel = getUserRoleLevel(currentUser);
+              if (menu === 'hr' && roleLevel > 2) {
+                alert(currentWorkspace === 'vietqs' ? 'Không có quyền truy cập.' : '접근 권한이 없습니다. (임원 이상 접근 가능)');
+                return;
+              }
+              if (menu === 'project' && roleLevel > 3) {
+                alert(currentWorkspace === 'vietqs' ? 'Không có quyền truy cập.' : '접근 권한이 없습니다. (PM 이상 접근 가능)');
+                return;
+              }
+              setCurrentMenu(menu);
+              if (menu === 'home') {
+                setIsSidebarOpen(false); // HOME 화면에서는 서브패널 공간 없애기 위해 닫음
+              } else {
+                setIsSidebarOpen(true);
+              }
+              if (menu === 'chat') setActiveChat({ type: 'channel', id: 'general' });
+            }}
+            channels={workspaceChannels[currentWorkspace]}
+            dms={dms}
+            activeChat={activeChat}
+            onActiveChatChange={(chat) => {
+              setActiveChat(chat);
+              setCurrentMenu('chat');
+              setIsSidebarOpen(true);
+            }}
+            onOpenModal={() => setIsModalOpen(true)}
+            onOpenDmCreateModal={() => setIsDmCreateModalOpen(true)} // DM 생성 모달 콜백 추가
+            onUserClick={handleUserClick}
+            isLightTheme={isLightTheme}
+            onToggleTheme={() => setIsLightTheme(!isLightTheme)}
+            todoCount={todos.filter(t => !t.completed).length}
+            todoFilter={todoFilter}
+            onTodoFilterChange={setTodoFilter}
+            mailUnreadCount={mails.filter(m => !m.read).length}
+            t={t}
+            onOpenSettings={() => setIsSettingsOpen(true)}
+            aiEnabled={aiEnabled}
+            currentUser={currentUser}
+            onLogout={handleLogout}
+            isChatbotVisible={isChatbotVisible}
+            onToggleChatbotVisible={(visible) => {
+              setIsChatbotVisible(visible);
+              if (visible) {
+                setIsChatbotOpen(true); // 활성화 시 챗봇 창도 함께 열림
+              }
+            }}
+            isSidebarOpen={isSidebarOpen}
+            subPanelWidth={subPanelWidth}
+            onSubPanelWidthChange={handleSubPanelWidthChange}
+          />
+        </div>
+
+        {/* 3단 메인 뷰포트 */}
+        <div style={{ flex: 1, height: '100%', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+          {renderMainContent()}
+        </div>
       </div>
 
       {/* 새 채널 개설 모달 */}
@@ -1461,11 +1659,11 @@ export default function App() {
         <form 
           onSubmit={handleSaveSettings} 
           className="glass-panel animate-scale" 
-          style={styles.settingsModal}
+          style={{ ...styles.settingsModal, maxWidth: '480px', maxHeight: '90vh', overflowY: 'auto' }}
           onClick={(e) => e.stopPropagation()}
         >
           <div style={styles.settingsHeader}>
-            <h3 style={styles.settingsTitle}>⚙️ 사내 AI & API 환경설정</h3>
+            <h3 style={styles.settingsTitle}>⚙️ 설정</h3>
             <button 
               type="button" 
               className="close-btn"
@@ -1477,57 +1675,222 @@ export default function App() {
           </div>
 
           <div style={styles.settingsBody}>
-            <div style={styles.inputGroup}>
-              <label style={{ ...styles.label, justifyContent: 'space-between', width: '100%', cursor: 'pointer' }}>
-                <span style={{ display: 'flex', alignItems: 'center' }}>
-                  <Bot size={16} style={{ marginRight: '6px', color: 'var(--primary)' }} />
-                  {currentWorkspace === 'vietqs' ? 'Kích hoạt Trợ lý AI' : 'AI 챗봇 비서 활성화'}
-                </span>
+            {/* 1. 내 계정 */}
+            <div style={styles.settingsSection}>
+              <div style={styles.settingsSectionTitle}>내 계정</div>
+              <div style={styles.settingsProfileCard}>
+                <div style={styles.settingsProfileLeft}>
+                  <div style={styles.settingsProfileAvatar}>
+                    {currentUser?.userName ? currentUser.userName.charAt(0) : '대'}
+                  </div>
+                  <div style={styles.settingsProfileInfo}>
+                    <div style={styles.settingsProfileNameRow}>
+                      <span style={styles.settingsProfileName}>{currentUser?.userName || '사용자'}</span>
+                      <span style={styles.settingsProfileBadge}>{currentUser?.role || '사원'}</span>
+                    </div>
+                    <span style={styles.settingsProfileDesc}>{currentUser?.dept || '부서 미지정'} · {currentUser?.grade || '사원'}</span>
+                  </div>
+                </div>
+                <button 
+                  type="button" 
+                  style={{
+                    padding: '6px 12px',
+                    fontSize: '11px',
+                    fontWeight: 'bold',
+                    border: '1px solid var(--border-light)',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    color: 'var(--text-primary)'
+                  }}
+                  onClick={() => handleUserClick(currentUser?.id)}
+                >
+                  인사카드
+                </button>
+              </div>
+
+              <div style={styles.settingsRow}>
+                <div style={styles.settingsRowInfo}>
+                  <span style={styles.settingsRowTitle}>계정 세션</span>
+                  <span style={styles.settingsRowDesc}>안전하게 시스템을 로그아웃합니다</span>
+                </div>
+                <div style={styles.settingsRowControl}>
+                  <button 
+                    type="button" 
+                    onClick={handleLogout}
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: '11px',
+                      fontWeight: 'bold',
+                      color: '#ef4444',
+                      border: '1px solid #fca5a5',
+                      borderRadius: '4px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    로그아웃
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* 2. 화면 */}
+            <div style={styles.settingsSection}>
+              <div style={styles.settingsSectionTitle}>화면</div>
+              <div style={styles.settingsRow}>
+                <div style={styles.settingsRowInfo}>
+                  <span style={styles.settingsRowTitle}>다크 모드</span>
+                  <span style={styles.settingsRowDesc}>어두운 테마로 전환합니다</span>
+                </div>
+                <div style={styles.settingsRowControl}>
+                  <input
+                    type="checkbox"
+                    checked={!isLightTheme}
+                    onChange={() => setIsLightTheme(!isLightTheme)}
+                    style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                  />
+                </div>
+              </div>
+
+              <div style={styles.settingsRow}>
+                <div style={styles.settingsRowInfo}>
+                  <span style={styles.settingsRowTitle}>강조 색상</span>
+                  <span style={styles.settingsRowDesc}>기본 브랜드 컬러 테마를 설정합니다</span>
+                </div>
+                <div style={styles.settingsRowControl}>
+                  <select
+                    value={accentColor}
+                    onChange={(e) => setAccentColor(e.target.value)}
+                    style={{
+                      padding: '6px 10px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--border-light)',
+                      backgroundColor: 'var(--bg-tertiary)',
+                      color: 'var(--text-primary)',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <option value="CON-COST">오렌지 (CON-COST)</option>
+                    <option value="Viet QS">블루 (Viet QS)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* 3. 알림 · 언어 */}
+            <div style={styles.settingsSection}>
+              <div style={styles.settingsSectionTitle}>알림 · 언어</div>
+              <div style={styles.settingsRow}>
+                <div style={styles.settingsRowInfo}>
+                  <span style={styles.settingsRowTitle}>데스크톱 알림</span>
+                  <span style={styles.settingsRowDesc}>새로운 대화가 시작되거나 메시지가 수신되면 알림을 표시합니다</span>
+                </div>
+                <div style={styles.settingsRowControl}>
+                  <input
+                    type="checkbox"
+                    checked={desktopNotif}
+                    onChange={(e) => setDesktopNotif(e.target.checked)}
+                    style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                  />
+                </div>
+              </div>
+
+              <div style={styles.settingsRow}>
+                <div style={styles.settingsRowInfo}>
+                  <span style={styles.settingsRowTitle}>소리</span>
+                  <span style={styles.settingsRowDesc}>알림 시 효과음을 재생합니다</span>
+                </div>
+                <div style={styles.settingsRowControl}>
+                  <input
+                    type="checkbox"
+                    checked={soundEnabled}
+                    onChange={(e) => setSoundEnabled(e.target.checked)}
+                    style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                  />
+                </div>
+              </div>
+
+              <div style={styles.settingsRow}>
+                <div style={styles.settingsRowInfo}>
+                  <span style={styles.settingsRowTitle}>언어</span>
+                  <span style={styles.settingsRowDesc}>표시 언어를 설정합니다</span>
+                </div>
+                <div style={styles.settingsRowControl}>
+                  <select
+                    value={currentLang}
+                    onChange={(e) => setCurrentLang(e.target.value)}
+                    style={{
+                      padding: '6px 10px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--border-light)',
+                      backgroundColor: 'var(--bg-tertiary)',
+                      color: 'var(--text-primary)',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <option value="ko">한국어</option>
+                    <option value="vi">Tiếng Việt</option>
+                    <option value="en">English</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* 4. AI · 번역 연동 */}
+            <div style={styles.settingsSectionLast}>
+              <div style={styles.settingsSectionTitle}>🤖 AI · 번역 연동</div>
+              <div style={styles.settingsRow}>
+                <div style={styles.settingsRowInfo}>
+                  <span style={styles.settingsRowTitle}>AI 챗봇 비서 활성화</span>
+                  <span style={styles.settingsRowDesc}>사이드바에 AI 비서와의 대화방을 표시합니다</span>
+                </div>
+                <div style={styles.settingsRowControl}>
+                  <input
+                    type="checkbox"
+                    checked={aiEnabled}
+                    onChange={(e) => setAiEnabled(e.target.checked)}
+                    style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                  />
+                </div>
+              </div>
+
+              <div style={styles.settingsRow}>
+                <div style={styles.settingsRowInfo}>
+                  <span style={styles.settingsRowTitle}>메시지 실시간 번역</span>
+                  <span style={styles.settingsRowDesc}>한국어 ↔ 베트남어 ↔ 영어 자동 번역 기능을 활성화합니다</span>
+                </div>
+                <div style={styles.settingsRowControl}>
+                  <input
+                    type="checkbox"
+                    checked={realtimeTrans}
+                    onChange={(e) => setRealtimeTrans(e.target.checked)}
+                    style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                  />
+                </div>
+              </div>
+
+              <div style={styles.inputGroup}>
+                <label style={styles.label}>Google Gemini API Key</label>
                 <input
-                  type="checkbox"
-                  checked={aiEnabled}
-                  onChange={(e) => setAiEnabled(e.target.checked)}
-                  style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                  type="password"
+                  value={geminiKey}
+                  onChange={(e) => setGeminiKey(e.target.value)}
+                  placeholder="AIzaSy... 형식의 키를 입력해 주세요."
+                  style={styles.settingsInput}
                 />
-              </label>
-              <span style={styles.helperText}>
-                {currentWorkspace === 'vietqs' 
-                  ? 'Bật/tắt hiển thị Trợ lý thiết kế AI (Youngja) trên thanh menu.'
-                  : '활성화 시, 사이드바에 ✨ AI 디자인실장 (영자) 방이 노출되어 대화가 가능해집니다.'}
-              </span>
-            </div>
+              </div>
 
-            <div style={styles.inputGroup}>
-              <label style={styles.label}>
-                <Key size={16} style={{ marginRight: '6px', color: 'var(--primary)' }} />
-                Google Gemini API Key
-              </label>
-              <input
-                type="password"
-                value={geminiKey}
-                onChange={(e) => setGeminiKey(e.target.value)}
-                placeholder="AIzaSy... 형식의 키를 입력해 주세요."
-                style={styles.settingsInput}
-              />
-              <span style={styles.helperText}>
-                설정 시, AI 디자인실장 영자 챗봇이 실제 인공지능 지식 기반으로 답변해 줍니다.
-              </span>
-            </div>
-
-            <div style={styles.inputGroup}>
-              <label style={styles.label}>
-                <Database size={16} style={{ marginRight: '6px', color: 'var(--primary)' }} />
-                AI 모델 선택 (Gemini Engine)
-              </label>
-              <select
-                value={geminiModel}
-                onChange={(e) => setGeminiModel(e.target.value)}
-                style={styles.settingsSelect}
-              >
-                <option value="gemini-3.5-flash">Gemini 3.5 Flash (권장 모델)</option>
-                <option value="gemini-1.5-flash">Gemini 1.5 Flash (경량・고속)</option>
-                <option value="gemini-1.5-pro">Gemini 1.5 Pro (고성능・정밀)</option>
-              </select>
+              <div style={styles.inputGroup}>
+                <label style={styles.label}>AI 모델 선택 (Gemini Engine)</label>
+                <select
+                  value={geminiModel}
+                  onChange={(e) => setGeminiModel(e.target.value)}
+                  style={styles.settingsSelect}
+                >
+                  <option value="gemini-3.5-flash">Gemini 3.5 Flash (권장 모델)</option>
+                  <option value="gemini-1.5-flash">Gemini 1.5 Flash (경량・고속)</option>
+                  <option value="gemini-1.5-pro">Gemini 1.5 Pro (고성능・정밀)</option>
+                </select>
+              </div>
             </div>
           </div>
 
@@ -3819,6 +4182,160 @@ const styles = {
     flexDirection: 'column',
     gap: '18px',
     marginBottom: '24px',
+  },
+  appHeader: {
+    height: '50px',
+    backgroundColor: 'var(--bg-secondary)',
+    borderBottom: '1px solid var(--border)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '0 20px',
+    zIndex: 100,
+  },
+  headerLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+  },
+  headerTitle: {
+    fontSize: '0.95rem',
+    fontWeight: '700',
+    color: 'var(--text-primary)',
+  },
+  headerRight: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+  },
+  headerIconBtn: {
+    background: 'none',
+    border: 'none',
+    padding: '6px',
+    cursor: 'pointer',
+    borderRadius: 'var(--radius-sm)',
+    color: 'var(--text-secondary)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'all var(--transition-fast)',
+  },
+  headerAvatar: {
+    width: '30px',
+    height: '30px',
+    borderRadius: '50%',
+    backgroundColor: 'var(--primary)',
+    color: '#ffffff',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '0.85rem',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    marginLeft: '6px',
+  },
+  settingsSection: {
+    borderBottom: '1px solid var(--border-light)',
+    paddingBottom: '16px',
+    marginBottom: '16px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+  },
+  settingsSectionLast: {
+    paddingBottom: 0,
+    marginBottom: 0,
+    borderBottom: 'none',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+  },
+  settingsSectionTitle: {
+    fontSize: '0.9rem',
+    fontWeight: '700',
+    color: 'var(--primary)',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px',
+    marginBottom: '4px',
+  },
+  settingsRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: '12px',
+  },
+  settingsRowInfo: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '2px',
+    flex: 1,
+  },
+  settingsRowTitle: {
+    fontSize: '0.88rem',
+    fontWeight: '600',
+    color: 'var(--text-primary)',
+  },
+  settingsRowDesc: {
+    fontSize: '0.75rem',
+    color: 'var(--text-muted)',
+    lineHeight: '1.3',
+  },
+  settingsRowControl: {
+    display: 'flex',
+    alignItems: 'center',
+  },
+  settingsProfileCard: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '12px',
+    backgroundColor: 'var(--bg-tertiary)',
+    borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--border-light)',
+  },
+  settingsProfileLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+  },
+  settingsProfileAvatar: {
+    width: '40px',
+    height: '40px',
+    borderRadius: 'var(--radius-md)',
+    backgroundColor: 'var(--primary)',
+    color: '#ffffff',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontWeight: 'bold',
+    fontSize: '1rem',
+  },
+  settingsProfileInfo: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '2px',
+  },
+  settingsProfileNameRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+  },
+  settingsProfileName: {
+    fontSize: '0.9rem',
+    fontWeight: '700',
+    color: 'var(--text-primary)',
+  },
+  settingsProfileBadge: {
+    fontSize: '0.68rem',
+    padding: '1px 5px',
+    backgroundColor: 'rgba(255, 107, 0, 0.15)',
+    color: '#ff6b00',
+    borderRadius: '4px',
+    fontWeight: 'bold',
+  },
+  settingsProfileDesc: {
+    fontSize: '0.75rem',
+    color: 'var(--text-muted)',
   },
   inputGroup: {
     display: 'flex',

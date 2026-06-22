@@ -488,7 +488,6 @@ export default function Sidebar({
                 title={item.label}
               >
                 {item.icon}
-                <span style={styles.menuLabel}>{item.label}</span>
                 {item.badge && item.badge > 0 ? (
                   <span style={styles.menuBadge}>{item.badge}</span>
                 ) : null}

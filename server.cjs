@@ -73,7 +73,9 @@ const ChatSchema = new mongoose.Schema({
   content: String,
   time: String,
   channelId: String,
-  reactions: { type: Array, default: [] }
+  reactions: { type: Array, default: [] },
+  youngjaImageUrl: String,
+  translation: String
 });
 const Chat = mongoose.model('Chat', ChatSchema);
 
