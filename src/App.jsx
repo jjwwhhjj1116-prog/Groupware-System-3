@@ -342,6 +342,86 @@ export default function App() {
   const [dmSearchQuery, setDmSearchQuery] = useState('');
   const [inviteSearchQuery, setInviteSearchQuery] = useState('');
 
+  // --- 탑바 프리미엄 아이콘 렌더링 헬퍼 (네이버웍스 스타일) ---
+  const renderHeaderIcon = ({ id, icon: Icon, color, title, onClick, fillIcon = false, badgeCount = 0 }) => {
+    const isActive = currentMenu === id;
+    const baseColorBg = `${color}0d`; // 5% opacity (기본 앱 컨테이너 은은한 배경)
+    const hoverColorBg = `${color}22`; // 13% opacity
+    const activeColorBg = `${color}3b`; // 23% opacity
+    
+    return (
+      <button
+        id={`menu-${id}`}
+        onClick={onClick}
+        title={title}
+        style={{
+          position: 'relative',
+          width: '38px',
+          height: '38px',
+          borderRadius: '10px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'pointer',
+          border: isActive ? `1.5px solid ${color}` : '1px solid rgba(255, 255, 255, 0.08)',
+          backgroundColor: isActive ? activeColorBg : baseColorBg,
+          boxShadow: isActive 
+            ? `0 0 16px ${color}65, inset 0 1px 1px rgba(255,255,255,0.2)` 
+            : '0 2px 4px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.03)',
+          transition: 'all 0.22s cubic-bezier(0.4, 0, 0.2, 1)',
+          color: isActive ? color : 'var(--text-secondary)',
+          outline: 'none',
+        }}
+        onMouseEnter={(e) => {
+          if (!isActive) {
+            e.currentTarget.style.backgroundColor = hoverColorBg;
+            e.currentTarget.style.borderColor = `${color}80`;
+            e.currentTarget.style.color = color;
+            e.currentTarget.style.boxShadow = `0 0 12px ${color}40, 0 2px 6px rgba(0,0,0,0.25)`;
+            e.currentTarget.style.transform = 'translateY(-1px)';
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!isActive) {
+            e.currentTarget.style.backgroundColor = baseColorBg;
+            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+            e.currentTarget.style.color = 'var(--text-secondary)';
+            e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.03)';
+            e.currentTarget.style.transform = 'translateY(0)';
+          }
+        }}
+      >
+        <Icon 
+          size={19} 
+          style={{ 
+            fill: isActive && fillIcon ? color : 'none',
+            strokeWidth: isActive ? 2.5 : 2,
+            transition: 'transform 0.2s ease',
+          }} 
+        />
+        {badgeCount > 0 && (
+          <span style={{
+            position: 'absolute',
+            top: '-4px',
+            right: '-4px',
+            backgroundColor: '#ff4d4f',
+            color: '#ffffff',
+            fontSize: '9px',
+            fontWeight: 'bold',
+            borderRadius: '10px',
+            padding: '2px 5px',
+            lineHeight: 1,
+            border: '2px solid #1c222f',
+            boxShadow: '0 2px 5px rgba(0,0,0,0.3)',
+            pointerEvents: 'none'
+          }}>
+            {badgeCount}
+          </span>
+        )}
+      </button>
+    );
+  };
+
   // 🐶🤖 AI 챗봇 비서 플로팅 대화창 상태
   const [isChatbotVisible, setIsChatbotVisible] = useState(true); // 플로팅 자체의 ON/OFF 토글 상태
   const [isChatbotOpen, setIsChatbotOpen] = useState(false);
@@ -1294,70 +1374,95 @@ export default function App() {
         </div>
 
         <div style={styles.headerRight}>
-          {/* 탑바 글로벌 메뉴 아이콘들 */}
-          <button 
-            style={{ ...styles.headerIconBtn, color: currentMenu === 'home' ? '#007aff' : 'var(--text-secondary)' }}
-            onClick={() => {
+          {/* 탑바 글로벌 메뉴 아이콘들 (네이버웍스 스타일 입체형 앱 컨테이너) */}
+          {renderHeaderIcon({
+            id: 'home',
+            icon: Home,
+            color: '#007aff',
+            title: '대시보드',
+            onClick: () => {
               setCurrentMenu('home');
               setIsSidebarOpen(false);
-            }}
-            title="대시보드"
-          >
-            <Home size={20} style={{ fill: currentMenu === 'home' ? '#007aff' : 'none' }} />
-          </button>
-          <button 
-            style={{ ...styles.headerIconBtn, color: currentMenu === 'chat' ? '#2eb67d' : 'var(--text-secondary)' }}
-            onClick={() => {
+            },
+            fillIcon: true
+          })}
+          {renderHeaderIcon({
+            id: 'chat',
+            icon: MessageSquare,
+            color: '#2eb67d',
+            title: '메시지',
+            onClick: () => {
               setCurrentMenu('chat');
               setActiveChat({ type: 'channel', id: 'general' });
               setIsSidebarOpen(true);
-            }}
-            title="메시지"
-          >
-            <MessageSquare size={20} style={{ fill: currentMenu === 'chat' ? '#2eb67d' : 'none' }} />
-          </button>
-          <button 
-            style={{ ...styles.headerIconBtn, color: currentMenu === 'mail' ? '#0058bc' : 'var(--text-secondary)' }}
-            onClick={() => {
+            },
+            fillIcon: true,
+            badgeCount: 3
+          })}
+          {renderHeaderIcon({
+            id: 'mail',
+            icon: Mail,
+            color: '#0058bc',
+            title: '메일',
+            onClick: () => {
               setCurrentMenu('mail');
               setIsSidebarOpen(true);
-            }}
-            title="메일"
-          >
-            <Mail size={20} style={{ fill: currentMenu === 'mail' ? '#0058bc' : 'none' }} />
-          </button>
-          <button 
-            style={{ ...styles.headerIconBtn, color: currentMenu === 'calendar' ? '#8a2be2' : 'var(--text-secondary)' }}
-            onClick={() => {
+            },
+            fillIcon: true,
+            badgeCount: mails.filter(m => !m.read).length
+          })}
+          {renderHeaderIcon({
+            id: 'calendar',
+            icon: Calendar,
+            color: '#8a2be2',
+            title: '캘린더',
+            onClick: () => {
               setCurrentMenu('calendar');
               setIsSidebarOpen(true);
-            }}
-            title="캘린더"
-          >
-            <Calendar size={20} style={{ fill: currentMenu === 'calendar' ? '#8a2be2' : 'none' }} />
-          </button>
-          <button 
-            style={{ ...styles.headerIconBtn, color: currentMenu === 'todo' ? '#00bfff' : 'var(--text-secondary)' }}
-            onClick={() => {
+            },
+            fillIcon: true
+          })}
+          {renderHeaderIcon({
+            id: 'todo',
+            icon: CheckCircle,
+            color: '#00bfff',
+            title: '할 일',
+            onClick: () => {
               setCurrentMenu('todo');
               setIsSidebarOpen(true);
-            }}
-            title="할 일"
-          >
-            <CheckCircle size={20} style={{ fill: currentMenu === 'todo' ? '#00bfff' : 'none' }} />
-          </button>
+            },
+            fillIcon: true,
+            badgeCount: todos.filter(t => !t.completed).length
+          })}
 
-          <div style={{ width: '1px', height: '16px', backgroundColor: 'var(--border-light)', margin: '0 8px' }} />
+          <div style={{ width: '1px', height: '18px', backgroundColor: 'var(--border-light)', margin: '0 4px' }} />
 
-          {/* 격자메뉴 */}
-          <button style={styles.headerIconBtn} title="앱 디렉토리" onClick={() => alert('앱 디렉토리 목록을 호출합니다.')}><Layers size={20} /></button>
+          {/* 격자메뉴 / 앱 디렉토리 */}
+          {renderHeaderIcon({
+            id: 'apps',
+            icon: Layers,
+            color: '#ffcc00',
+            title: '앱 디렉토리',
+            onClick: () => alert('앱 디렉토리 목록을 호출합니다.')
+          })}
+          
           {/* 알림 종 */}
-          <button style={styles.headerIconBtn} title="미확인 알림" onClick={() => alert('새로운 메시지가 3건 있습니다.')}><Megaphone size={20} /></button>
+          {renderHeaderIcon({
+            id: 'notification',
+            icon: Megaphone,
+            color: '#ff3b30',
+            title: '미확인 알림',
+            onClick: () => alert('새로운 메시지가 3건 있습니다.'),
+            badgeCount: 3
+          })}
+          
           {/* 조직도 */}
-          <button 
-            style={{ ...styles.headerIconBtn, color: currentMenu === 'hr' ? 'var(--primary)' : 'var(--text-secondary)' }} 
-            title="조직도" 
-            onClick={() => {
+          {renderHeaderIcon({
+            id: 'hr',
+            icon: Users,
+            color: '#5856d6',
+            title: '조직도',
+            onClick: () => {
               const roleLevel = getUserRoleLevel(currentUser);
               if (roleLevel > 2) {
                 alert('접근 권한이 없습니다. (임원 이상 접근 가능)');
@@ -1365,14 +1470,26 @@ export default function App() {
               }
               setCurrentMenu('hr');
               setIsSidebarOpen(true);
-            }}
-          >
-            <Users size={20} />
-          </button>
+            }
+          })}
+
           {/* 도움말 */}
-          <button style={styles.headerIconBtn} title="도움말" onClick={() => alert('도움말 안내입니다.')}><AlertCircle size={20} /></button>
+          {renderHeaderIcon({
+            id: 'help',
+            icon: AlertCircle,
+            color: '#00c7be',
+            title: '도움말',
+            onClick: () => alert('도움말 안내입니다.')
+          })}
+
           {/* 설정 톱니바퀴 */}
-          <button style={styles.headerIconBtn} title="환경 설정" onClick={() => setIsSettingsOpen(true)}><Settings size={20} /></button>
+          {renderHeaderIcon({
+            id: 'settings',
+            icon: Settings,
+            color: '#8e8e93',
+            title: '환경 설정',
+            onClick: () => setIsSettingsOpen(true)
+          })}
           
           {/* 사용자 아바타 */}
           <div 
@@ -2611,6 +2728,8 @@ export default function App() {
             <div style={styles.dashboardGrid}>
               {/* 위젯 1: AI 출근길 브리핑 카드 (상단 와이드) - 필수 */}
               <div className="widget-card" style={{ ...styles.widgetCard, gridColumn: 'span 12', minWidth: 0, border: '1px solid var(--primary)' }}>
+                {/* 액센트 탑 라인 */}
+                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: `linear-gradient(90deg, ${accentColor}, #ff007f)` }} />
                 <div style={{ fontWeight: '800', fontSize: '0.95rem', color: 'var(--primary)', marginBottom: '14px', borderBottom: '1px dashed var(--border-light)', paddingBottom: '8px' }}>
                   🤖 AI Workspace Morning Briefing
                 </div>
@@ -2631,6 +2750,8 @@ export default function App() {
 
               {/* 위젯 2: 미확인 알림 상태 - 필수 */}
               <div className="widget-card" style={{ ...styles.widgetCard, gridColumn: 'span 6', minWidth: 0 }}>
+                {/* 액센트 탑 라인 */}
+                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', backgroundColor: '#ff3b30' }} />
                 <div style={{ fontWeight: '800', fontSize: '0.95rem', marginBottom: '14px', borderBottom: '1px dashed var(--border-light)', paddingBottom: '8px' }}>
                   🔔 {currentWorkspace === 'vietqs' ? 'Trạng thái thông báo chưa đọc' : '미확인 알림 상태'}
                 </div>
@@ -2651,6 +2772,8 @@ export default function App() {
               {/* 위젯 3: 오늘 할 일 목록 */}
               {visibleWidgets.includes('todo') && (
                 <div className="widget-card" style={{ ...styles.widgetCard, gridColumn: 'span 6', minWidth: 0 }}>
+                  {/* 액센트 탑 라인 */}
+                  <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', backgroundColor: '#00bfff' }} />
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px dashed var(--border-light)', paddingBottom: '8px' }}>
                     <div style={{ fontWeight: '800', fontSize: '0.95rem' }}>✅ {currentWorkspace === 'vietqs' ? 'Danh sách việc cần làm' : '오늘 할 일 목록'}</div>
                     <button style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer' }} onClick={() => setCurrentMenu('todo')}>
@@ -2682,6 +2805,8 @@ export default function App() {
               {/* 위젯 4: 임직원 현황 */}
               {visibleWidgets.includes('employees') && (
                 <div className="widget-card" style={{ ...styles.widgetCard, gridColumn: 'span 6', minWidth: 0 }}>
+                  {/* 액센트 탑 라인 */}
+                  <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', backgroundColor: '#ff6b00' }} />
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px dashed var(--border-light)', paddingBottom: '8px' }}>
                     <div style={{ fontWeight: '800', fontSize: '0.95rem' }}>👥 {currentWorkspace === 'vietqs' ? 'Tình hình nhân sự' : '우리 회사 임직원 현황'}</div>
                   </div>
@@ -2705,6 +2830,8 @@ export default function App() {
               {/* 위젯 5: 이번 주 전사 일정 */}
               {visibleWidgets.includes('calendar') && (
                 <div className="widget-card" style={{ ...styles.widgetCard, gridColumn: 'span 6', minWidth: 0 }}>
+                  {/* 액센트 탑 라인 */}
+                  <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', backgroundColor: '#8a2be2' }} />
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px dashed var(--border-light)', paddingBottom: '8px' }}>
                     <div style={{ fontWeight: '800', fontSize: '0.95rem' }}>📅 {currentWorkspace === 'vietqs' ? 'Lịch trình công ty tuần này' : '이번 주 전사 일정'}</div>
                     <button style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer' }} onClick={() => setCurrentMenu('calendar')}>
@@ -2739,6 +2866,8 @@ export default function App() {
               {/* 위젯 6: 사내 주요 소식 */}
               {visibleWidgets.includes('board') && (
                 <div className="widget-card" style={{ ...styles.widgetCard, gridColumn: 'span 6', minWidth: 0 }}>
+                  {/* 액센트 탑 라인 */}
+                  <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', backgroundColor: '#ffcc00' }} />
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px dashed var(--border-light)', paddingBottom: '8px' }}>
                     <div style={{ fontWeight: '800', fontSize: '0.95rem' }}>📢 {currentWorkspace === 'vietqs' ? 'Tin tức chính công ty' : '사내 주요 소식'}</div>
                     <button style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer' }} onClick={() => setCurrentMenu('board')}>
@@ -3485,7 +3614,7 @@ const styles = {
     flex: 1,
     height: '100%',
     padding: '24px',
-    backgroundColor: 'var(--bg-primary)',
+    backgroundColor: '#0a0d14', // 어두운 카본 블랙 계열로 대비 극대화
     color: 'var(--text-primary)',
     overflowY: 'auto'
   },
@@ -4255,11 +4384,14 @@ const styles = {
     padding: '0',
   },
   widgetCard: {
-    backgroundColor: 'var(--bg-secondary)',
-    border: '1px solid var(--border)',
-    borderRadius: 'var(--radius-lg)',
-    padding: '20px',
-    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+    backgroundColor: '#161b26', // 기존 var(--bg-secondary)보다 살짝 더 밝은 다크그레이로 대비 향상
+    border: '1px solid rgba(255, 255, 255, 0.08)',
+    borderRadius: '16px',
+    padding: '24px 20px 20px 20px', // 탑라인 공간을 위해 상단 패딩 추가
+    boxShadow: '0 12px 28px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
+    position: 'relative',
+    overflow: 'hidden',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
   },
   widgetTitle: {
     fontSize: '0.9rem',

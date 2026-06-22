@@ -434,17 +434,42 @@ export default function Sidebar({
           {/* 네이버웍스 스타일 글로벌 메뉴들 */}
           {menuItems.map(item => {
             const isMenuSelected = currentMenu === item.id;
+            const themeColor = currentWorkspace === 'concost' ? '#ff6b00' : '#0058bc';
+            
             return (
               <button 
                 key={item.id}
                 className="menu-item-btn"
                 style={{
                   ...styles.menuItemBtn,
-                  color: isMenuSelected ? 'var(--primary)' : 'var(--text-secondary)',
-                  backgroundColor: isMenuSelected ? 'var(--bg-active)' : 'transparent'
+                  color: isMenuSelected ? themeColor : 'var(--text-secondary)',
+                  backgroundColor: isMenuSelected ? 'rgba(255, 255, 255, 0.05)' : 'transparent',
+                  border: isMenuSelected ? `1.5px solid ${themeColor}` : '1.5px solid transparent',
+                  boxShadow: isMenuSelected ? `0 0 14px ${themeColor}40` : 'none',
+                  transform: isMenuSelected ? 'scale(1.05)' : 'scale(1)',
+                  transition: 'all 0.22s cubic-bezier(0.4, 0, 0.2, 1)',
+                  outline: 'none',
                 }}
                 onClick={() => onMenuChange(item.id)}
                 title={item.label}
+                onMouseEnter={(e) => {
+                  if (!isMenuSelected) {
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.03)';
+                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+                    e.currentTarget.style.color = themeColor;
+                    e.currentTarget.style.boxShadow = `0 0 10px rgba(255, 255, 255, 0.05)`;
+                    e.currentTarget.style.transform = 'scale(1.05)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isMenuSelected) {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                    e.currentTarget.style.borderColor = 'transparent';
+                    e.currentTarget.style.color = 'var(--text-secondary)';
+                    e.currentTarget.style.boxShadow = 'none';
+                    e.currentTarget.style.transform = 'scale(1)';
+                  }
+                }}
               >
                 {item.icon}
                 {item.badge && item.badge > 0 ? (
@@ -454,7 +479,7 @@ export default function Sidebar({
             );
           })}
         </div>
-
+ 
         {/* Global Nav Bottom Actions */}
         <div style={styles.globalActions}>
           {/* AI Chatbot Pinned Button */}
@@ -462,42 +487,118 @@ export default function Sidebar({
             className="action-btn"
             style={{
               ...styles.actionBtn,
-              borderColor: isChatbotVisible ? 'var(--primary)' : 'var(--border-light)',
+              borderColor: isChatbotVisible ? 'var(--primary)' : 'rgba(255,255,255,0.08)',
               color: isChatbotVisible ? 'var(--primary)' : 'var(--text-secondary)',
-              marginBottom: '4px'
+              backgroundColor: isChatbotVisible ? 'rgba(255, 107, 0, 0.08)' : 'var(--bg-secondary)',
+              boxShadow: isChatbotVisible ? '0 0 12px rgba(255,107,0,0.25)' : 'none',
+              marginBottom: '4px',
+              transition: 'all 0.2s ease',
+              cursor: 'pointer',
+              outline: 'none'
             }} 
             onClick={() => onToggleChatbotVisible(true)} 
             title="AI 챗봇 비서 활성화"
+            onMouseEnter={(e) => {
+              if (!isChatbotVisible) {
+                e.currentTarget.style.borderColor = 'var(--primary)';
+                e.currentTarget.style.color = 'var(--primary)';
+                e.currentTarget.style.boxShadow = '0 0 10px rgba(255,107,0,0.2)';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isChatbotVisible) {
+                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
+                e.currentTarget.style.color = 'var(--text-secondary)';
+                e.currentTarget.style.boxShadow = 'none';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }
+            }}
           >
             <Bot size={26} />
           </button>
-
+ 
           {/* Settings Button */}
           <button 
             className="action-btn"
-            style={styles.actionBtn} 
+            style={{
+              ...styles.actionBtn,
+              borderColor: 'rgba(255,255,255,0.08)',
+              transition: 'all 0.2s ease',
+              cursor: 'pointer',
+              outline: 'none'
+            }} 
             onClick={onOpenSettings} 
             title="환경 설정"
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = 'var(--primary)';
+              e.currentTarget.style.color = 'var(--primary)';
+              e.currentTarget.style.boxShadow = '0 0 10px rgba(255,107,0,0.2)';
+              e.currentTarget.style.transform = 'translateY(-1px)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
+              e.currentTarget.style.color = 'var(--text-secondary)';
+              e.currentTarget.style.boxShadow = 'none';
+              e.currentTarget.style.transform = 'translateY(0)';
+            }}
           >
             <Settings size={26} />
           </button>
-
+ 
           {/* Logout Button */}
           <button 
             className="action-btn"
-            style={{ ...styles.actionBtn, color: '#ff4d4f' }} 
+            style={{ 
+              ...styles.actionBtn, 
+              color: '#ff4d4f',
+              borderColor: 'rgba(255,255,255,0.08)',
+              transition: 'all 0.2s ease',
+              cursor: 'pointer',
+              outline: 'none'
+            }} 
             onClick={onLogout} 
             title="로그아웃"
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = '#ff4d4f';
+              e.currentTarget.style.backgroundColor = 'rgba(255, 77, 79, 0.08)';
+              e.currentTarget.style.boxShadow = '0 0 10px rgba(255,77,79,0.2)';
+              e.currentTarget.style.transform = 'translateY(-1px)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
+              e.currentTarget.style.backgroundColor = 'var(--bg-secondary)';
+              e.currentTarget.style.boxShadow = 'none';
+              e.currentTarget.style.transform = 'translateY(0)';
+            }}
           >
             <LogOutIcon size={24} />
           </button>
-
+ 
           {/* Theme Toggle */}
           <button 
             className="action-btn"
-            style={styles.actionBtn} 
+            style={{
+              ...styles.actionBtn,
+              borderColor: 'rgba(255,255,255,0.08)',
+              transition: 'all 0.2s ease',
+              cursor: 'pointer',
+              outline: 'none'
+            }} 
             onClick={onToggleTheme} 
             title={isLightTheme ? "다크 모드로 변경" : "라이트 모드로 변경"}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = '#ffcc00';
+              e.currentTarget.style.color = '#ffcc00';
+              e.currentTarget.style.boxShadow = '0 0 10px rgba(255,204,0,0.2)';
+              e.currentTarget.style.transform = 'translateY(-1px)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
+              e.currentTarget.style.color = 'var(--text-secondary)';
+              e.currentTarget.style.boxShadow = 'none';
+              e.currentTarget.style.transform = 'translateY(0)';
+            }}
           >
             {isLightTheme ? <Moon size={26} /> : <Sun size={26} />}
           </button>
