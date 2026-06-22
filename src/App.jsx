@@ -1667,7 +1667,7 @@ export default function App() {
       >
         <form 
           onSubmit={handleSaveSettings} 
-          className="glass-panel animate-scale" 
+          className="animate-scale" 
           style={{ ...styles.settingsModal, maxWidth: '480px', maxHeight: '90vh', overflowY: 'auto' }}
           onClick={(e) => e.stopPropagation()}
         >
@@ -4167,6 +4167,8 @@ const styles = {
     padding: '24px',
     color: 'var(--text-primary)',
     boxShadow: '0 20px 25px -5px rgba(0,0,0,0.3)',
+    backgroundColor: 'var(--bg-secondary)',
+    border: '1px solid var(--border)',
   },
   settingsHeader: {
     display: 'flex',
