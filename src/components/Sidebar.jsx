@@ -431,47 +431,6 @@ export default function Sidebar({
       {/* 1단: Global Workspace & Menu Navigation Dock */}
       <div style={styles.workspaceBar}>
         <div style={styles.workspaceList}>
-          {/* CONCOST Workspace */}
-          <button 
-            className="workspace-btn"
-            style={{
-              ...styles.workspaceBtn,
-              borderLeft: currentWorkspace === 'concost' ? '3px solid #ff6b00' : '3px solid transparent',
-              backgroundColor: currentWorkspace === 'concost' ? 'var(--bg-active)' : 'transparent',
-            }}
-            onClick={() => onWorkspaceChange('concost')}
-            title="컨코스트 워크스페이스"
-          >
-            <div className="workspace-icon-wrapper" style={{
-              ...styles.workspaceIconWrapper,
-              backgroundColor: '#ff6b00',
-            }}>
-              <span style={styles.workspaceInitial}>C</span>
-            </div>
-          </button>
-
-          {/* VIETQS Workspace */}
-          <button 
-            className="workspace-btn"
-            style={{
-              ...styles.workspaceBtn,
-              borderLeft: currentWorkspace === 'vietqs' ? '3px solid #0058bc' : '3px solid transparent',
-              backgroundColor: currentWorkspace === 'vietqs' ? 'var(--bg-active)' : 'transparent',
-            }}
-            onClick={() => onWorkspaceChange('vietqs')}
-            title="비앳큐에스 워크스페이스"
-          >
-            <div className="workspace-icon-wrapper" style={{
-              ...styles.workspaceIconWrapper,
-              backgroundColor: '#0058bc',
-            }}>
-              <span style={styles.workspaceInitial}>V</span>
-            </div>
-          </button>
-
-          {/* Divider */}
-          <div style={styles.divider} />
-
           {/* 네이버웍스 스타일 글로벌 메뉴들 */}
           {menuItems.map(item => {
             const isMenuSelected = currentMenu === item.id;

@@ -31,11 +31,14 @@ import {
   Layers,
   Megaphone,
   Users,
-  AlertCircle
+  AlertCircle,
+  Search
 } from 'lucide-react';
 import { getUserRoleLevel, getRoleLabel } from './utils/permission'; // 추가
 import ceoDongmyungImg from './assets/ceo_dongmyung.png';
 import ceoDongmyungThinkingImg from './assets/ceo_dongmyung_thinking.png';
+import concostVert from './assets/concost_logo_vert.png';
+import vietqsLogo from './assets/vietqs_logo.png';
 
 
 // AI 영자 표정 이미지들
@@ -323,13 +326,13 @@ export default function App() {
   };
   const [isChatbotHovered, setIsChatbotHovered] = useState(false); // 챗봇 마우스오버 트래킹
 
-  // 대시보드 위젯 설정 상태 (7개 프리미엄 위젯 기본 탑재)
+  // 대시보드 위젯 설정 상태 (4개 선택가능 프리미엄 위젯 기본 탑재)
   const [visibleWidgets, setVisibleWidgets] = useState(() => {
     const saved = localStorage.getItem('works_dashboard_widgets');
     if (saved) {
       try { return JSON.parse(saved); } catch (e) {}
     }
-    return ['gantt', 'kpi', 'approval', 'email', 'board', 'e_approval', 'schedule'];
+    return ['todo', 'employees', 'calendar', 'board'];
   });
   const [isWidgetSettingsOpen, setIsWidgetSettingsOpen] = useState(false);
 
@@ -1210,18 +1213,84 @@ export default function App() {
       {/* 1. 상단 탑바 헤더 (네이버웍스 / Stitch 스타일) */}
       <header className="app-header" style={styles.appHeader}>
         <div style={styles.headerLeft}>
-          <Home size={20} style={{ color: 'var(--primary)' }} />
-          <span style={styles.headerTitle}>
-            {currentMenu === 'home' ? 'HOME' : 
-             currentMenu === 'chat' ? t.chat : 
-             currentMenu === 'mail' ? t.mail : 
-             currentMenu === 'calendar' ? t.calendar : 
-             currentMenu === 'project' ? t.project : 
-             currentMenu === 'drive' ? t.drive : 
-             currentMenu === 'todo' ? t.todo : 
-             currentMenu === 'board' ? t.board : 
-             currentMenu === 'hr' ? (currentWorkspace === 'vietqs' ? 'Sơ đồ tổ chức' : '조직도') : 'Works'}
-          </span>
+          <button 
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--text-secondary)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '6px',
+              marginRight: '8px',
+              borderRadius: '6px',
+              backgroundColor: isSidebarOpen ? 'var(--bg-secondary)' : 'transparent'
+            }}
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            title="사이드바 접기/펼치기"
+          >
+            <Menu size={20} />
+          </button>
+          
+          <div 
+            id="workspace-switcher"
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', userSelect: 'none' }} 
+            onClick={() => {
+              const nextWS = currentWorkspace === 'concost' ? 'vietqs' : 'concost';
+              setCurrentWorkspace(nextWS);
+              localStorage.setItem('settings_accent_color', nextWS === 'concost' ? 'CON-COST' : 'Viet QS');
+              setAccentColor(nextWS === 'concost' ? 'CON-COST' : 'Viet QS');
+              playNotificationSound();
+            }}
+            title="클릭하여 워크스페이스 즉시 스위칭"
+          >
+            <div style={{ width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <img 
+                src={currentWorkspace === 'concost' ? concostVert : vietqsLogo} 
+                alt="Logo" 
+                style={{ width: '100%', height: '100%', objectFit: 'contain' }} 
+              />
+            </div>
+            <span style={{ 
+              fontSize: '1.15rem', 
+              fontWeight: '800', 
+              color: currentWorkspace === 'concost' ? '#ff6b00' : '#0058bc',
+              letterSpacing: '-0.3px',
+              transition: 'color 0.2s ease'
+            }}>
+              {currentWorkspace === 'concost' ? 'CON-COST' : 'Viet QS'}
+            </span>
+          </div>
+        </div>
+
+        {/* 탑바 중앙 통합 검색창 */}
+        <div style={{
+          flex: 1,
+          maxWidth: '480px',
+          margin: '0 20px',
+          position: 'relative',
+          display: 'flex',
+          alignItems: 'center'
+        }}>
+          <Search size={16} style={{ position: 'absolute', left: '12px', color: 'var(--text-muted)' }} />
+          <input 
+            type="text"
+            placeholder="메일, 사람, 파일 검색"
+            style={{
+              width: '100%',
+              padding: '8px 12px 8px 36px',
+              backgroundColor: 'var(--bg-primary)',
+              border: '1px solid var(--border)',
+              borderRadius: '20px',
+              color: 'var(--text-primary)',
+              fontSize: '0.85rem',
+              outline: 'none',
+              transition: 'all 0.2s ease'
+            }}
+            onFocus={(e) => e.target.style.borderColor = currentWorkspace === 'concost' ? '#ff6b00' : 'var(--primary)'}
+            onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
+          />
         </div>
 
         <div style={styles.headerRight}>
@@ -1921,6 +1990,7 @@ export default function App() {
 
       {/* 대시보드 위젯 설정 모달 */}
       <div 
+        id="widget-settings-modal-overlay"
         style={{
           ...styles.settingsOverlay,
           opacity: isWidgetSettingsOpen ? 1 : 0,
@@ -1947,72 +2017,80 @@ export default function App() {
           </div>
 
           <div style={styles.settingsBody}>
+            <div style={{ ...styles.inputGroup, opacity: 0.6 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'not-allowed', fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--text-muted)' }}>
+                <input 
+                  type="checkbox" 
+                  checked={true}
+                  disabled={true}
+                  style={{ width: '16px', height: '16px', cursor: 'not-allowed' }}
+                />
+                🌅 AI Workspace Morning Briefing (고정)
+              </label>
+            </div>
+            <div style={{ ...styles.inputGroup, opacity: 0.6 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'not-allowed', fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--text-muted)' }}>
+                <input 
+                  type="checkbox" 
+                  checked={true}
+                  disabled={true}
+                  style={{ width: '16px', height: '16px', cursor: 'not-allowed' }}
+                />
+                🔔 미확인 알림 상태 (고정)
+              </label>
+            </div>
+            
+            <div style={{ margin: '12px 0', borderBottom: '1px solid var(--border-light)' }} />
+
             <div style={styles.inputGroup}>
               <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold' }}>
                 <input 
                   type="checkbox" 
-                  checked={visibleWidgets.includes('gantt')}
+                  checked={visibleWidgets.includes('todo')}
                   onChange={(e) => {
                     const list = e.target.checked 
-                      ? [...visibleWidgets, 'gantt'] 
-                      : visibleWidgets.filter(w => w !== 'gantt');
+                      ? [...visibleWidgets, 'todo'] 
+                      : visibleWidgets.filter(w => w !== 'todo');
                     setVisibleWidgets(list);
                     localStorage.setItem('works_dashboard_widgets', JSON.stringify(list));
                   }}
                   style={{ width: '16px', height: '16px' }}
                 />
-                참여중인 프로젝트 (Gantt Chart)
+                ✅ 오늘 할 일 목록
               </label>
             </div>
             <div style={styles.inputGroup}>
               <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold' }}>
                 <input 
                   type="checkbox" 
-                  checked={visibleWidgets.includes('kpi')}
+                  checked={visibleWidgets.includes('employees')}
                   onChange={(e) => {
                     const list = e.target.checked 
-                      ? [...visibleWidgets, 'kpi'] 
-                      : visibleWidgets.filter(w => w !== 'kpi');
+                      ? [...visibleWidgets, 'employees'] 
+                      : visibleWidgets.filter(w => w !== 'employees');
                     setVisibleWidgets(list);
                     localStorage.setItem('works_dashboard_widgets', JSON.stringify(list));
                   }}
                   style={{ width: '16px', height: '16px' }}
                 />
-                KPI 성과 (Donut Chart)
+                👥 우리 회사 임직원 현황
               </label>
             </div>
             <div style={styles.inputGroup}>
               <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold' }}>
                 <input 
                   type="checkbox" 
-                  checked={visibleWidgets.includes('approval')}
+                  checked={visibleWidgets.includes('calendar')}
                   onChange={(e) => {
                     const list = e.target.checked 
-                      ? [...visibleWidgets, 'approval'] 
-                      : visibleWidgets.filter(w => w !== 'approval');
+                      ? [...visibleWidgets, 'calendar'] 
+                      : visibleWidgets.filter(w => w !== 'calendar');
                     setVisibleWidgets(list);
                     localStorage.setItem('works_dashboard_widgets', JSON.stringify(list));
                   }}
                   style={{ width: '16px', height: '16px' }}
                 />
-                결재 현황 (Donut Chart)
-              </label>
-            </div>
-            <div style={styles.inputGroup}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold' }}>
-                <input 
-                  type="checkbox" 
-                  checked={visibleWidgets.includes('email')}
-                  onChange={(e) => {
-                    const list = e.target.checked 
-                      ? [...visibleWidgets, 'email'] 
-                      : visibleWidgets.filter(w => w !== 'email');
-                    setVisibleWidgets(list);
-                    localStorage.setItem('works_dashboard_widgets', JSON.stringify(list));
-                  }}
-                  style={{ width: '16px', height: '16px' }}
-                />
-                전자메일 (Email List)
+                📅 이번 주 전사 일정
               </label>
             </div>
             <div style={styles.inputGroup}>
@@ -2029,41 +2107,7 @@ export default function App() {
                   }}
                   style={{ width: '16px', height: '16px' }}
                 />
-                게시판 (Board List)
-              </label>
-            </div>
-            <div style={styles.inputGroup}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold' }}>
-                <input 
-                  type="checkbox" 
-                  checked={visibleWidgets.includes('e_approval')}
-                  onChange={(e) => {
-                    const list = e.target.checked 
-                      ? [...visibleWidgets, 'e_approval'] 
-                      : visibleWidgets.filter(w => w !== 'e_approval');
-                    setVisibleWidgets(list);
-                    localStorage.setItem('works_dashboard_widgets', JSON.stringify(list));
-                  }}
-                  style={{ width: '16px', height: '16px' }}
-                />
-                전자결재 (E-Approval)
-              </label>
-            </div>
-            <div style={styles.inputGroup}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold' }}>
-                <input 
-                  type="checkbox" 
-                  checked={visibleWidgets.includes('schedule')}
-                  onChange={(e) => {
-                    const list = e.target.checked 
-                      ? [...visibleWidgets, 'schedule'] 
-                      : visibleWidgets.filter(w => w !== 'schedule');
-                    setVisibleWidgets(list);
-                    localStorage.setItem('works_dashboard_widgets', JSON.stringify(list));
-                  }}
-                  style={{ width: '16px', height: '16px' }}
-                />
-                일정관리 (Schedule)
+                📢 사내 주요 소식
               </label>
             </div>
           </div>
@@ -2530,32 +2574,20 @@ export default function App() {
         );
 
       case 'home':
+        const empCount = allEmployees && allEmployees.length > 0 ? allEmployees.length : 92;
+        const concostCount = allEmployees && allEmployees.length > 0 ? allEmployees.filter(e => e.company === 'CON-COST').length : 32;
+        const vietqsCount = allEmployees && allEmployees.length > 0 ? allEmployees.filter(e => e.company === 'Viet QS').length : 60;
+
         return (
           <div style={styles.mainContainer} className="animate-fade">
             <div style={styles.mainHeader}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <button
-                  onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--text-primary)',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '8px',
-                    borderRadius: '8px',
-                    backgroundColor: isSidebarOpen ? 'var(--bg-secondary)' : 'transparent',
-                    transition: 'all 0.2s'
-                  }}
-                  title="메뉴 열기/닫기"
-                >
-                  <Menu size={24} />
-                </button>
-                <h2 style={styles.mainTitle}>🏠 HOME</h2>
+                <h2 style={styles.mainTitle}>
+                  {currentWorkspace === 'vietqs' ? '📊 Bảng điều khiển tổng hợp' : '📊 종합 대시보드'}
+                </h2>
               </div>
               <button 
+                id="edit-dashboard-btn"
                 className="action-btn"
                 style={{
                   ...styles.editDashboardBtn,
@@ -2572,219 +2604,74 @@ export default function App() {
                 }}
                 onClick={() => setIsWidgetSettingsOpen(true)}
               >
-                ⚙️ 위젯 편집
+                ⚙️ {currentWorkspace === 'vietqs' ? 'Chỉnh sửa Widget' : '대시보드 편집'}
               </button>
             </div>
 
             <div style={styles.dashboardGrid}>
-              {/* 위젯 1: 참여중인 프로젝트 (간트 차트) */}
-              {visibleWidgets.includes('gantt') && (
+              {/* 위젯 1: AI 출근길 브리핑 카드 (상단 와이드) - 필수 */}
+              <div className="widget-card" style={{ ...styles.widgetCard, gridColumn: 'span 12', minWidth: 0, border: '1px solid var(--primary)' }}>
+                <div style={{ fontWeight: '800', fontSize: '0.95rem', color: 'var(--primary)', marginBottom: '14px', borderBottom: '1px dashed var(--border-light)', paddingBottom: '8px' }}>
+                  🤖 AI Workspace Morning Briefing
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                  <div style={{ fontSize: '36px' }}>🌅</div>
+                  <div>
+                    <h3 style={{ fontSize: '1.05rem', fontWeight: '800', marginBottom: '6px', color: 'var(--text-primary)' }}>
+                      {currentWorkspace === 'vietqs' ? 'Chào buổi sáng, Trưởng phòng Yu Jong-wook!' : '유종욱 실장님, 좋은 아침입니다!'}
+                    </h3>
+                    <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: '1.6' }}>
+                      {currentWorkspace === 'vietqs'
+                        ? `Hôm nay có ${calendarEvents.length} lịch trình hợp tác công ty được đăng ký, và có ${todos.filter(t => !t.completed).length} công việc đang chờ xử lý. Gần đây, ${driveFiles.length} bản vẽ mới đã được tải lên thư mục thiết kế.`
+                        : `오늘 등록된 전사 협업 일정은 ${calendarEvents.length}건이며, 진행중인 업무 태스크 카드가 ${todos.filter(t => !t.completed).length}건 대기하고 있습니다. 최근 Viet QS 법인의 BIM 협업 드라이브에 ${driveFiles.length}개의 신규 도면 파일이 업로드되었습니다.`}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* 위젯 2: 미확인 알림 상태 - 필수 */}
+              <div className="widget-card" style={{ ...styles.widgetCard, gridColumn: 'span 6', minWidth: 0 }}>
+                <div style={{ fontWeight: '800', fontSize: '0.95rem', marginBottom: '14px', borderBottom: '1px dashed var(--border-light)', paddingBottom: '8px' }}>
+                  🔔 {currentWorkspace === 'vietqs' ? 'Trạng thái thông báo chưa đọc' : '미확인 알림 상태'}
+                </div>
+                <div style={{ display: 'flex', justifycontent: 'space-around', padding: '10px 0' }}>
+                  <div style={{ textAlign: 'center', cursor: 'pointer', flex: 1 }} onClick={() => { setActiveChat({ type: 'channel', id: 'general' }); setCurrentMenu('chat'); }}>
+                    <div style={{ fontSize: '24px', marginBottom: '6px' }}>💬</div>
+                    <strong style={{ fontSize: '1.1rem', color: 'var(--primary)' }}>3 {currentWorkspace === 'vietqs' ? 'tin nhắn' : '건'}</strong>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>{currentWorkspace === 'vietqs' ? 'Tin nhắn mới' : '새 메시지'}</div>
+                  </div>
+                  <div style={{ textAlign: 'center', cursor: 'pointer', flex: 1 }} onClick={() => setCurrentMenu('mail')}>
+                    <div style={{ fontSize: '24px', marginBottom: '6px' }}>📧</div>
+                    <strong style={{ fontSize: '1.1rem', color: '#007aff' }}>{mails.filter(m => !m.read).length} {currentWorkspace === 'vietqs' ? 'thư' : '건'}</strong>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>{currentWorkspace === 'vietqs' ? 'Thư chưa đọc' : '읽지않은 메일'}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 위젯 3: 오늘 할 일 목록 */}
+              {visibleWidgets.includes('todo') && (
                 <div className="widget-card" style={{ ...styles.widgetCard, gridColumn: 'span 6', minWidth: 0 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px dashed var(--border-light)', paddingBottom: '8px' }}>
-                    <div style={{ fontWeight: '800', fontSize: '0.95rem' }}>🏢 참여중인 프로젝트</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>월별 | 4월</div>
-                  </div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '12px' }}>
-                    가로 스크롤로 전체 간트를 확인하세요.
-                  </div>
-                  <div style={{ overflowX: 'auto', width: '100%' }}>
-                    <table style={{ width: '100%', minWidth: '450px', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
-                      <thead>
-                        <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}>
-                          <th style={{ textAlign: 'left', padding: '8px 4px', width: '120px' }}>프로젝트 이름</th>
-                          <th style={{ padding: '8px 4px', width: '80px', textAlign: 'center' }}>T1</th>
-                          <th style={{ padding: '8px 4px', width: '80px', textAlign: 'center' }}>T2</th>
-                          <th style={{ padding: '8px 4px', width: '80px', textAlign: 'center' }}>T3</th>
-                          <th style={{ padding: '8px 4px', width: '80px', textAlign: 'center' }}>T4</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr style={{ borderBottom: '1px solid var(--border-light)' }}>
-                          <td style={{ padding: '12px 4px', fontWeight: '700' }}>Dự án OKR</td>
-                          <td colSpan="3" style={{ padding: '8px 4px' }}>
-                            <div style={{
-                              backgroundColor: 'rgba(255, 107, 0, 0.85)',
-                              color: '#fff',
-                              padding: '6px 12px',
-                              borderRadius: '4px',
-                              fontSize: '0.75rem',
-                              fontWeight: 'bold',
-                              textAlign: 'center',
-                              boxShadow: '0 2px 4px rgba(255,107,0,0.2)'
-                            }}>
-                              시공 85%
-                            </div>
-                          </td>
-                          <td style={{ padding: '8px 4px' }}></td>
-                        </tr>
-                        <tr style={{ borderBottom: '1px solid var(--border-light)' }}>
-                          <td style={{ padding: '12px 4px', fontWeight: '700' }}>Smart City</td>
-                          <td style={{ padding: '8px 4px' }}></td>
-                          <td style={{ padding: '8px 4px' }}></td>
-                          <td colSpan="2" style={{ padding: '8px 4px' }}>
-                            <div style={{
-                              backgroundColor: 'rgba(255, 143, 61, 0.85)',
-                              color: '#fff',
-                              padding: '6px 12px',
-                              borderRadius: '4px',
-                              fontSize: '0.75rem',
-                              fontWeight: 'bold',
-                              textAlign: 'center',
-                              boxShadow: '0 2px 4px rgba(255,143,61,0.2)'
-                            }}>
-                              설계 45%
-                            </div>
-                          </td>
-                        </tr>
-                        <tr style={{ borderBottom: '1px solid var(--border-light)' }}>
-                          <td style={{ padding: '12px 4px', fontWeight: '700' }}>App Mobile</td>
-                          <td colSpan="4" style={{ padding: '12px 4px', color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center' }}>
-                            기획 단계 (예정)
-                          </td>
-                        </tr>
-                        <tr>
-                          <td style={{ padding: '12px 4px', fontWeight: '700' }}>Nâng cấp ERP</td>
-                          <td colSpan="4" style={{ padding: '12px 4px', color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center' }}>
-                            기획 단계 (예정)
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {/* 위젯 2: KPI 성과 (SVG 도넛 차트) */}
-              {visibleWidgets.includes('kpi') && (
-                <div className="widget-card" style={{ ...styles.widgetCard, gridColumn: 'span 3', minWidth: 0 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px dashed var(--border-light)', paddingBottom: '8px' }}>
-                    <div style={{ fontWeight: '800', fontSize: '0.95rem' }}>📊 KPI 성과</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Q1/2026</div>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '170px' }}>
-                    <div style={{ position: 'relative', width: '110px', height: '110px' }}>
-                      <svg width="110" height="110" viewBox="0 0 60 60">
-                        {/* Gray background ring */}
-                        <circle cx="30" cy="30" r="24" fill="none" stroke="var(--border-light)" strokeWidth="6" />
-                        {/* 성공 (Green) */}
-                        <circle cx="30" cy="30" r="24" fill="none" stroke="#23a55a" strokeWidth="6" 
-                                strokeDasharray="150.8" strokeDashoffset="0" transform="rotate(-90 30 30)" />
-                        {/* 지연 (Orange) */}
-                        <circle cx="30" cy="30" r="24" fill="none" stroke="#f0b232" strokeWidth="6" 
-                                strokeDasharray="150.8" strokeDashoffset="-82.25" transform="rotate(-90 30 30)" />
-                        {/* 실패 (Red) */}
-                        <circle cx="30" cy="30" r="24" fill="none" stroke="#f23f43" strokeWidth="6" 
-                                strokeDasharray="150.8" strokeDashoffset="-123.38" transform="rotate(-90 30 30)" />
-                        {/* 미처리 (Muted Gray) */}
-                        <circle cx="30" cy="30" r="24" fill="none" stroke="#949ba4" strokeWidth="6" 
-                                strokeDasharray="150.8" strokeDashoffset="-137.09" transform="rotate(-90 30 30)" />
-                      </svg>
-                      <div style={{
-                        position: 'absolute',
-                        top: '50%',
-                        left: '50%',
-                        transform: 'translate(-50%, -50%)',
-                        textAlign: 'center'
-                      }}>
-                        <div style={{ fontSize: '1.5rem', fontWeight: '800', color: 'var(--text-primary)' }}>11</div>
-                        <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>KPI 성과</div>
-                      </div>
-                    </div>
-                  </div>
-                  {/* Legend */}
-                  <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '8px 12px', fontSize: '0.75rem', fontWeight: '700', marginTop: '10px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#23a55a' }} />
-                      <span style={{ color: 'var(--text-secondary)' }}>성공</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#f0b232' }} />
-                      <span style={{ color: 'var(--text-secondary)' }}>지연</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#f23f43' }} />
-                      <span style={{ color: 'var(--text-secondary)' }}>실패</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#949ba4' }} />
-                      <span style={{ color: 'var(--text-secondary)' }}>미처리</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* 위젯 3: 결재 현황 (SVG 도넛 차트) */}
-              {visibleWidgets.includes('approval') && (
-                <div className="widget-card" style={{ ...styles.widgetCard, gridColumn: 'span 3', minWidth: 0 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px dashed var(--border-light)', paddingBottom: '8px' }}>
-                    <div style={{ fontWeight: '800', fontSize: '0.95rem' }}>📑 결재 현황</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>2026년</div>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '170px' }}>
-                    <div style={{ position: 'relative', width: '110px', height: '110px' }}>
-                      <svg width="110" height="110" viewBox="0 0 60 60">
-                        <circle cx="30" cy="30" r="24" fill="none" stroke="var(--border-light)" strokeWidth="6" />
-                        {/* 승인 (Green) */}
-                        <circle cx="30" cy="30" r="24" fill="none" stroke="#23a55a" strokeWidth="6" 
-                                strokeDasharray="150.8" strokeDashoffset="0" transform="rotate(-90 30 30)" />
-                        {/* 대기 (Orange) */}
-                        <circle cx="30" cy="30" r="24" fill="none" stroke="#f0b232" strokeWidth="6" 
-                                strokeDasharray="150.8" strokeDashoffset="-118.02" transform="rotate(-90 30 30)" />
-                      </svg>
-                      <div style={{
-                        position: 'absolute',
-                        top: '50%',
-                        left: '50%',
-                        transform: 'translate(-50%, -50%)',
-                        textAlign: 'center'
-                      }}>
-                        <div style={{ fontSize: '1.4rem', fontWeight: '800', color: 'var(--text-primary)' }}>18/23</div>
-                        <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>결재 진행</div>
-                      </div>
-                    </div>
-                  </div>
-                  {/* Legend with columns */}
-                  <div style={{ display: 'flex', justifyContent: 'space-around', fontSize: '0.75rem', fontWeight: '800', marginTop: '10px' }}>
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{ color: '#23a55a', fontSize: '1rem', fontWeight: 'bold' }}>18</div>
-                      <div style={{ color: 'var(--text-secondary)' }}>승인</div>
-                    </div>
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{ color: '#f0b232', fontSize: '1rem', fontWeight: 'bold' }}>5</div>
-                      <div style={{ color: 'var(--text-secondary)' }}>대기</div>
-                    </div>
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{ color: 'var(--text-muted)', fontSize: '1rem', fontWeight: 'bold' }}>23</div>
-                      <div style={{ color: 'var(--text-secondary)' }}>전체</div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* 위젯 4: 전자메일 (받은편지함) */}
-              {visibleWidgets.includes('email') && (
-                <div className="widget-card" style={{ ...styles.widgetCard, gridColumn: 'span 6', minWidth: 0 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px dashed var(--border-light)', paddingBottom: '8px' }}>
-                    <div style={{ fontWeight: '800', fontSize: '0.95rem' }}>📧 전자메일</div>
-                    <button style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer' }} onClick={() => setCurrentMenu('mail')}>
-                      받은편지함
+                    <div style={{ fontWeight: '800', fontSize: '0.95rem' }}>✅ {currentWorkspace === 'vietqs' ? 'Danh sách việc cần làm' : '오늘 할 일 목록'}</div>
+                    <button style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer' }} onClick={() => setCurrentMenu('todo')}>
+                      {currentWorkspace === 'vietqs' ? 'Xem thêm' : '더보기'}
                     </button>
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '240px', overflowY: 'auto' }}>
-                    {[
-                      { sender: 'OO Xây dựng(Cổ phần)', title: 'OO 프로젝트 건축 설계 도서_Gửi tài liệu lần 1 để xác nhận', time: '2026-02-04 15:22' },
-                      { sender: 'OO Xây dựng(Cổ phần)', title: 'OO 프로젝트 건축 설계 도서_Gửi tài liệu lần 1 (Cổ phần)ConCost', time: '2026-02-04 10:05' },
-                      { sender: '보낸편지함', title: 'OOO 프로젝트 PM "OOO" Gửi 체크리스트 (Yêu cầu bổ sung)', time: '2026-02-03 14:18' },
-                      { sender: '보낸편지함', title: 'OOO 프로젝트 PM "OOO" Gửi 체크리스트', time: '2026-02-02 09:40' },
-                      { sender: 'OO Xây dựng', title: 'Trả lời câu hỏi Smart City', time: '2026-01-26 09:12' },
-                      { sender: 'OO Xây dựng', title: 'Trả lời câu hỏi 프로젝트', time: '2026-01-26 09:12' }
-                    ].map((m, idx) => (
-                      <div key={idx} className="mail-item-card" style={{ padding: '8px 10px', backgroundColor: 'var(--bg-primary)', borderRadius: '6px', border: '1px solid var(--border)', fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: '2px', cursor: 'pointer' }} onClick={() => setCurrentMenu('mail')}>
-                        <span style={{ fontWeight: '800', color: 'var(--text-primary)', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>
-                          [{m.sender}] {m.title}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {todos.slice(0, 2).map(todo => (
+                      <div key={todo.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', backgroundColor: 'var(--bg-primary)', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: '700', color: todo.completed ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: todo.completed ? 'line-through' : 'none', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '75%' }}>
+                          • {todo.text}
                         </span>
-                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                          {m.sender} - {m.time}
+                        <span style={{
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          fontSize: '0.65rem',
+                          fontWeight: 'bold',
+                          backgroundColor: todo.priority === '높음' ? 'rgba(255, 75, 75, 0.1)' : 'rgba(240, 178, 50, 0.1)',
+                          color: todo.priority === '높음' ? '#ff4b4b' : '#f0b232'
+                        }}>
+                          {todo.date}
                         </span>
                       </div>
                     ))}
@@ -2792,126 +2679,81 @@ export default function App() {
                 </div>
               )}
 
-              {/* 위젯 5: 게시판 */}
+              {/* 위젯 4: 임직원 현황 */}
+              {visibleWidgets.includes('employees') && (
+                <div className="widget-card" style={{ ...styles.widgetCard, gridColumn: 'span 6', minWidth: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px dashed var(--border-light)', paddingBottom: '8px' }}>
+                    <div style={{ fontWeight: '800', fontSize: '0.95rem' }}>👥 {currentWorkspace === 'vietqs' ? 'Tình hình nhân sự' : '우리 회사 임직원 현황'}</div>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.8rem', fontWeight: '700' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>{currentWorkspace === 'vietqs' ? 'Tổng số nhân viên' : '양사 총 임직원 수'}</span>
+                      <strong style={{ color: 'var(--text-primary)' }}>{empCount} 명</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>CON-COST 본사</span>
+                      <strong style={{ color: 'var(--text-primary)' }}>{concostCount} 명</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>Viet QS 지사</span>
+                      <strong style={{ color: 'var(--text-primary)' }}>{vietqsCount} 명</strong>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 위젯 5: 이번 주 전사 일정 */}
+              {visibleWidgets.includes('calendar') && (
+                <div className="widget-card" style={{ ...styles.widgetCard, gridColumn: 'span 6', minWidth: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px dashed var(--border-light)', paddingBottom: '8px' }}>
+                    <div style={{ fontWeight: '800', fontSize: '0.95rem' }}>📅 {currentWorkspace === 'vietqs' ? 'Lịch trình công ty tuần này' : '이번 주 전사 일정'}</div>
+                    <button style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer' }} onClick={() => setCurrentMenu('calendar')}>
+                      {currentWorkspace === 'vietqs' ? 'Lịch' : '캘린더'}
+                    </button>
+                  </div>
+                  <table style={{ width: '100%', fontSize: '0.8rem', borderCollapse: 'collapse', fontWeight: '700' }}>
+                    <tbody>
+                      <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                        <td style={{ padding: '8px 0', color: 'var(--primary)', width: '70px' }}>15일 (오늘)</td>
+                        <td style={{ padding: '8px 0', color: 'var(--text-primary)' }}>
+                          {currentWorkspace === 'vietqs' ? 'BIM QC bàn giao bản vẽ đợt 1' : 'BIM파트 주간 1차 도면 QC 납품'}
+                        </td>
+                      </tr>
+                      <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                        <td style={{ padding: '8px 0', color: 'var(--text-secondary)' }}>17일 (수)</td>
+                        <td style={{ padding: '8px 0', color: 'var(--text-primary)' }}>
+                          {currentWorkspace === 'vietqs' ? 'Họp công trình Viet QS Horizon/Foundation' : 'Viet QS Horizon/Foundation 공정 회의'}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style={{ padding: '8px 0', color: 'var(--text-muted)' }}>19일 (금)</td>
+                        <td style={{ padding: '8px 0', color: 'var(--text-primary)' }}>
+                          {currentWorkspace === 'vietqs' ? 'Họp báo cáo quản lý và Đàm thoại' : '대표이사 주관 경영 보고 및 간담회'}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* 위젯 6: 사내 주요 소식 */}
               {visibleWidgets.includes('board') && (
                 <div className="widget-card" style={{ ...styles.widgetCard, gridColumn: 'span 6', minWidth: 0 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px dashed var(--border-light)', paddingBottom: '8px' }}>
-                    <div style={{ fontWeight: '800', fontSize: '0.95rem' }}>📢 게시판</div>
+                    <div style={{ fontWeight: '800', fontSize: '0.95rem' }}>📢 {currentWorkspace === 'vietqs' ? 'Tin tức chính công ty' : '사내 주요 소식'}</div>
                     <button style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer' }} onClick={() => setCurrentMenu('board')}>
-                      최신 소식
+                      {currentWorkspace === 'vietqs' ? 'Bảng tin' : '게시글 목록'}
                     </button>
                   </div>
-                  <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', minWidth: '400px', borderCollapse: 'collapse', fontSize: '0.8rem', textAlign: 'left' }}>
-                      <thead>
-                        <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}>
-                          <th style={{ padding: '6px 4px', width: '70px' }}>유형</th>
-                          <th style={{ padding: '6px 4px' }}>제목</th>
-                          <th style={{ padding: '6px 4px', width: '80px' }}>작성자</th>
-                          <th style={{ padding: '6px 4px', width: '90px' }}>날짜</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {[
-                          { type: '공지', typeBg: 'rgba(0, 122, 255, 0.1)', typeColor: '#007aff', title: '매뉴얼 quyết toán cuối năm 2025', author: '총무부', date: '26/01/2026' },
-                          { type: '대표이사', typeBg: 'rgba(255, 107, 0, 0.1)', typeColor: '#ff6b00', title: 'Thông điệp năm mới từ 대표이사 (2026)', author: '이사회 (BOD)', date: '26/01/2026' },
-                          { type: '프로젝트', typeBg: 'rgba(35, 165, 90, 0.1)', typeColor: '#23a55a', title: '진행률 프로젝트 _Ver.260123', author: '영업부', date: '23/01/2026' },
-                          { type: '회의록', typeBg: 'rgba(148, 155, 164, 0.1)', typeColor: 'var(--text-secondary)', title: '회의록 họp tuần (주 3 tuần 1)', author: 'PMO', date: '21/01/2026' },
-                          { type: '매뉴얼', typeBg: 'rgba(165, 85, 236, 0.1)', typeColor: '#a555ec', title: 'Sổ tay hướng dẫn ng mới vào làm', author: '총무부', date: '15/01/2026' }
-                        ].map((post, idx) => (
-                          <tr key={idx} className="post-table-row" style={{ borderBottom: '1px solid var(--border-light)', cursor: 'pointer' }} onClick={() => setCurrentMenu('board')}>
-                            <td style={{ padding: '8px 4px' }}>
-                              <span style={{
-                                padding: '2px 6px',
-                                borderRadius: '4px',
-                                fontSize: '0.7rem',
-                                fontWeight: 'bold',
-                                backgroundColor: post.typeBg,
-                                color: post.typeColor
-                              }}>
-                                {post.type}
-                              </span>
-                            </td>
-                            <td style={{ padding: '8px 4px', fontWeight: '700', color: 'var(--text-primary)', maxWidth: '180px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                              {post.title}
-                            </td>
-                            <td style={{ padding: '8px 4px', color: 'var(--text-secondary)' }}>{post.author}</td>
-                            <td style={{ padding: '8px 4px', color: 'var(--text-muted)' }}>{post.date}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {/* 위젯 6: 전자결재 (결재 대기) */}
-              {visibleWidgets.includes('e_approval') && (
-                <div className="widget-card" style={{ ...styles.widgetCard, gridColumn: 'span 6', minWidth: 0 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px dashed var(--border-light)', paddingBottom: '8px' }}>
-                    <div style={{ fontWeight: '800', fontSize: '0.95rem' }}>✍️ 전자결재</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'bold' }}>결재 대기함</div>
-                  </div>
-                  <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', minWidth: '400px', borderCollapse: 'collapse', fontSize: '0.8rem', textAlign: 'left' }}>
-                      <thead>
-                        <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}>
-                          <th style={{ padding: '6px 4px', width: '70px' }}>상태</th>
-                          <th style={{ padding: '6px 4px' }}>제목</th>
-                          <th style={{ padding: '6px 4px', width: '80px' }}>기안자</th>
-                          <th style={{ padding: '6px 4px', width: '90px' }}>NGÀY TẠO</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {[
-                          { status: '대기', statusBg: 'rgba(240, 178, 50, 0.1)', statusColor: '#f0b232', title: 'Yêu cầu duyệt đơn Quyết toán chi phí (Vật tư)', creator: '작성자: A', date: '26/01/2026' },
-                          { status: '대기', statusBg: 'rgba(240, 178, 50, 0.1)', statusColor: '#f0b232', title: 'Yêu cầu duyệt đơn 휴가', creator: '작성자: B', date: '25/01/2026' }
-                        ].map((app, idx) => (
-                          <tr key={idx} className="post-table-row" style={{ borderBottom: '1px solid var(--border-light)', cursor: 'pointer' }}>
-                            <td style={{ padding: '10px 4px' }}>
-                              <span style={{
-                                padding: '2px 6px',
-                                borderRadius: '4px',
-                                fontSize: '0.7rem',
-                                fontWeight: 'bold',
-                                backgroundColor: app.statusBg,
-                                color: app.statusColor
-                              }}>
-                                {app.status}
-                              </span>
-                            </td>
-                            <td style={{ padding: '10px 4px', fontWeight: '700', color: 'var(--text-primary)', maxWidth: '180px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                              {app.title}
-                            </td>
-                            <td style={{ padding: '10px 4px', color: 'var(--text-secondary)' }}>{app.creator}</td>
-                            <td style={{ padding: '10px 4px', color: 'var(--text-muted)' }}>{app.date}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {/* 위젯 7: 일정관리 */}
-              {visibleWidgets.includes('schedule') && (
-                <div className="widget-card" style={{ ...styles.widgetCard, gridColumn: 'span 6', minWidth: 0 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px dashed var(--border-light)', paddingBottom: '8px' }}>
-                    <div style={{ fontWeight: '800', fontSize: '0.95rem' }}>📅 일정관리</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'bold' }}>예정된 부재/휴가</div>
-                  </div>
-                  <div style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    height: '140px',
-                    color: 'var(--text-muted)',
-                    fontSize: '0.8rem',
-                    fontWeight: '700'
-                  }}>
-                    <CalendarIcon size={32} style={{ marginBottom: '8px', color: 'var(--text-muted)' }} />
-                    <div>예정된 부재 또는 휴가가 없습니다.</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.8rem' }}>
+                    {boardPosts.slice(0, 3).map(post => (
+                      <div key={post.id} style={{ display: 'flex', justifyContent: 'space-between', cursor: 'pointer' }} onClick={() => setCurrentMenu('board')}>
+                        <span style={{ fontWeight: '700', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '75%', color: 'var(--text-primary)' }}>
+                          • {post.title}
+                        </span>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{post.date}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
