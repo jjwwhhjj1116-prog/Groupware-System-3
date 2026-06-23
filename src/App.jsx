@@ -311,6 +311,42 @@ export default function App() {
 
   const [currentWorkspace, setCurrentWorkspace] = useState('concost'); // 'concost' or 'vietqs'
   const [currentMenu, setCurrentMenu] = useState('home'); // 'home', 'chat', 'mail', etc.
+
+  // --- SPA 브라우저 뒤로 가기 / 앞으로 가기 (Hash Routing) 연동 ---
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace('#/', '') || 'home';
+      const validMenus = ['home', 'chat', 'mail', 'calendar', 'todo', 'board', 'hr', 'drive', 'project'];
+      if (validMenus.includes(hash)) {
+        setCurrentMenu(hash);
+        if (hash === 'home') {
+          setIsSidebarOpen(false);
+        } else {
+          setIsSidebarOpen(true);
+        }
+      }
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+
+    if (!window.location.hash) {
+      window.location.hash = '#/home';
+    } else {
+      handleHashChange();
+    }
+
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    const cleanHash = window.location.hash.replace('#/', '');
+    if (cleanHash !== currentMenu) {
+      window.location.hash = `#/${currentMenu}`;
+    }
+  }, [currentMenu]);
+
   const [isLightTheme, setIsLightTheme] = useState(true);
   const [chatUnreadCount, setChatUnreadCount] = useState(3); // 안읽은 채팅 카운트 기본 3
   const [todoUnreadCount, setTodoUnreadCount] = useState(4); // 미확인 할 일 카운트
