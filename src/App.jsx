@@ -312,55 +312,7 @@ export default function App() {
   const [currentWorkspace, setCurrentWorkspace] = useState('concost'); // 'concost' or 'vietqs'
   const [currentMenu, setCurrentMenu] = useState('home'); // 'home', 'chat', 'mail', etc.
 
-  // --- SPA 브라우저 뒤로 가기 / 앞으로 가기 (Hash Routing) 연동 ---
-  useEffect(() => {
-    const handleHashChange = () => {
-      const fullHash = window.location.hash.replace('#/', '') || 'home';
-      const [menu, subId] = fullHash.split('/');
-      const validMenus = ['home', 'chat', 'mail', 'calendar', 'todo', 'board', 'hr', 'drive', 'project'];
-      
-      if (validMenus.includes(menu)) {
-        setCurrentMenu(menu);
-        if (menu === 'home') {
-          setIsSidebarOpen(false);
-        } else {
-          setIsSidebarOpen(true);
-        }
 
-        if (menu === 'mail') {
-          if (subId) {
-            const mailIdNum = parseInt(subId, 10);
-            const foundMail = mails.find(m => m.id === mailIdNum);
-            if (foundMail) {
-              setSelectedMail(foundMail);
-            }
-          } else {
-            setSelectedMail(null);
-          }
-        }
-      }
-    };
-
-    window.addEventListener('hashchange', handleHashChange);
-
-    if (!window.location.hash) {
-      window.location.hash = '#/home';
-    } else {
-      handleHashChange();
-    }
-
-    return () => {
-      window.removeEventListener('hashchange', handleHashChange);
-    };
-  }, [mails]);
-
-  useEffect(() => {
-    const cleanHash = window.location.hash.replace('#/', '');
-    const [menu] = cleanHash.split('/');
-    if (menu !== currentMenu) {
-      window.location.hash = `#/${currentMenu}`;
-    }
-  }, [currentMenu]);
 
   const [isLightTheme, setIsLightTheme] = useState(true);
   const [chatUnreadCount, setChatUnreadCount] = useState(3); // 안읽은 채팅 카운트 기본 3
@@ -750,6 +702,87 @@ export default function App() {
   useEffect(() => {
     fetchEmployees();
   }, [currentUser]);
+
+  // --- SPA 브라우저 뒤로 가기 / 앞으로 가기 (Hash Routing) 연동 (TDZ 버그 복구 위치) ---
+  useEffect(() => {
+    const handleHashChange = () => {
+      const fullHash = window.location.hash.replace('#/', '') || 'home';
+      const [menu, subId] = fullHash.split('/');
+      const validMenus = ['home', 'chat', 'mail', 'calendar', 'todo', 'board', 'hr', 'drive', 'project'];
+      
+      if (validMenus.includes(menu)) {
+        setCurrentMenu(menu);
+        if (menu === 'home') {
+          setIsSidebarOpen(false);
+        } else {
+          setIsSidebarOpen(true);
+        }
+
+        if (menu === 'mail') {
+          if (subId) {
+            const mailIdNum = parseInt(subId, 10);
+            const foundMail = mails.find(m => m.id === mailIdNum);
+            if (foundMail) {
+              setSelectedMail(foundMail);
+            }
+          } else {
+            setSelectedMail(null);
+          }
+        }
+      }
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+
+    if (!window.location.hash) {
+      window.location.hash = '#/home';
+    } else {
+      handleHashChange();
+    }
+
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange);
+    };
+  }, [mails]);
+
+  useEffect(() => {
+    const cleanHash = window.location.hash.replace('#/', '');
+    const [menu] = cleanHash.split('/');
+    if (menu !== currentMenu) {
+      window.location.hash = `#/${currentMenu}`;
+    }
+  }, [currentMenu]);
+
+  // 메시지 실제 전달 기능 핸들러
+  const handleForwardMessage = (targetRoom, messageContent) => {
+    const chatKey = targetRoom.type === 'channel'
+      ? `${currentWorkspace}-${targetRoom.id}`
+      : `dm-${[currentUser?.id || 'me', targetRoom.id.replace('-dm', '')].sort().join('-')}`;
+
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+    const isViet = currentWorkspace === 'vietqs';
+
+    const forwardMsg = {
+      id: `m-forward-${Date.now()}`,
+      sender: 'me',
+      senderName: isViet ? 'Giám đốc' : '대표님',
+      content: `[전달] ${messageContent}`,
+      time: timeStr,
+      channelId: chatKey,
+    };
+
+    setMessages(prev => ({
+      ...prev,
+      [chatKey]: [...(prev[chatKey] || []), forwardMsg]
+    }));
+
+    if (socketRef.current) {
+      socketRef.current.emit('message:send', forwardMsg);
+    }
+    
+    alert(isViet ? 'Đã chuyển tiếp tin nhắn thành công.' : '메시지가 성공적으로 전달되었습니다.');
+  };
 
   const handleLogout = () => {
     sessionStorage.removeItem('currentUser');
@@ -2921,6 +2954,9 @@ export default function App() {
             onUserClick={handleUserClick}
             onOpenInviteModal={() => setIsInviteModalOpen(true)} // 초대 모달 콜백 추가
             onExitChat={handleExitChat} // 추가
+            onForwardMessage={handleForwardMessage}
+            channels={workspaceChannels[currentWorkspace] || []}
+            dms={dms}
           />
         );
 

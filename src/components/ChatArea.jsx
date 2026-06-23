@@ -13,7 +13,10 @@ import {
    Check,
    Menu,
    UserPlus,
-   LogOut // 추가
+   LogOut,
+   Copy,
+   Forward,
+   Globe
 } from 'lucide-react';
 import ceoDongmyungImg from '../assets/ceo_dongmyung.png';
 
@@ -38,7 +41,10 @@ export default function ChatArea({
   currentWorkspace,
   onUserClick,
   onOpenInviteModal,
-  onExitChat // 추가
+  onExitChat,
+  onForwardMessage,
+  channels = [],
+  dms = []
 }) {
   const [inputText, setInputText] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -46,6 +52,13 @@ export default function ChatArea({
   const [translatingIds, setTranslatingIds] = useState(new Set());
   const [pickerTab, setPickerTab] = useState('emoji');
   const messagesEndRef = useRef(null);
+
+  // 호버 및 편의기능(복사/전달) 상태
+  const [hoveredMsgId, setHoveredMsgId] = useState(null);
+  const [copiedMsgId, setCopiedMsgId] = useState(null);
+  const [isForwardModalOpen, setIsForwardModalOpen] = useState(false);
+  const [messageToForward, setMessageToForward] = useState('');
+  const [selectedForwardTarget, setSelectedForwardTarget] = useState(null);
   
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
@@ -459,10 +472,15 @@ export default function ChatArea({
                   )}
 
                   {/* Message Bubble Column */}
-                  <div style={{
-                    ...styles.bubbleCol,
-                    alignItems: isMe ? 'flex-end' : 'flex-start'
-                  }}>
+                  <div 
+                    style={{
+                      ...styles.bubbleCol,
+                      alignItems: isMe ? 'flex-end' : 'flex-start',
+                      position: 'relative' // 툴바 배치 기준
+                    }}
+                    onMouseEnter={() => setHoveredMsgId(msg.id)}
+                    onMouseLeave={() => setHoveredMsgId(null)}
+                  >
                     {/* Sender Name & Time */}
                     {!isMe && (
                       <div style={styles.senderMeta}>
@@ -493,22 +511,25 @@ export default function ChatArea({
                             : isMatched
                               ? 'rgba(255, 107, 0, 0.2)'
                               : (isMe 
-                                ? (currentWorkspace === 'concost' ? '#ff6b00' : 'var(--primary)')
-                                : 'var(--bg-secondary)'),
-                        color: isMe ? '#ffffff' : 'var(--text-primary)',
+                                ? '#e1f3fc' // 네이버웍스 내 말풍선 (연한 하늘색)
+                                : '#f2f3f5'), // 네이버웍스 상대 말풍선 (연한 회색)
+                        color: '#1e1e1e', // 눈이 편안한 다크그레이 텍스트로 고정
                         borderBottomRightRadius: isMe ? '2px' : '10px',
                         borderBottomLeftRadius: isMe ? '10px' : '2px',
                         border: (msg.youngjaImageUrl && !msg.content)
                           ? 'none'
                           : isCurrentMatch 
                             ? '1px solid #ff6b00' 
-                            : (isMe ? 'none' : '1px solid var(--border-light)'),
+                            : (isMe ? '1px solid #c7e5f5' : '1px solid #e4e6eb'),
                         boxShadow: (msg.youngjaImageUrl && !msg.content)
                           ? 'none'
-                          : isCurrentMatch 
-                            ? '0 0 10px rgba(255, 107, 0, 0.4)' 
-                            : '0 2px 4px rgba(0,0,0,0.05)',
-                        transition: 'background-color 0.2s, border 0.2s, box-shadow 0.2s',
+                          : (hoveredMsgId === msg.id)
+                            ? '0 4px 12px rgba(0,0,0,0.08)' // 호버 시 그림자
+                            : '0 2px 4px rgba(0,0,0,0.02)',
+                        transform: (hoveredMsgId === msg.id && !(msg.youngjaImageUrl && !msg.content))
+                          ? 'translateY(-1px)' // 호버 시 입체 업 무브먼트
+                          : 'none',
+                        transition: 'all 0.22s cubic-bezier(0.4, 0, 0.2, 1)',
                         padding: (msg.youngjaImageUrl && !msg.content) ? '0' : '10px 14px'
                       }}
                     >
@@ -534,11 +555,11 @@ export default function ChatArea({
                         <div style={{
                           marginTop: '6px',
                           paddingTop: '6px',
-                          borderTop: isMe ? '1px dashed rgba(255,255,255,0.4)' : '1px dashed var(--border)',
+                          borderTop: isMe ? '1px dashed rgba(0,0,0,0.15)' : '1px dashed #e4e6eb',
                           fontSize: '0.825rem',
                           lineHeight: '1.45',
                           whiteSpace: 'pre-wrap',
-                          color: isMe ? '#ffffff' : 'var(--text-secondary)'
+                          color: '#555555'
                         }}>
                           {translatedMessages[msg.id] && translatedMessages[msg.id] !== 'hide' ? translatedMessages[msg.id] : msg.translation}
                         </div>
@@ -547,43 +568,135 @@ export default function ChatArea({
                         <div style={{
                           marginTop: '6px',
                           paddingTop: '6px',
-                          borderTop: isMe ? '1px dashed rgba(255,255,255,0.4)' : '1px dashed var(--border)',
+                          borderTop: isMe ? '1px dashed rgba(0,0,0,0.15)' : '1px dashed #e4e6eb',
                           fontSize: '0.75rem',
                           fontStyle: 'italic',
-                          opacity: 0.8
+                          opacity: 0.8,
+                          color: '#888888'
                         }}>
                           ⚡ 번역 중...
                         </div>
                       )}
                     </div>
 
-                    {/* 번역 버튼 링크 (봇 메시지가 아니고 텍스트 내용이 있을 때만 노출) */}
-                    {!isCeoBot && msg.content && (
-                      <div style={{ 
-                        marginTop: '2px', 
-                        display: 'flex', 
-                        gap: '6px', 
-                        justifyContent: isMe ? 'flex-end' : 'flex-start',
-                        width: '100%'
+                    {/* 복사 완료 툴팁 */}
+                    {copiedMsgId === msg.id && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '-32px',
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        backgroundColor: '#323232',
+                        color: '#ffffff',
+                        fontSize: '0.75rem',
+                        fontWeight: 'bold',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        boxShadow: '0 4px 8px rgba(0,0,0,0.15)',
+                        zIndex: 20,
+                        pointerEvents: 'none',
+                        whiteSpace: 'nowrap',
+                        animation: 'fadeIn 0.15s ease-out'
                       }}>
-                        <span 
-                          style={{ 
-                            fontSize: '0.75rem', 
-                            color: isMe ? 'rgba(255,255,255,0.7)' : 'var(--primary)', 
-                            textDecoration: 'underline', 
-                            cursor: 'pointer', 
-                            fontWeight: 'bold',
-                            userSelect: 'none'
+                        복사 완료! 📋
+                      </div>
+                    )}
+
+                    {/* 마우스오버 미니 툴바 (복사/번역/전달) */}
+                    {hoveredMsgId === msg.id && msg.content && (
+                      <div style={{
+                        position: 'absolute',
+                        top: isMe ? '-18px' : '18px',
+                        right: isMe ? 'auto' : '-32px',
+                        left: isMe ? '-32px' : 'auto',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '3px',
+                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                        backdropFilter: 'blur(6px)',
+                        border: '1px solid rgba(0,0,0,0.1)',
+                        borderRadius: '6px',
+                        padding: '3px',
+                        boxShadow: '0 4px 10px rgba(0,0,0,0.08)',
+                        zIndex: 10,
+                        alignItems: 'center',
+                      }}>
+                        <button 
+                          type="button"
+                          title="복사"
+                          onClick={() => {
+                            navigator.clipboard.writeText(msg.content);
+                            setCopiedMsgId(msg.id);
+                            setTimeout(() => setCopiedMsgId(null), 1200);
                           }}
+                          style={{
+                            border: 'none',
+                            background: 'none',
+                            cursor: 'pointer',
+                            padding: '3px',
+                            color: '#555555',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderRadius: '4px',
+                            transition: 'background-color 0.2s'
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.06)'}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                        >
+                          <Copy size={13} />
+                        </button>
+
+                        <button 
+                          type="button"
+                          title="번역"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleTranslate(msg.id, msg.content, !!msg.translation);
                           }}
+                          style={{
+                            border: 'none',
+                            background: 'none',
+                            cursor: 'pointer',
+                            padding: '3px',
+                            color: '#555555',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderRadius: '4px',
+                            transition: 'background-color 0.2s'
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.06)'}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                         >
-                          {(translatedMessages[msg.id] && translatedMessages[msg.id] !== 'hide') || (!translatedMessages[msg.id] && msg.translation) 
-                            ? '번역 닫기' 
-                            : '🌐 번역'}
-                        </span>
+                          <Globe size={13} />
+                        </button>
+
+                        <button 
+                          type="button"
+                          title="전달"
+                          onClick={() => {
+                            setMessageToForward(msg.content);
+                            setIsForwardModalOpen(true);
+                            setSelectedForwardTarget(null);
+                          }}
+                          style={{
+                            border: 'none',
+                            background: 'none',
+                            cursor: 'pointer',
+                            padding: '3px',
+                            color: '#555555',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderRadius: '4px',
+                            transition: 'background-color 0.2s'
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.06)'}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                        >
+                          <Forward size={13} />
+                        </button>
                       </div>
                     )}
 
@@ -841,6 +954,227 @@ export default function ChatArea({
           </div>
         )}
       </form>
+
+      {/* 메시지 전달(Forward) 모달 */}
+      {isForwardModalOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          animation: 'fadeIn 0.2s ease'
+        }}>
+          <div style={{
+            backgroundColor: 'var(--bg-primary)',
+            borderRadius: '12px',
+            width: '420px',
+            maxWidth: '90%',
+            boxShadow: '0 8px 30px rgba(0,0,0,0.25)',
+            border: '1px solid var(--border-light)',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden'
+          }}>
+            {/* Header */}
+            <div style={{
+              padding: '16px 20px',
+              borderBottom: '1px solid var(--border)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              backgroundColor: 'var(--bg-secondary)'
+            }}>
+              <span style={{ fontWeight: '700', fontSize: '1rem', color: 'var(--text-primary)' }}>
+                {currentWorkspace === 'vietqs' ? 'Chuyển tiếp tin nhắn' : '메시지 전달'}
+              </span>
+              <button 
+                type="button"
+                onClick={() => setIsForwardModalOpen(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: 'bold' }}
+              >
+                {currentWorkspace === 'vietqs' ? 'Đóng' : '닫기'}
+              </button>
+            </div>
+
+            {/* Content Preview */}
+            <div style={{
+              padding: '14px 20px',
+              backgroundColor: 'var(--bg-secondary)',
+              borderBottom: '1px solid var(--border)',
+              fontSize: '0.825rem',
+              color: 'var(--text-secondary)'
+            }}>
+              <div style={{ fontWeight: '600', marginBottom: '4px' }}>
+                {currentWorkspace === 'vietqs' ? 'Nội dung tin nhắn:' : '전달할 메시지:'}
+              </div>
+              <div style={{
+                backgroundColor: 'var(--bg-primary)',
+                padding: '10px 12px',
+                borderRadius: '6px',
+                border: '1px solid var(--border-light)',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                fontStyle: 'italic',
+                color: 'var(--text-primary)'
+              }}>
+                "{messageToForward}"
+              </div>
+            </div>
+
+            {/* Target List */}
+            <div style={{
+              padding: '16px 20px',
+              maxHeight: '260px',
+              overflowY: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px'
+            }}>
+              {/* Channels */}
+              <div>
+                <div style={{ fontSize: '0.78rem', fontWeight: 'bold', color: 'var(--text-muted)', marginBottom: '6px', textTransform: 'uppercase' }}>
+                  {currentWorkspace === 'vietqs' ? 'Kênh' : '채널'}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                  {channels.map(chan => {
+                    const isSelected = selectedForwardTarget?.type === 'channel' && selectedForwardTarget?.id === chan.id;
+                    return (
+                      <button
+                        type="button"
+                        key={chan.id}
+                        onClick={() => setSelectedForwardTarget({ type: 'channel', id: chan.id, name: chan.name })}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          padding: '8px 12px',
+                          borderRadius: '6px',
+                          border: '1px solid ' + (isSelected ? (currentWorkspace === 'concost' ? '#ff6b00' : 'var(--primary)') : 'transparent'),
+                          backgroundColor: isSelected ? 'var(--bg-active)' : 'transparent',
+                          color: 'var(--text-primary)',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          width: '100%',
+                          fontSize: '0.85rem'
+                        }}
+                      >
+                        <Hash size={14} style={{ color: isSelected ? (currentWorkspace === 'concost' ? '#ff6b00' : 'var(--primary)') : 'var(--text-muted)' }} />
+                        <span>{chan.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* DMs */}
+              <div>
+                <div style={{ fontSize: '0.78rem', fontWeight: 'bold', color: 'var(--text-muted)', marginBottom: '6px', textTransform: 'uppercase' }}>
+                  {currentWorkspace === 'vietqs' ? 'Tin nhắn cá nhân' : '1:1 대화 상대'}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                  {dms.map(dm => {
+                    const isSelected = selectedForwardTarget?.type === 'dm' && selectedForwardTarget?.id === dm.id;
+                    return (
+                      <button
+                        type="button"
+                        key={dm.id}
+                        onClick={() => setSelectedForwardTarget({ type: 'dm', id: dm.id, name: dm.name })}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          padding: '8px 12px',
+                          borderRadius: '6px',
+                          border: '1px solid ' + (isSelected ? (currentWorkspace === 'concost' ? '#ff6b00' : 'var(--primary)') : 'transparent'),
+                          backgroundColor: isSelected ? 'var(--bg-active)' : 'transparent',
+                          color: 'var(--text-primary)',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          width: '100%',
+                          fontSize: '0.85rem'
+                        }}
+                      >
+                        <div style={{
+                          width: '18px',
+                          height: '18px',
+                          borderRadius: '4px',
+                          backgroundColor: dm.avatarColor || 'var(--bg-hover)',
+                          color: '#ffffff',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '0.65rem',
+                          fontWeight: 'bold'
+                        }}>
+                          {dm.name.charAt(0)}
+                        </div>
+                        <span>{dm.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Footer Buttons */}
+            <div style={{
+              padding: '12px 20px',
+              borderTop: '1px solid var(--border)',
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: '8px',
+              backgroundColor: 'var(--bg-secondary)'
+            }}>
+              <button
+                type="button"
+                onClick={() => setIsForwardModalOpen(false)}
+                style={{
+                  padding: '8px 14px',
+                  borderRadius: '6px',
+                  border: '1px solid var(--border)',
+                  backgroundColor: 'var(--bg-primary)',
+                  color: 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  fontSize: '0.85rem'
+                }}
+              >
+                {currentWorkspace === 'vietqs' ? 'Hủy bỏ' : '취소'}
+              </button>
+              <button
+                type="button"
+                disabled={!selectedForwardTarget}
+                onClick={() => {
+                  if (selectedForwardTarget && onForwardMessage) {
+                    onForwardMessage(selectedForwardTarget, messageToForward);
+                    setIsForwardModalOpen(false);
+                  }
+                }}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  backgroundColor: selectedForwardTarget 
+                    ? (currentWorkspace === 'concost' ? '#ff6b00' : 'var(--primary)')
+                    : 'var(--border-light)',
+                  color: selectedForwardTarget ? '#ffffff' : 'var(--text-muted)',
+                  cursor: selectedForwardTarget ? 'pointer' : 'default',
+                  fontWeight: 'bold',
+                  fontSize: '0.85rem'
+                }}
+              >
+                {currentWorkspace === 'vietqs' ? 'Chuyển tiếp' : '전달하기'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

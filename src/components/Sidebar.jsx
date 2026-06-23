@@ -59,6 +59,32 @@ export default function Sidebar({
 
   const roleLevel = getUserRoleLevel(currentUser);
 
+  const isConcost = currentWorkspace === 'concost';
+  const workspaceBarBg = isConcost ? '#ff6b00' : '#0058bc';
+  
+  let subPanelBg = 'var(--bg-secondary)';
+  if (isConcost) {
+    subPanelBg = isLightTheme ? '#fff5eb' : '#26160d';
+  } else {
+    subPanelBg = isLightTheme ? '#f0f5ff' : '#0f1a30';
+  }
+
+  // 2단 패널 대비에 최적화된 동적 글자/보더 컬러 정의
+  const themeStyles = {
+    textMuted: isConcost 
+      ? (isLightTheme ? '#8c705c' : '#bcaaa4') 
+      : (isLightTheme ? '#5c708c' : '#90a4ae'),
+    textSecondary: isConcost
+      ? (isLightTheme ? '#5c4533' : '#d7ccc8')
+      : (isLightTheme ? '#33455c' : '#cfd8dc'),
+    bgActive: isConcost
+      ? (isLightTheme ? 'rgba(255, 107, 0, 0.16)' : 'rgba(255, 107, 0, 0.22)')
+      : (isLightTheme ? 'rgba(0, 88, 188, 0.12)' : 'rgba(0, 88, 188, 0.22)'),
+    borderLight: isConcost
+      ? (isLightTheme ? '#f5e4d5' : '#3d2518')
+      : (isLightTheme ? '#dbe5f5' : '#14223d')
+  };
+
   const handleMouseDown = (e) => {
     e.preventDefault();
     const startX = e.clientX;
@@ -81,24 +107,24 @@ export default function Sidebar({
     document.addEventListener('mouseup', handleMouseUp);
   };
 
-  // 1단 글로벌 네비게이션 메뉴 정의 (네이버웍스 스타일 고유 컬러 및 입체적 fill 적용)
+  // 1단 글로벌 네비게이션 메뉴 정의 (컴포넌트 렌더링 시점에 가독성 오버라이드)
   const menuItems = [
-    { id: 'home', label: 'HOME', icon: <Home size={28} style={{ color: '#007aff', fill: '#007aff1f', strokeWidth: 2 }} />, color: '#007aff' },
-    { id: 'chat', label: t.chat, icon: <MessageSquare size={28} style={{ color: '#2eb67d', fill: '#2eb67d1f', strokeWidth: 2 }} />, color: '#2eb67d', badge: chatUnreadCount },
-    { id: 'mail', label: t.mail, icon: <Mail size={28} style={{ color: '#0058bc', fill: '#0058bc1f', strokeWidth: 2 }} />, color: '#0058bc', badge: mailUnreadCount },
-    { id: 'calendar', label: t.calendar, icon: <Calendar size={28} style={{ color: '#8a2be2', fill: '#8a2be21f', strokeWidth: 2 }} />, color: '#8a2be2' }
+    { id: 'home', label: 'HOME', icon: Home, color: '#007aff' },
+    { id: 'chat', label: t.chat, icon: MessageSquare, color: '#2eb67d', badge: chatUnreadCount },
+    { id: 'mail', label: t.mail, icon: Mail, color: '#0058bc', badge: mailUnreadCount },
+    { id: 'calendar', label: t.calendar, icon: Calendar, color: '#8a2be2' }
   ];
 
   // 프로젝트 칸반: PM 이상 (Level 1, 2, 3) 노출
   if (roleLevel <= 3) {
-    menuItems.push({ id: 'project', label: t.project, icon: <Layers size={28} style={{ color: '#5856d6', fill: '#5856d61f', strokeWidth: 2 }} />, color: '#5856d6' });
+    menuItems.push({ id: 'project', label: t.project, icon: Layers, color: '#5856d6' });
   }
 
   // 드라이브, 할일, 게시판: 모든 등급 노출
   menuItems.push(
-    { id: 'drive', label: t.drive, icon: <Cloud size={28} style={{ color: '#00bfff', fill: '#00bfff1f', strokeWidth: 2 }} />, color: '#00bfff' },
-    { id: 'todo', label: t.todo, icon: <CheckCircle size={28} style={{ color: '#ff2d55', fill: '#ff2d551f', strokeWidth: 2 }} />, color: '#ff2d55', badge: todoCount },
-    { id: 'board', label: t.board, icon: <Megaphone size={28} style={{ color: '#ff9500', fill: '#ff95001f', strokeWidth: 2 }} />, color: '#ff9500' }
+    { id: 'drive', label: t.drive, icon: Cloud, color: '#00bfff' },
+    { id: 'todo', label: t.todo, icon: CheckCircle, color: '#ff2d55', badge: todoCount },
+    { id: 'board', label: t.board, icon: Megaphone, color: '#ff9500' }
   );
 
   // 조직도: 임원 이상 (Level 1, 2) 노출
@@ -106,7 +132,7 @@ export default function Sidebar({
     menuItems.push({ 
       id: 'hr', 
       label: currentWorkspace === 'vietqs' ? 'Sơ đồ tổ chức' : '조직도', 
-      icon: <Users size={28} style={{ color: '#52c41a', fill: '#52c41a1f', strokeWidth: 2 }} />, 
+      icon: Users, 
       color: '#52c41a' 
     });
   }
@@ -603,12 +629,17 @@ export default function Sidebar({
   return (
     <div style={styles.container}>
       {/* 1단: Global Workspace & Menu Navigation Dock */}
-      <div style={styles.workspaceBar}>
+      <div style={{ 
+        ...styles.workspaceBar, 
+        backgroundColor: workspaceBarBg,
+        borderRight: isConcost ? '1px solid rgba(255, 255, 255, 0.12)' : '1px solid var(--border)'
+      }}>
         <div style={styles.workspaceList}>
           {/* 네이버웍스 스타일 글로벌 메뉴들 (아이콘 고유 컬러 및 글로우 연동) */}
           {menuItems.map(item => {
             const isMenuSelected = currentMenu === item.id;
             const itemColor = item.color;
+            const IconComp = item.icon;
             
             return (
               <button 
@@ -616,10 +647,10 @@ export default function Sidebar({
                 className="menu-item-btn"
                 style={{
                   ...styles.menuItemBtn,
-                  color: isMenuSelected ? itemColor : 'var(--text-secondary)',
-                  backgroundColor: isMenuSelected ? `${itemColor}1c` : 'transparent',
-                  border: isMenuSelected ? `1.5px solid ${itemColor}` : '1.5px solid transparent',
-                  boxShadow: isMenuSelected ? `0 0 14px ${itemColor}45` : 'none',
+                  color: isMenuSelected ? '#ffffff' : 'rgba(255, 255, 255, 0.65)',
+                  backgroundColor: isMenuSelected ? 'rgba(255, 255, 255, 0.18)' : 'transparent',
+                  border: isMenuSelected ? '1.5px solid rgba(255, 255, 255, 0.3)' : '1.5px solid transparent',
+                  boxShadow: isMenuSelected ? '0 0 14px rgba(255, 255, 255, 0.25)' : 'none',
                   transform: isMenuSelected ? 'scale(1.05)' : 'scale(1)',
                   transition: 'all 0.22s cubic-bezier(0.4, 0, 0.2, 1)',
                   outline: 'none',
@@ -628,10 +659,10 @@ export default function Sidebar({
                 title={item.label}
                 onMouseEnter={(e) => {
                   if (!isMenuSelected) {
-                    e.currentTarget.style.backgroundColor = `${itemColor}15`;
-                    e.currentTarget.style.borderColor = `${itemColor}40`;
-                    e.currentTarget.style.color = itemColor;
-                    e.currentTarget.style.boxShadow = `0 0 10px ${itemColor}30`;
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)';
+                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+                    e.currentTarget.style.color = '#ffffff';
+                    e.currentTarget.style.boxShadow = '0 0 10px rgba(255, 255, 255, 0.15)';
                     e.currentTarget.style.transform = 'scale(1.05)';
                   }
                 }}
@@ -639,13 +670,14 @@ export default function Sidebar({
                   if (!isMenuSelected) {
                     e.currentTarget.style.backgroundColor = 'transparent';
                     e.currentTarget.style.borderColor = 'transparent';
-                    e.currentTarget.style.color = 'var(--text-secondary)';
+                    e.currentTarget.style.color = 'rgba(255, 255, 255, 0.65)';
                     e.currentTarget.style.boxShadow = 'none';
                     e.currentTarget.style.transform = 'scale(1)';
                   }
                 }}
               >
-                {item.icon}
+                <IconComp size={26} strokeWidth={isMenuSelected ? 2.5 : 2} style={{ color: 'inherit' }} />
+                <span style={{ ...styles.menuLabel, color: 'inherit' }}>{item.label}</span>
                 {item.badge && item.badge > 0 ? (
                   <span style={styles.menuBadge}>{item.badge}</span>
                 ) : null}
@@ -661,10 +693,10 @@ export default function Sidebar({
             className="action-btn"
             style={{
               ...styles.actionBtn,
-              borderColor: isChatbotVisible ? 'var(--primary)' : 'rgba(255,255,255,0.08)',
-              color: isChatbotVisible ? 'var(--primary)' : 'var(--text-secondary)',
-              backgroundColor: isChatbotVisible ? 'rgba(255, 107, 0, 0.08)' : 'var(--bg-secondary)',
-              boxShadow: isChatbotVisible ? '0 0 12px rgba(255,107,0,0.25)' : 'none',
+              borderColor: isChatbotVisible ? 'rgba(255, 255, 255, 0.45)' : 'rgba(255, 255, 255, 0.15)',
+              color: '#ffffff',
+              backgroundColor: isChatbotVisible ? 'rgba(255, 255, 255, 0.22)' : 'rgba(255, 255, 255, 0.05)',
+              boxShadow: isChatbotVisible ? '0 0 12px rgba(255, 255, 255, 0.3)' : 'none',
               marginBottom: '4px',
               transition: 'all 0.2s ease',
               cursor: 'pointer',
@@ -674,16 +706,16 @@ export default function Sidebar({
             title="AI 챗봇 비서 활성화"
             onMouseEnter={(e) => {
               if (!isChatbotVisible) {
-                e.currentTarget.style.borderColor = 'var(--primary)';
-                e.currentTarget.style.color = 'var(--primary)';
-                e.currentTarget.style.boxShadow = '0 0 10px rgba(255,107,0,0.2)';
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.4)';
+                e.currentTarget.style.color = '#ffffff';
+                e.currentTarget.style.boxShadow = '0 0 10px rgba(255, 255, 255, 0.2)';
                 e.currentTarget.style.transform = 'translateY(-1px)';
               }
             }}
             onMouseLeave={(e) => {
               if (!isChatbotVisible) {
-                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
-                e.currentTarget.style.color = 'var(--text-secondary)';
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+                e.currentTarget.style.color = 'rgba(255, 255, 255, 0.65)';
                 e.currentTarget.style.boxShadow = 'none';
                 e.currentTarget.style.transform = 'translateY(0)';
               }
@@ -697,7 +729,9 @@ export default function Sidebar({
             className="action-btn"
             style={{
               ...styles.actionBtn,
-              borderColor: 'rgba(255,255,255,0.08)',
+              borderColor: 'rgba(255, 255, 255, 0.15)',
+              color: isLightTheme ? '#ffcc00' : '#ffffff',
+              backgroundColor: 'rgba(255, 255, 255, 0.05)',
               transition: 'all 0.2s ease',
               cursor: 'pointer',
               outline: 'none',
@@ -708,12 +742,12 @@ export default function Sidebar({
             onMouseEnter={(e) => {
               e.currentTarget.style.borderColor = '#ffcc00';
               e.currentTarget.style.color = '#ffcc00';
-              e.currentTarget.style.boxShadow = '0 0 10px rgba(255,204,0,0.2)';
+              e.currentTarget.style.boxShadow = '0 0 10px rgba(255, 255, 255, 0.2)';
               e.currentTarget.style.transform = 'translateY(-1px)';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
-              e.currentTarget.style.color = 'var(--text-secondary)';
+              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+              e.currentTarget.style.color = isLightTheme ? '#ffcc00' : '#ffffff';
               e.currentTarget.style.boxShadow = 'none';
               e.currentTarget.style.transform = 'translateY(0)';
             }}
@@ -726,7 +760,9 @@ export default function Sidebar({
             className="action-btn"
             style={{
               ...styles.actionBtn,
-              borderColor: 'rgba(255,255,255,0.08)',
+              borderColor: 'rgba(255, 255, 255, 0.15)',
+              color: '#ffffff',
+              backgroundColor: 'rgba(255, 255, 255, 0.05)',
               transition: 'all 0.2s ease',
               cursor: 'pointer',
               outline: 'none',
@@ -735,14 +771,14 @@ export default function Sidebar({
             onClick={onOpenSettings} 
             title="환경 설정"
             onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = 'var(--primary)';
-              e.currentTarget.style.color = 'var(--primary)';
-              e.currentTarget.style.boxShadow = '0 0 10px rgba(255,107,0,0.2)';
+              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.4)';
+              e.currentTarget.style.color = '#ffffff';
+              e.currentTarget.style.boxShadow = '0 0 10px rgba(255, 255, 255, 0.2)';
               e.currentTarget.style.transform = 'translateY(-1px)';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
-              e.currentTarget.style.color = 'var(--text-secondary)';
+              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+              e.currentTarget.style.color = '#ffffff';
               e.currentTarget.style.boxShadow = 'none';
               e.currentTarget.style.transform = 'translateY(0)';
             }}
@@ -753,7 +789,8 @@ export default function Sidebar({
           <div style={styles.avatarWrapper} onClick={() => onUserClick && onUserClick(currentUser?.id)}>
             <div style={{ 
               ...styles.myAvatar, 
-              backgroundColor: currentUser?.photoUrl ? 'transparent' : 'var(--primary)',
+              backgroundColor: currentUser?.photoUrl ? 'transparent' : 'rgba(255,255,255,0.2)',
+              border: '1.5px solid rgba(255,255,255,0.4)',
               cursor: 'pointer', 
               overflow: 'hidden' 
             }}>
@@ -764,12 +801,12 @@ export default function Sidebar({
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
                 />
               ) : (
-                <span style={{ fontSize: '0.95rem', fontWeight: 'bold' }}>
+                <span style={{ fontSize: '0.95rem', fontWeight: 'bold', color: '#ffffff' }}>
                   {currentUser?.userName ? currentUser.userName.charAt(0) : (currentWorkspace === 'vietqs' ? 'G' : '대')}
                 </span>
               )}
             </div>
-            <span className="status-dot online" style={styles.myStatus} />
+            <span className="status-dot online" style={{ ...styles.myStatus, borderColor: workspaceBarBg }} />
           </div>
         </div>
       </div>
@@ -779,9 +816,11 @@ export default function Sidebar({
         className="sidebar-subpanel"
         style={{
           ...styles.subPanel,
+          backgroundColor: subPanelBg,
           width: `${subPanelWidth}px`,
           display: (currentMenu === 'home' || !isSidebarOpen) ? 'none' : 'flex',
-          position: 'relative'
+          position: 'relative',
+          borderRight: `1px solid ${themeStyles.borderLight}`
         }}
       >
         {/* resize handle */}
