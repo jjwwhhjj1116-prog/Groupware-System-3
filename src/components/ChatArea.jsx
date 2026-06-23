@@ -16,7 +16,8 @@ import {
    LogOut,
    Copy,
    Forward,
-   Globe
+   Globe,
+   Star
 } from 'lucide-react';
 import ceoDongmyungImg from '../assets/ceo_dongmyung.png';
 
@@ -44,7 +45,11 @@ export default function ChatArea({
   onExitChat,
   onForwardMessage,
   channels = [],
-  dms = []
+  dms = [],
+  favoritedChats = [],
+  onToggleFavorite,
+  onToggleMessageReaction,
+  currentUser
 }) {
   const [inputText, setInputText] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -119,19 +124,60 @@ export default function ChatArea({
     setIsDragging(false);
   };
 
+  const handleDownloadFile = (fileName, fileData) => {
+    try {
+      const link = document.createElement('a');
+      link.href = fileData;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error('File download failed:', err);
+      alert('파일 다운로드 처리에 실패했습니다.');
+    }
+  };
+
+  const formatBytes = (bytes, decimals = 2) => {
+    if (!bytes) return '0 Bytes';
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+  };
+
+  const processFile = (file) => {
+    if (file.size > 25 * 1024 * 1024) {
+      alert('최대 25MB 이하의 파일만 업로드할 수 있습니다.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      onSendMessage(null, null, {
+        fileName: file.name,
+        fileSize: formatBytes(file.size),
+        fileData: reader.result,
+        fileType: file.type
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleDrop = (e) => {
     e.preventDefault();
     setIsDragging(false);
     const files = e.dataTransfer.files;
     if (files && files.length > 0) {
-      alert(`[드롭 파일 전송 완료]: ${files[0].name} (${(files[0].size/1024).toFixed(1)} KB)`);
+      processFile(files[0]);
     }
   };
 
   const handleFileChange = (e) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      alert(`[파일 첨부 완료]: ${files[0].name} (${(files[0].size/1024).toFixed(1)} KB)`);
+      processFile(files[0]);
+      e.target.value = '';
     }
   };
 
@@ -481,7 +527,7 @@ export default function ChatArea({
                     onMouseEnter={() => setHoveredMsgId(msg.id)}
                     onMouseLeave={() => setHoveredMsgId(null)}
                   >
-                    {/* Sender Name & Time */}
+                    {/* Sender Name */}
                     {!isMe && (
                       <div style={styles.senderMeta}>
                         <span 
@@ -495,7 +541,6 @@ export default function ChatArea({
                         >
                           {isCeoBot ? (currentWorkspace === 'vietqs' ? '✨ AI Tư vấn Chi phí XD (Dongmyung)' : '✨ AI 공사비 컨설팅 CEO (동명)') : msg.senderName}
                         </span>
-                        <span style={styles.msgTime}>{msg.time}</span>
                       </div>
                     )}
 
@@ -534,6 +579,55 @@ export default function ChatArea({
                       }}
                     >
                       {msg.content && <div style={styles.msgText}>{msg.content}</div>}
+
+                      {/* 파일 첨부 및 프리뷰/다운로드 */}
+                      {msg.fileName && msg.fileData && (
+                        msg.fileType && msg.fileType.startsWith('image/') ? (
+                          <img 
+                            src={msg.fileData} 
+                            alt={msg.fileName} 
+                            style={{ 
+                              maxWidth: '240px', 
+                              maxHeight: '180px', 
+                              borderRadius: '8px', 
+                              cursor: 'pointer', 
+                              marginTop: '6px', 
+                              display: 'block',
+                              border: '1px solid var(--border-light)' 
+                            }} 
+                            onClick={() => handleDownloadFile(msg.fileName, msg.fileData)} 
+                          />
+                        ) : (
+                          <div 
+                            onClick={() => handleDownloadFile(msg.fileName, msg.fileData)}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '10px',
+                              padding: '10px 14px',
+                              borderRadius: '8px',
+                              backgroundColor: 'var(--bg-secondary)',
+                              border: '1px solid var(--border)',
+                              cursor: 'pointer',
+                              marginTop: '6px',
+                              transition: 'background-color 0.2s',
+                              maxWidth: '300px'
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-active)'}
+                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-secondary)'}
+                          >
+                            <div style={{ fontSize: '1.5rem' }}>📄</div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                                {msg.fileName}
+                              </div>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                {msg.fileSize || '0 Bytes'}
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      )}
 
                       {/* Display AI Character Image if present */}
                       {msg.youngjaImageUrl && (
@@ -602,110 +696,170 @@ export default function ChatArea({
                       </div>
                     )}
 
-                    {/* 마우스오버 미니 툴바 (복사/번역/전달) */}
-                    {hoveredMsgId === msg.id && msg.content && (
+                    {/* 리액션 배지 목록 */}
+                    {msg.reactions && msg.reactions.length > 0 && (
                       <div style={{
-                        position: 'absolute',
-                        top: isMe ? '-18px' : '18px',
-                        right: isMe ? 'auto' : '-32px',
-                        left: isMe ? '-32px' : 'auto',
                         display: 'flex',
-                        flexDirection: 'column',
-                        gap: '3px',
-                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                        backdropFilter: 'blur(6px)',
-                        border: '1px solid rgba(0,0,0,0.1)',
-                        borderRadius: '6px',
-                        padding: '3px',
-                        boxShadow: '0 4px 10px rgba(0,0,0,0.08)',
-                        zIndex: 10,
-                        alignItems: 'center',
+                        flexWrap: 'wrap',
+                        gap: '4px',
+                        marginTop: '4px',
+                        alignSelf: isMe ? 'flex-end' : 'flex-start'
                       }}>
-                        <button 
-                          type="button"
-                          title="복사"
-                          onClick={() => {
-                            navigator.clipboard.writeText(msg.content);
-                            setCopiedMsgId(msg.id);
-                            setTimeout(() => setCopiedMsgId(null), 1200);
-                          }}
-                          style={{
-                            border: 'none',
-                            background: 'none',
-                            cursor: 'pointer',
-                            padding: '3px',
-                            color: '#555555',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            borderRadius: '4px',
-                            transition: 'background-color 0.2s'
-                          }}
-                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.06)'}
-                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                        >
-                          <Copy size={13} />
-                        </button>
-
-                        <button 
-                          type="button"
-                          title="번역"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleTranslate(msg.id, msg.content, !!msg.translation);
-                          }}
-                          style={{
-                            border: 'none',
-                            background: 'none',
-                            cursor: 'pointer',
-                            padding: '3px',
-                            color: '#555555',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            borderRadius: '4px',
-                            transition: 'background-color 0.2s'
-                          }}
-                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.06)'}
-                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                        >
-                          <Globe size={13} />
-                        </button>
-
-                        <button 
-                          type="button"
-                          title="전달"
-                          onClick={() => {
-                            setMessageToForward(msg.content);
-                            setIsForwardModalOpen(true);
-                            setSelectedForwardTarget(null);
-                          }}
-                          style={{
-                            border: 'none',
-                            background: 'none',
-                            cursor: 'pointer',
-                            padding: '3px',
-                            color: '#555555',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            borderRadius: '4px',
-                            transition: 'background-color 0.2s'
-                          }}
-                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.06)'}
-                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                        >
-                          <Forward size={13} />
-                        </button>
+                        {Object.entries(
+                          msg.reactions.reduce((acc, curr) => {
+                            if (!curr || typeof curr !== 'string') return acc;
+                            const parts = curr.split(':');
+                            const emoji = parts[0];
+                            const userName = parts[2];
+                            if (emoji && userName) {
+                              if (!acc[emoji]) acc[emoji] = [];
+                              acc[emoji].push(userName);
+                            }
+                            return acc;
+                          }, {})
+                        ).map(([emoji, users]) => {
+                          const hasMyReaction = msg.reactions.some(r => r && typeof r === 'string' && r.startsWith(`${emoji}:${currentUser?.id || 'me'}:`));
+                          return (
+                            <div 
+                              key={emoji}
+                              title={users.join(', ')}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (onToggleMessageReaction) {
+                                  onToggleMessageReaction(msg.id, emoji);
+                                }
+                              }}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '3px',
+                                backgroundColor: hasMyReaction ? 'rgba(255, 107, 0, 0.08)' : 'var(--bg-secondary)',
+                                border: `1px solid ${hasMyReaction ? '#ff6b00' : 'var(--border)'}`,
+                                borderRadius: '12px',
+                                padding: '2px 8px',
+                                fontSize: '0.75rem',
+                                cursor: 'pointer',
+                                userSelect: 'none',
+                                transition: 'all 0.15s ease'
+                              }}
+                            >
+                              <span>{emoji}</span>
+                              <span style={{ fontWeight: '600', color: hasMyReaction ? '#ff6b00' : 'var(--text-secondary)' }}>{users.length}</span>
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
 
-                    {isMe && (
-                      <div style={styles.myTimeMeta}>
-                        <Check size={12} style={{ color: 'var(--text-muted)', marginRight: '4px' }} />
-                        <span style={styles.msgTime}>{msg.time}</span>
-                      </div>
-                    )}
+                    {/* 말풍선 하단 시간 + 호버 아이콘들 */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      marginTop: '4px',
+                      flexDirection: isMe ? 'row-reverse' : 'row',
+                      alignSelf: isMe ? 'flex-end' : 'flex-start',
+                      minHeight: '20px'
+                    }}>
+                      {isMe && <Check size={12} style={{ color: 'var(--text-muted)' }} />}
+                      <span style={styles.msgTime}>{msg.time}</span>
+                      
+                      {/* 마우스오버 시 표시되는 5개 호버 버튼 툴바 */}
+                      {hoveredMsgId === msg.id && (
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          marginLeft: isMe ? '0' : '8px',
+                          marginRight: isMe ? '8px' : '0',
+                          backgroundColor: 'var(--bg-secondary)',
+                          border: '1px solid var(--border-light)',
+                          borderRadius: '20px',
+                          padding: '2px 8px',
+                          boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                          animation: 'fadeIn 0.15s ease'
+                        }}>
+                          {/* 1. 번역/메뉴 (☰) */}
+                          <button 
+                            type="button"
+                            title="번역"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleTranslate(msg.id, msg.content || '', !!msg.translation);
+                            }}
+                            style={styles.lowerToolBtn}
+                          >
+                            <Menu size={11} />
+                          </button>
+
+                          {/* 2. 복사 (📋) */}
+                          <button 
+                            type="button"
+                            title="복사"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigator.clipboard.writeText(msg.content || msg.fileName || '');
+                              setCopiedMsgId(msg.id);
+                              setTimeout(() => setCopiedMsgId(null), 1200);
+                            }}
+                            style={styles.lowerToolBtn}
+                          >
+                            <Copy size={11} />
+                          </button>
+
+                          {/* 3. 전달 (➡️) */}
+                          <button 
+                            type="button"
+                            title="전달"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setMessageToForward(msg.content || msg.fileName || '첨부파일');
+                              setIsForwardModalOpen(true);
+                              setSelectedForwardTarget(null);
+                            }}
+                            style={styles.lowerToolBtn}
+                          >
+                            <Forward size={11} />
+                          </button>
+
+                          {/* 4. 상태 이모티콘 남기기 (❤️) */}
+                          <button 
+                            type="button"
+                            title="리액션 남기기"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (onToggleMessageReaction) {
+                                onToggleMessageReaction(msg.id, '❤️');
+                              }
+                            }}
+                            style={{
+                              ...styles.lowerToolBtn,
+                              color: (msg.reactions && msg.reactions.some(r => r.startsWith('❤️:'))) ? 'var(--danger)' : 'var(--text-secondary)'
+                            }}
+                          >
+                            <span style={{ fontSize: '10px', display: 'flex', alignItems: 'center' }}>❤️</span>
+                          </button>
+
+                          {/* 5. 즐겨찾기 채팅 등록 (⭐) */}
+                          <button 
+                            type="button"
+                            title="채팅방 즐겨찾기"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (onToggleFavorite) {
+                                onToggleFavorite(activeChat.id);
+                              }
+                            }}
+                            style={{
+                              ...styles.lowerToolBtn,
+                              color: favoritedChats && favoritedChats.includes(activeChat.id) ? '#ffcc00' : 'var(--text-secondary)'
+                            }}
+                          >
+                            <Star size={11} fill={favoritedChats && favoritedChats.includes(activeChat.id) ? '#ffcc00' : 'none'} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
@@ -1180,6 +1334,20 @@ export default function ChatArea({
 }
 
 const styles = {
+  lowerToolBtn: {
+    border: 'none',
+    background: 'none',
+    cursor: 'pointer',
+    padding: '3px',
+    color: 'var(--text-secondary)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: '4px',
+    transition: 'background-color 0.2s',
+    width: '18px',
+    height: '18px'
+  },
   container: {
     display: 'flex',
     flexDirection: 'column',

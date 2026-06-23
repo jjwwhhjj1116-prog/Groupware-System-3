@@ -75,7 +75,11 @@ const ChatSchema = new mongoose.Schema({
   channelId: String,
   reactions: { type: Array, default: [] },
   youngjaImageUrl: String,
-  translation: String
+  translation: String,
+  fileName: String,
+  fileSize: String,
+  fileData: String,
+  fileType: String
 });
 const Chat = mongoose.model('Chat', ChatSchema);
 
@@ -557,6 +561,26 @@ io.on('connection', (socket) => {
       socket.to(msg.channelId).emit('message:receive', msg);
     } catch (err) {
       console.error('❌ Socket chat save error:', err);
+    }
+  });
+
+  socket.on('message:reaction', async ({ msgId, channelId, userId, userName, emoji }) => {
+    try {
+      const chat = await Chat.findOne({ id: msgId });
+      if (chat) {
+        if (!chat.reactions) chat.reactions = [];
+        const reactionKey = `${emoji}:${userId}:${userName}`;
+        const index = chat.reactions.indexOf(reactionKey);
+        if (index > -1) {
+          chat.reactions.splice(index, 1);
+        } else {
+          chat.reactions.push(reactionKey);
+        }
+        await chat.save();
+        io.to(channelId).emit('message:reaction:updated', { msgId, reactions: chat.reactions });
+      }
+    } catch (err) {
+      console.error('❌ Socket reaction save error:', err);
     }
   });
 

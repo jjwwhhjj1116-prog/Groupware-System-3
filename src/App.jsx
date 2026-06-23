@@ -299,6 +299,30 @@ export default function App() {
   // Gemini API Key 및 모델명 보관 설정
   const [geminiKey, setGeminiKey] = useState(localStorage.getItem('gemini_api_key') || '');
   const [geminiModel, setGeminiModel] = useState(localStorage.getItem('gemini_model') || 'gemini-1.5-flash');
+  
+  const [currentWorkspace, setCurrentWorkspace] = useState('concost'); // 'concost' or 'vietqs'
+  const [currentMenu, setCurrentMenu] = useState('home'); // 'home', 'chat', 'mail', etc.
+
+  // 즐겨찾기(⭐) 채팅방 ID 목록 상태
+  const [favoritedChats, setFavoritedChats] = useState(() => {
+    try {
+      const saved = localStorage.getItem('favorited_chats');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('favorited_chats', JSON.stringify(favoritedChats));
+  }, [favoritedChats]);
+
+  const handleToggleFavorite = (roomId) => {
+    setFavoritedChats(prev => 
+      prev.includes(roomId) ? prev.filter(id => id !== roomId) : [...prev, roomId]
+    );
+  };
+
   const [aiEnabled, setAiEnabled] = useState(localStorage.getItem('ai_assistant_enabled') !== 'false');
   const [realtimeTrans, setRealtimeTrans] = useState(() => localStorage.getItem('realtime_translation') === 'true');
   const [desktopNotif, setDesktopNotif] = useState(() => localStorage.getItem('settings_desktop_notif') !== 'false');
@@ -308,11 +332,6 @@ export default function App() {
   const [allEmployees, setAllEmployees] = useState([]);
   const [isHrCardOpen, setIsHrCardOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
-
-  const [currentWorkspace, setCurrentWorkspace] = useState('concost'); // 'concost' or 'vietqs'
-  const [currentMenu, setCurrentMenu] = useState('home'); // 'home', 'chat', 'mail', etc.
-
-
 
   const [isLightTheme, setIsLightTheme] = useState(true);
   const [chatUnreadCount, setChatUnreadCount] = useState(3); // 안읽은 채팅 카운트 기본 3
@@ -680,6 +699,19 @@ export default function App() {
       }
     });
 
+    // 리액션 업데이트 리스너 추가
+    socket.on('message:reaction:updated', ({ msgId, reactions }) => {
+      setMessages(prev => {
+        const next = { ...prev };
+        for (const key in next) {
+          if (next[key]) {
+            next[key] = next[key].map(m => m.id === msgId ? { ...m, reactions } : m);
+          }
+        }
+        return next;
+      });
+    });
+
     return () => {
       socket.disconnect();
     };
@@ -912,7 +944,7 @@ export default function App() {
     }
   }, [activeChat, currentWorkspace]);
 
-  // 테마 및 CSS 클래스 토글
+  // 테마 및 CSS 클래스 토글 & AI 어시스턴트 웰컴 메시지 동적 튜닝
   useEffect(() => {
     const root = document.documentElement;
     if (currentWorkspace === 'concost') {
@@ -924,15 +956,18 @@ export default function App() {
     }
 
     const isViet = currentWorkspace === 'vietqs';
+    const userName = currentUser?.userName || (isViet ? 'Giám đốc' : '유종욱');
+    const userGrade = currentUser?.grade || (isViet ? 'Giám đốc' : '실장');
+
     setMessages(prev => {
       const updatedBotMsgs = [...(prev['ai-bot'] || [])];
-      if (updatedBotMsgs.length > 0 && updatedBotMsgs[0].sender === 'youngja') {
+      if (updatedBotMsgs.length > 0) {
         updatedBotMsgs[0] = {
           ...updatedBotMsgs[0],
           senderName: isViet ? '✨ AI Tư vấn Chi phí XD (Dongmyung)' : '✨ AI 공사비 컨설팅 CEO (동명)',
           content: isViet 
-            ? `Xin chào Giám đốc! ✨ Tôi là Dongmyung, AI Tư vấn Chi phí Xây dựng. Ngài có thể hỏi tôi về quy định dự toán hoặc các điều lệ công ty! 🏢\n\n💡 Ví dụ:\n- "Quy định tính toán chi phí xây dựng như thế nào"\n- "Tư vấn thiết kế hoặc quy định công ty"\n- "Xin chào Dongmyung"`
-            : `반갑네, 유종욱 실장! ✨ (주)컨코스트의 회장 현동명이라네. 건축 공사비 적산이나 회사 규정에 대해 궁금한 점이 있으면 무엇이든 물어보게나. 허허.\n\n💡 예를 들면:\n- "건축 공사비 적산 규정이 어떻게 됩니까?"\n- "회사 메신저 사용 규정 알려줘"\n- "BIM 적산 자동화 추진 현황은?"`
+            ? `Xin chào ${userName} ${userGrade}! ✨ Tôi là Dongmyung, AI Tư vấn Chi phí Xây dựng. Tôi ở đây để hỗ trợ ${userGrade}. Ngài có thể hỏi tôi về quy định dự toán hoặc các điều lệ công ty! 🏢\n\n💡 Ví dụ:\n- "Quy định tính toán chi phí xây dựng như thế nào"\n- "Tư vấn thiết kế hoặc quy định công ty"\n- "Xin chào Dongmyung"`
+            : `반갑네, ${userName} ${userGrade}! ✨ (주)컨코스트의 회장 현동명이라네. 내가 자네를 어떻게 도우면 되겠나? 건축 공사비 적산이나 회사 규정에 대해 궁금한 점이 있으면 무엇이든 물어보게나. 허허.\n\n💡 예를 들면:\n- "건축 공사비 적산 규정이 어떻게 됩니까?"\n- "회사 메신저 사용 규정 알려줘"\n- "BIM 적산 자동화 추진 현황은?"`
         };
       }
       return {
@@ -940,7 +975,20 @@ export default function App() {
         'ai-bot': updatedBotMsgs
       };
     });
-  }, [currentWorkspace]);
+
+    setChatbotMessages(prev => {
+      const updated = [...prev];
+      if (updated.length > 0 && updated[0].id === 'cb-1') {
+        updated[0] = {
+          ...updated[0],
+          content: isViet
+            ? `Xin chào ${userName} ${userGrade}! 🤖 Tôi là Trợ lý CC AI thông minh hỗ trợ ${userGrade}. Nếu ngài có thắc mắc gì về chi phí xây dựng hoặc lịch trình, xin vui lòng hỏi tôi!`
+            : `안녕하세요, ${userName} ${userGrade}님! 🤖 저는 ${userGrade}님을 돕는 스마트한 CC AI 비서입니다. 건축 공사비 적산, 사내 규정이나 일정 관리 등 궁금하신 점이 있으시면 편하게 물어보세요!`
+        };
+      }
+      return updated;
+    });
+  }, [currentWorkspace, currentUser]);
 
   useEffect(() => {
     if (isLightTheme) {
@@ -1001,7 +1049,7 @@ export default function App() {
       
       [답변 주의사항 및 말투 페르소나]
       - 본인은 (주)컨코스트의 회장 '현동명'이다. 대답할 때 3인칭으로 부르지 말고 본인을 "나 현동명 회장" 또는 "이 늙은이" 등으로 소탈하게 칭해라.
-      - 메신저의 주 사용자인 유종욱 실장을 향해 "유 실장", "유종욱 실장"이라고 부르며 아랫사람을 아끼는 연륜 있고 따뜻한 회장님 투를 사용하라.
+      - 메신저의 주 사용자인 ${currentUser?.userName || '유종욱'} ${currentUser?.grade || '실장'}을 향해 "${currentUser?.userName || '유종욱'} ${currentUser?.grade || '실장'}" 또는 "${currentUser?.grade || '실장'}"이라고 부르며 아랫사람을 아끼는 연륜 있고 따뜻한 회장님 투를 사용하라.
       - 말투는 정중하고 연륜 있는 어조('~하게나', '허허', '~라네', '~했네', '그렇지 않겠나?')를 엄격히 유지하라.
       - 건축 공사비 적산, BIM 적산 자동화, 그리고 사내 규정에 대한 질문에 대해 깊이 있는 경영적/기술적 조언을 담아라.
       - 대답은 베트남 지사 모드(${isVietMode ? '참' : '거짓'})인 경우 베트남어(Tiếng Việt)를 적절히 섞어서 회장님답게 격려해 주어라.
@@ -1014,7 +1062,7 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [
-            { role: 'user', parts: [{ text: `${systemContext}\n\n[대표님 질문]\n${prompt}` }] }
+            { role: 'user', parts: [{ text: `${systemContext}\n\n[${currentUser?.userName || '유종욱'} ${currentUser?.grade || '실장'} 질문]\n${prompt}` }] }
           ]
         })
       });
@@ -1068,14 +1116,14 @@ export default function App() {
     return null;
   };
 
-  const handleSendMessage = async (content, youngjaImageUrl = null) => {
+  const handleSendMessage = async (content, youngjaImageUrl = null, fileObj = null) => {
     const chatKey = getChatKey();
     const now = new Date();
     const timeStr = now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
     const isViet = currentWorkspace === 'vietqs';
 
     let autoTranslation = null;
-    if (content && !youngjaImageUrl) {
+    if (content && !youngjaImageUrl && !fileObj) {
       autoTranslation = await translateMessageContent(content);
     }
 
@@ -1087,7 +1135,11 @@ export default function App() {
       time: timeStr,
       channelId: chatKey, // 소켓 전송 식별자
       youngjaImageUrl,
-      translation: autoTranslation
+      translation: autoTranslation,
+      fileName: fileObj ? fileObj.fileName : undefined,
+      fileSize: fileObj ? fileObj.fileSize : undefined,
+      fileData: fileObj ? fileObj.fileData : undefined,
+      fileType: fileObj ? fileObj.fileType : undefined
     };
 
     // 로컬 상태 반영
@@ -1113,20 +1165,23 @@ export default function App() {
       if (!reply) {
         await new Promise(resolve => setTimeout(resolve, 1500));
         const query = content.toLowerCase();
+        const targetName = currentUser?.userName || (isViet ? 'Giám đốc' : '유종욱');
+        const targetGrade = currentUser?.grade || (isViet ? 'Giám đốc' : '실장');
+        
         if (isViet) {
           if (query.includes('quy định') || query.includes('chi phí') || query.includes('dự toán')) {
-            reply = `Này Giám đốc! Quy định tính toán chi phí xây dựng và dự toán công trình dựa trên định mức nhà nước hiện hành 🏢\n\nChúng tôi kiểm soát chặt chẽ sai số trong khoảng ±5%. Các kỹ sư phải bám sát bản vẽ BIM để bóc tách khối lượng chi tiết.`;
+            reply = `Này ${targetGrade} ${targetName}! Quy định tính toán chi phí xây dựng và dự toán công trình dựa trên định mức nhà nước hiện hành 🏢\n\nChúng tôi kiểm soát chặt chẽ sai số trong khoảng ±5%. Các kỹ sư phải bám sát bản vẽ BIM để bóc tách khối lượng chi tiết.`;
             imageKey = 'thinking';
           } else {
-            reply = `Chào Giám đốc! Tôi rất ấn tượng với ý tưởng của ngài. 👍 Cùng nhau phát triển phần mềm dự toán tự động thông minh này nhé!`;
+            reply = `Chào ${targetGrade} ${targetName}! Tôi rất ấn tượng với ý tưởng của ngài. 👍 Cùng nhau phát triển phần mềm dự toán tự động thông minh này nhé!`;
             imageKey = 'default';
           }
         } else {
           if (query.includes('적산') || query.includes('공사비') || query.includes('규정')) {
-            reply = `유 실장! 건축 공사비 적산 규정은 국토부 표준품셈과 우리 회사 내부 단가 DB 기준을 엄격히 준수해야 하네. 특히 오차율 3% 이내 유지가 핵심이지. 허허. 자세한 품의 가이드는 드라이브의 '2026_인사규정_통합안.pdf'를 참고하게나.`;
+            reply = `${targetName} ${targetGrade}! 건축 공사비 적산 규정은 국토부 표준품셈과 우리 회사 내부 단가 DB 기준을 엄격히 준수해야 하네. 특히 오차율 3% 이내 유지가 핵심이지. 허허. 자세한 품의 가이드는 드라이브의 '2026_인사규정_통합안.pdf'를 참고하게나.`;
             imageKey = 'thinking';
           } else {
-            reply = `유 실장, 좋은 생각일세! 👍 자비스 부장과 함께 이번 적산 자동화 메신저 모듈을 멋지게 빌드해 주게나. 기대가 크네. 허허.`;
+            reply = `${targetName} ${targetGrade}, 좋은 생각일세! 👍 자비스 부장과 함께 이번 적산 자동화 메신저 모듈을 멋지게 빌드해 주게나. 기대가 크네. 허허.`;
             imageKey = 'default';
           }
         }
@@ -1153,6 +1208,40 @@ export default function App() {
 
       // 챗봇 답변 도착 시 사운드 알림
       playNotificationSound();
+    }
+  };
+
+  const handleToggleMessageReaction = (msgId, emoji) => {
+    const myId = currentUser?.id || 'me';
+    const myName = currentUser?.userName || '대표님';
+    const chatKey = getChatKey();
+    
+    // 로컬 상태 즉시 변경
+    setMessages(prev => {
+      const next = { ...prev };
+      if (next[chatKey]) {
+        next[chatKey] = next[chatKey].map(m => {
+          if (m.id === msgId) {
+            const rx = m.reactions || [];
+            const key = `${emoji}:${myId}:${myName}`;
+            const updated = rx.includes(key) ? rx.filter(r => r !== key) : [...rx, key];
+            return { ...m, reactions: updated };
+          }
+          return m;
+        });
+      }
+      return next;
+    });
+
+    // 소켓 전송
+    if (socketRef.current && activeChat.type !== 'ai') {
+      socketRef.current.emit('message:reaction', {
+        msgId,
+        channelId: chatKey,
+        userId: myId,
+        userName: myName,
+        emoji
+      });
     }
   };
 
@@ -1769,6 +1858,8 @@ export default function App() {
               setCurrentWorkspace(ws);
               setActiveChat({ type: 'channel', id: 'general' });
             }}
+            favoritedChats={favoritedChats}
+            onToggleFavorite={handleToggleFavorite}
             currentMenu={currentMenu}
             onMenuChange={(menu) => {
               const roleLevel = getUserRoleLevel(currentUser);
@@ -2957,6 +3048,10 @@ export default function App() {
             onForwardMessage={handleForwardMessage}
             channels={workspaceChannels[currentWorkspace] || []}
             dms={dms}
+            favoritedChats={favoritedChats}
+            onToggleFavorite={handleToggleFavorite}
+            onToggleMessageReaction={handleToggleMessageReaction}
+            currentUser={currentUser}
           />
         );
 

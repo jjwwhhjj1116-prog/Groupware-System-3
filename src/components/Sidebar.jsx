@@ -1,3 +1,4 @@
+import React, { useState } from 'react';
 import { 
   Hash, 
   MessageSquare, 
@@ -19,7 +20,8 @@ import {
   Trash2,
   AlertCircle,
   Users,
-  Home
+  Home,
+  Search
 } from 'lucide-react';
 import concostVert from '../assets/concost_logo_vert.png';
 import vietqsLogo from '../assets/vietqs_logo.png';
@@ -54,8 +56,18 @@ export default function Sidebar({
   onTodoFilterChange, // 추가
   isSidebarOpen,
   subPanelWidth = 260,
-  onSubPanelWidthChange
+  onSubPanelWidthChange,
+  favoritedChats = [],
+  onToggleFavorite
 }) {
+
+  // 채팅방 검색 및 Collapsible 트리 관련 상태
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isFavoritesExpanded, setIsFavoritesExpanded] = useState(true);
+  const [isGroupChannelsExpanded, setIsGroupChannelsExpanded] = useState(true);
+  const [isDmsExpanded, setIsDmsExpanded] = useState(true);
+  const [isAiExpanded, setIsAiExpanded] = useState(true);
+  const [hoveredItemId, setHoveredItemId] = useState(null);
 
   const roleLevel = getUserRoleLevel(currentUser);
 
@@ -141,138 +153,448 @@ export default function Sidebar({
   const renderSubPanelContent = () => {
     switch (currentMenu) {
       case 'chat':
+        // 1. 대화방 검색 필터링
+        const filteredChannels = channels.filter(c => {
+          let name = c.name;
+          if (currentWorkspace === 'vietqs') {
+            if (name === '일반' || name === 'general') name = 'chung';
+            else if (name === '공지사항' || name === 'notice') name = 'thông-báo';
+            else if (name === '컨코스트-적산팀') name = 'concost-dự-toán';
+          }
+          return name.toLowerCase().includes(searchTerm.toLowerCase());
+        });
+
+        const filteredDms = dms.filter(d => {
+          let name = d.name;
+          if (currentWorkspace === 'vietqs') {
+            if (d.id === 'youngja-dm') name = 'P.Thiết kế Youngja';
+            else if (d.id === 'jabis-dm') name = 'P.Phát triển Jabis';
+            else if (d.id === 'kodari-dm') name = 'Giám đốc Kodari';
+          }
+          return name.toLowerCase().includes(searchTerm.toLowerCase());
+        });
+
+        const isAiMatching = t.aiName.toLowerCase().includes(searchTerm.toLowerCase());
+
+        // 2. 즐겨찾기 아이템 추출 (favoritedChats 리스트에 id가 포함된 것들)
+        const favoriteChannels = channels.filter(c => favoritedChats.includes(c.id));
+        const favoriteDms = dms.filter(d => favoritedChats.includes(d.id));
+
+        const favChansFiltered = favoriteChannels.filter(c => {
+          let name = c.name;
+          if (currentWorkspace === 'vietqs') {
+            if (name === '일반' || name === 'general') name = 'chung';
+            else if (name === '공지사항' || name === 'notice') name = 'thông-báo';
+          }
+          return name.toLowerCase().includes(searchTerm.toLowerCase());
+        });
+
+        const favDmsFiltered = favoriteDms.filter(d => {
+          let name = d.name;
+          if (currentWorkspace === 'vietqs') {
+            if (d.id === 'youngja-dm') name = 'P.Thiết kế Youngja';
+            else if (d.id === 'jabis-dm') name = 'P.Phát triển Jabis';
+            else if (d.id === 'kodari-dm') name = 'Giám đốc Kodari';
+          }
+          return name.toLowerCase().includes(searchTerm.toLowerCase());
+        });
+
         return (
           <>
-            {/* Channels Section */}
+            {/* (1) 즐겨찾는 채팅 Section */}
             <div style={styles.section}>
-              <div style={styles.sectionHeader}>
-                <span style={styles.sectionTitle}>{t.channels}</span>
-                <button style={styles.addBtn} onClick={onOpenModal} title={t.addChannel}>
-                  <Plus size={16} />
+              <div 
+                style={{ ...styles.sectionHeader, cursor: 'pointer', padding: '6px 8px' }}
+                onClick={() => setIsFavoritesExpanded(!isFavoritesExpanded)}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ 
+                    fontSize: '0.65rem', 
+                    color: themeStyles.textMuted,
+                    display: 'inline-block',
+                    transition: 'transform 0.2s', 
+                    transform: isFavoritesExpanded ? 'rotate(0deg)' : 'rotate(-90deg)' 
+                  }}>▼</span>
+                  <span style={styles.sectionTitle}>⭐ {currentWorkspace === 'vietqs' ? 'Trò chuyện ưa thích' : '즐겨찾는 채팅'}</span>
+                </div>
+              </div>
+
+              {isFavoritesExpanded && (
+                <div style={styles.sectionList}>
+                  {favChansFiltered.length === 0 && favDmsFiltered.length === 0 ? (
+                    <div style={{ padding: '8px 12px', fontSize: '0.78rem', color: themeStyles.textMuted, fontStyle: 'italic' }}>
+                      {currentWorkspace === 'vietqs' ? 'Không có phòng ưa thích' : '즐겨찾는 채팅방이 없습니다.'}
+                    </div>
+                  ) : (
+                    <>
+                      {/* 즐겨찾기된 채널 목록 */}
+                      {favChansFiltered.map(channel => {
+                        const isActive = activeChat.type === 'channel' && activeChat.id === channel.id;
+                        let displayChannelName = channel.name;
+                        if (currentWorkspace === 'vietqs') {
+                          if (channel.name === '일반' || channel.name === 'general') displayChannelName = 'chung';
+                          else if (channel.name === '공지사항' || channel.name === 'notice') displayChannelName = 'thông-báo';
+                          else if (channel.name === '컨코스트-적산팀') displayChannelName = 'concost-dự-toán';
+                        }
+                        
+                        return (
+                          <div 
+                            key={`fav-chan-${channel.id}`}
+                            onMouseEnter={() => setHoveredItemId(`fav-chan-${channel.id}`)}
+                            onMouseLeave={() => setHoveredItemId(null)}
+                            style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%' }}
+                          >
+                            <button 
+                              onClick={() => onActiveChatChange({ type: 'channel', id: channel.id })}
+                              style={{
+                                ...styles.itemBtn,
+                                backgroundColor: isActive ? themeStyles.bgActive : 'transparent',
+                                color: isActive ? 'var(--primary)' : themeStyles.textSecondary,
+                                fontWeight: isActive ? '600' : '400',
+                                paddingRight: '36px'
+                              }}
+                            >
+                              <Hash size={16} style={{ color: isActive ? 'var(--primary)' : themeStyles.textMuted }} />
+                              <span style={styles.itemText}>{displayChannelName}</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onToggleFavorite(channel.id);
+                              }}
+                              style={{
+                                position: 'absolute',
+                                right: '8px',
+                                background: 'none',
+                                border: 'none',
+                                cursor: 'pointer',
+                                padding: '4px',
+                                display: (hoveredItemId === `fav-chan-${channel.id}` || favoritedChats.includes(channel.id)) ? 'flex' : 'none',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                              title="즐겨찾기 해제"
+                            >
+                              <Star size={14} fill="#ffcc00" style={{ color: '#ffcc00' }} />
+                            </button>
+                          </div>
+                        );
+                      })}
+
+                      {/* 즐겨찾기된 DM 목록 */}
+                      {favDmsFiltered.map(dm => {
+                        const isActive = activeChat.type === 'dm' && activeChat.id === dm.id;
+                        let displayName = dm.name;
+                        if (currentWorkspace === 'vietqs') {
+                          if (dm.id === 'youngja-dm') displayName = 'P.Thiết kế Youngja';
+                          else if (dm.id === 'jabis-dm') displayName = 'P.Phát triển Jabis';
+                          else if (dm.id === 'kodari-dm') displayName = 'Giám đốc Kodari';
+                        }
+
+                        return (
+                          <div 
+                            key={`fav-dm-${dm.id}`}
+                            onMouseEnter={() => setHoveredItemId(`fav-dm-${dm.id}`)}
+                            onMouseLeave={() => setHoveredItemId(null)}
+                            style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%' }}
+                          >
+                            <button 
+                              onClick={() => onActiveChatChange({ type: 'dm', id: dm.id })}
+                              style={{
+                                ...styles.itemBtn,
+                                backgroundColor: isActive ? themeStyles.bgActive : 'transparent',
+                                color: isActive ? 'var(--primary)' : themeStyles.textSecondary,
+                                fontWeight: isActive ? '600' : '400',
+                                paddingRight: '36px'
+                              }}
+                            >
+                              <div style={styles.avatarSmallWrapper}>
+                                <div style={{
+                                  ...styles.avatarSmall,
+                                  backgroundColor: dm.avatarColor || 'var(--bg-hover)'
+                                }}>
+                                  {displayName.charAt(0)}
+                                </div>
+                                <span className={`status-dot ${dm.status}`} style={styles.statusSmall} />
+                              </div>
+                              <span style={styles.itemText}>{displayName}</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onToggleFavorite(dm.id);
+                              }}
+                              style={{
+                                position: 'absolute',
+                                right: '8px',
+                                background: 'none',
+                                border: 'none',
+                                cursor: 'pointer',
+                                padding: '4px',
+                                display: (hoveredItemId === `fav-dm-${dm.id}` || favoritedChats.includes(dm.id)) ? 'flex' : 'none',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                              title="즐겨찾기 해제"
+                            >
+                              <Star size={14} fill="#ffcc00" style={{ color: '#ffcc00' }} />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* (2) 그룹채널 Section */}
+            <div style={styles.section}>
+              <div 
+                style={{ ...styles.sectionHeader, cursor: 'pointer', padding: '6px 8px' }}
+                onClick={() => setIsGroupChannelsExpanded(!isGroupChannelsExpanded)}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ 
+                    fontSize: '0.65rem', 
+                    color: themeStyles.textMuted,
+                    display: 'inline-block',
+                    transition: 'transform 0.2s', 
+                    transform: isGroupChannelsExpanded ? 'rotate(0deg)' : 'rotate(-90deg)' 
+                  }}>▼</span>
+                  <span style={styles.sectionTitle}>👥 {currentWorkspace === 'vietqs' ? 'Kênh nhóm' : '그룹채널'}</span>
+                </div>
+                <button style={styles.addBtn} onClick={(e) => { e.stopPropagation(); onOpenModal(); }} title={t.addChannel}>
+                  <Plus size={15} style={{ color: themeStyles.textMuted }} />
                 </button>
               </div>
 
-              <div style={styles.sectionList}>
-                {channels.map(channel => {
-                  const isActive = activeChat.type === 'channel' && activeChat.id === channel.id;
-                  // 채널 이름 베트남어 전환 (일반 -> Chung, 공지사항 -> Thông báo)
-                  let displayChannelName = channel.name;
-                  if (currentWorkspace === 'vietqs') {
-                    if (channel.name === '일반' || channel.name === 'general') displayChannelName = 'chung';
-                    else if (channel.name === '공지사항' || channel.name === 'notice') displayChannelName = 'thông-báo';
-                    else if (channel.name === '컨코스트-적산팀') displayChannelName = 'concost-dự-toán';
-                  }
+              {isGroupChannelsExpanded && (
+                <div style={styles.sectionList}>
+                  {filteredChannels.map(channel => {
+                    const isActive = activeChat.type === 'channel' && activeChat.id === channel.id;
+                    const isFav = favoritedChats.includes(channel.id);
+                    let displayChannelName = channel.name;
+                    if (currentWorkspace === 'vietqs') {
+                      if (channel.name === '일반' || channel.name === 'general') displayChannelName = 'chung';
+                      else if (channel.name === '공지사항' || channel.name === 'notice') displayChannelName = 'thông-báo';
+                      else if (channel.name === '컨코스트-적산팀') displayChannelName = 'concost-dự-toán';
+                    }
 
-                  return (
-                    <button 
-                      key={channel.id}
-                      onClick={() => onActiveChatChange({ type: 'channel', id: channel.id })}
-                      style={{
-                        ...styles.itemBtn,
-                        backgroundColor: isActive ? 'var(--bg-active)' : 'transparent',
-                        color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
-                        fontWeight: isActive ? '600' : '400',
-                      }}
-                    >
-                      <Hash size={16} style={{ color: isActive ? 'var(--primary)' : 'var(--text-muted)' }} />
-                      <span style={styles.itemText}>{displayChannelName}</span>
-                    </button>
-                  );
-                })}
-              </div>
+                    return (
+                      <div 
+                        key={channel.id}
+                        onMouseEnter={() => setHoveredItemId(channel.id)}
+                        onMouseLeave={() => setHoveredItemId(null)}
+                        style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%' }}
+                      >
+                        <button 
+                          onClick={() => onActiveChatChange({ type: 'channel', id: channel.id })}
+                          style={{
+                            ...styles.itemBtn,
+                            backgroundColor: isActive ? themeStyles.bgActive : 'transparent',
+                            color: isActive ? 'var(--primary)' : themeStyles.textSecondary,
+                            fontWeight: isActive ? '600' : '400',
+                            paddingRight: '36px'
+                          }}
+                        >
+                          <Hash size={16} style={{ color: isActive ? 'var(--primary)' : themeStyles.textMuted }} />
+                          <span style={styles.itemText}>{displayChannelName}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onToggleFavorite(channel.id);
+                          }}
+                          style={{
+                            position: 'absolute',
+                            right: '8px',
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            padding: '4px',
+                            display: (hoveredItemId === channel.id || isFav) ? 'flex' : 'none',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'all 0.2s'
+                          }}
+                          title={isFav ? "즐겨찾기 해제" : "즐겨찾기 추가"}
+                        >
+                          <Star size={14} fill={isFav ? '#ffcc00' : 'none'} style={{ color: isFav ? '#ffcc00' : themeStyles.textMuted }} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                  {filteredChannels.length === 0 && (
+                    <div style={{ padding: '6px 12px', fontSize: '0.78rem', color: themeStyles.textMuted, fontStyle: 'italic' }}>
+                      {currentWorkspace === 'vietqs' ? 'Không tìm thấy kênh' : '검색된 채널이 없습니다.'}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
-            {/* AI Helper Section */}
+            {/* (3) 다이렉트 메시지 Section */}
+            <div style={styles.section}>
+              <div 
+                style={{ ...styles.sectionHeader, cursor: 'pointer', padding: '6px 8px' }}
+                onClick={() => setIsDmsExpanded(!isDmsExpanded)}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ 
+                    fontSize: '0.65rem', 
+                    color: themeStyles.textMuted,
+                    display: 'inline-block',
+                    transition: 'transform 0.2s', 
+                    transform: isDmsExpanded ? 'rotate(0deg)' : 'rotate(-90deg)' 
+                  }}>▼</span>
+                  <span style={styles.sectionTitle}>💬 {t.dms}</span>
+                </div>
+                <button style={styles.addBtn} onClick={(e) => { e.stopPropagation(); onOpenDmCreateModal(); }} title="새 DM 시작">
+                  <Plus size={15} style={{ color: themeStyles.textMuted }} />
+                </button>
+              </div>
+
+              {isDmsExpanded && (
+                <div style={styles.sectionList}>
+                  {filteredDms.map(dm => {
+                    const isActive = activeChat.type === 'dm' && activeChat.id === dm.id;
+                    const isFav = favoritedChats.includes(dm.id);
+                    let displayName = dm.name;
+                    if (currentWorkspace === 'vietqs') {
+                      if (dm.id === 'youngja-dm') displayName = 'P.Thiết kế Youngja';
+                      else if (dm.id === 'jabis-dm') displayName = 'P.Phát triển Jabis';
+                      else if (dm.id === 'kodari-dm') displayName = 'Giám đốc Kodari';
+                    }
+
+                    return (
+                      <div 
+                        key={dm.id}
+                        onMouseEnter={() => setHoveredItemId(dm.id)}
+                        onMouseLeave={() => setHoveredItemId(null)}
+                        style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%' }}
+                      >
+                        <button 
+                          onClick={() => onActiveChatChange({ type: 'dm', id: dm.id })}
+                          style={{
+                            ...styles.itemBtn,
+                            backgroundColor: isActive ? themeStyles.bgActive : 'transparent',
+                            color: isActive ? 'var(--primary)' : themeStyles.textSecondary,
+                            fontWeight: isActive ? '600' : '400',
+                            paddingRight: '36px'
+                          }}
+                        >
+                          <div style={styles.avatarSmallWrapper}>
+                            <div style={{
+                              ...styles.avatarSmall,
+                              backgroundColor: dm.avatarColor || 'var(--bg-hover)'
+                            }}>
+                              {displayName.charAt(0)}
+                            </div>
+                            <span className={`status-dot ${dm.status}`} style={styles.statusSmall} />
+                          </div>
+                          <span style={styles.itemText}>{displayName}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onToggleFavorite(dm.id);
+                          }}
+                          style={{
+                            position: 'absolute',
+                            right: '8px',
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            padding: '4px',
+                            display: (hoveredItemId === dm.id || isFav) ? 'flex' : 'none',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'all 0.2s'
+                          }}
+                          title={isFav ? "즐겨찾기 해제" : "즐겨찾기 추가"}
+                        >
+                          <Star size={14} fill={isFav ? '#ffcc00' : 'none'} style={{ color: isFav ? '#ffcc00' : themeStyles.textMuted }} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                  {filteredDms.length === 0 && (
+                    <div style={{ padding: '6px 12px', fontSize: '0.78rem', color: themeStyles.textMuted, fontStyle: 'italic' }}>
+                      {currentWorkspace === 'vietqs' ? 'Không tìm thấy người dùng' : '검색된 대화 상대가 없습니다.'}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* (4) AI 어시스턴트 Section */}
             {aiEnabled && (
               <div style={styles.section}>
-                <div style={styles.sectionHeader}>
-                  <span style={styles.sectionTitle}>{t.aiAssistant}</span>
+                <div 
+                  style={{ ...styles.sectionHeader, cursor: 'pointer', padding: '6px 8px' }}
+                  onClick={() => setIsAiExpanded(!isAiExpanded)}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ 
+                      fontSize: '0.65rem', 
+                      color: themeStyles.textMuted,
+                      display: 'inline-block',
+                      transition: 'transform 0.2s', 
+                      transform: isAiExpanded ? 'rotate(0deg)' : 'rotate(-90deg)' 
+                    }}>▼</span>
+                    <span style={styles.sectionTitle}>🤖 {t.aiAssistant}</span>
+                  </div>
                 </div>
-                <div style={styles.sectionList}>
-                  <button 
-                    onClick={() => onActiveChatChange({ type: 'ai', id: 'ai-bot' })}
-                    style={{
-                      ...styles.itemBtn,
-                      backgroundColor: activeChat.type === 'ai' ? 'var(--bg-active)' : 'transparent',
-                      color: activeChat.type === 'ai' ? 'var(--text-primary)' : 'var(--text-secondary)',
-                      fontWeight: activeChat.type === 'ai' ? '600' : '400',
-                    }}
-                  >
-                    <div style={{
-                      width: '20px',
-                      height: '20px',
-                      borderRadius: 'var(--radius-sm)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      backgroundColor: 'var(--bg-secondary)',
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
-                      flexShrink: 0
-                    }}>
-                      <svg width="14" height="14" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M22 18L18 8" stroke="#cbd5e1" strokeWidth="4" strokeLinecap="round" />
-                        <circle cx="18" cy="8" r="5" fill="var(--primary)" />
-                        <path d="M42 18L46 8" stroke="#cbd5e1" strokeWidth="4" strokeLinecap="round" />
-                        <circle cx="46" cy="8" r="5" fill="var(--primary)" />
-                        <rect x="10" y="14" width="44" height="34" rx="14" fill="#ffffff" stroke="#cbd5e1" strokeWidth="3" />
-                        <rect x="14" y="20" width="36" height="20" rx="8" fill="#111214" />
-                        <circle cx="23" cy="30" r="4.5" fill="var(--primary)" />
-                        <circle cx="41" cy="30" r="4.5" fill="var(--primary)" />
-                      </svg>
-                    </div>
-                    <span style={styles.itemText}>{t.aiName}</span>
-                  </button>
-                </div>
-              </div>
-            )}
 
-            {/* Direct Messages Section */}
-            <div style={styles.section}>
-              <div style={styles.sectionHeader}>
-                <span style={styles.sectionTitle}>{t.dms}</span>
-                <button style={styles.addBtn} onClick={onOpenDmCreateModal} title="새 DM 시작">
-                  <Plus size={16} />
-                </button>
-              </div>
-
-              <div style={styles.sectionList}>
-                {dms.map(dm => {
-                  const isActive = activeChat.type === 'dm' && activeChat.id === dm.id;
-                  
-                  // 베트남어 지사 임직원 직함 변환
-                  let displayName = dm.name;
-                  if (currentWorkspace === 'vietqs') {
-                    if (dm.id === 'youngja-dm') displayName = 'P.Thiết kế Youngja';
-                    else if (dm.id === 'jabis-dm') displayName = 'P.Phát triển Jabis';
-                    else if (dm.id === 'kodari-dm') displayName = 'Giám đốc Kodari';
-                  }
-
-                  return (
+                {isAiExpanded && (isAiMatching || !searchTerm) && (
+                  <div style={styles.sectionList}>
                     <button 
-                      key={dm.id}
-                      onClick={() => onActiveChatChange({ type: 'dm', id: dm.id })}
+                      onClick={() => onActiveChatChange({ type: 'ai', id: 'ai-bot' })}
                       style={{
                         ...styles.itemBtn,
-                        backgroundColor: isActive ? 'var(--bg-active)' : 'transparent',
-                        color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
-                        fontWeight: isActive ? '600' : '400',
+                        backgroundColor: activeChat.type === 'ai' ? themeStyles.bgActive : 'transparent',
+                        color: activeChat.type === 'ai' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                        fontWeight: activeChat.type === 'ai' ? '600' : '400',
                       }}
                     >
-                      <div style={styles.avatarSmallWrapper}>
-                        <div style={{
-                          ...styles.avatarSmall,
-                          backgroundColor: dm.avatarColor || 'var(--bg-hover)'
-                        }}>
-                          {displayName.charAt(0)}
-                        </div>
-                        <span className={`status-dot ${dm.status}`} style={styles.statusSmall} />
+                      <div style={{
+                        width: '20px',
+                        height: '20px',
+                        borderRadius: 'var(--radius-sm)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: 'var(--bg-secondary)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        flexShrink: 0
+                      }}>
+                        <svg width="14" height="14" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M22 18L18 8" stroke="#cbd5e1" strokeWidth="4" strokeLinecap="round" />
+                          <circle cx="18" cy="8" r="5" fill="var(--primary)" />
+                          <path d="M42 18L46 8" stroke="#cbd5e1" strokeWidth="4" strokeLinecap="round" />
+                          <circle cx="46" cy="8" r="5" fill="var(--primary)" />
+                          <rect x="10" y="14" width="44" height="34" rx="14" fill="#ffffff" stroke="#cbd5e1" strokeWidth="3" />
+                          <rect x="14" y="20" width="36" height="20" rx="8" fill="#111214" />
+                          <circle cx="23" cy="30" r="4.5" fill="var(--primary)" />
+                          <circle cx="41" cy="30" r="4.5" fill="var(--primary)" />
+                        </svg>
                       </div>
-                      <span style={styles.itemText}>{displayName}</span>
+                      <span style={styles.itemText}>{t.aiName}</span>
                     </button>
-                  );
-                })}
+                  </div>
+                )}
+                {isAiExpanded && !isAiMatching && searchTerm && (
+                  <div style={{ padding: '6px 12px', fontSize: '0.78rem', color: themeStyles.textMuted, fontStyle: 'italic' }}>
+                    {currentWorkspace === 'vietqs' ? 'Không tìm thấy trợ lý AI' : '검색된 AI 어시스턴트가 없습니다.'}
+                  </div>
+                )}
               </div>
-            </div>
+            )}
           </>
         );
 
@@ -839,6 +1161,64 @@ export default function Sidebar({
           </div>
           <ChevronDown size={14} style={{ color: 'var(--text-secondary)' }} />
         </div>
+
+        {/* 채팅방 검색창 (스샷 동그라미 친 영역) */}
+        {currentMenu === 'chat' && (
+          <div style={{ 
+            padding: '10px 14px', 
+            borderBottom: `1px solid ${themeStyles.borderLight}`, 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '8px', 
+            backgroundColor: 'transparent',
+            flexShrink: 0
+          }}>
+            <div style={{ position: 'relative', width: '100%' }}>
+              <Search size={14} style={{ 
+                position: 'absolute', 
+                left: '10px', 
+                top: '50%', 
+                transform: 'translateY(-50%)', 
+                color: themeStyles.textMuted 
+              }} />
+              <input 
+                type="text"
+                placeholder={currentWorkspace === 'vietqs' ? "Tìm kiếm cuộc trò chuyện..." : "채팅방 검색..."}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '7px 8px 7px 30px',
+                  borderRadius: '8px',
+                  border: `1px solid ${themeStyles.borderLight}`,
+                  backgroundColor: isLightTheme ? '#ffffff' : 'rgba(0, 0, 0, 0.15)',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.8rem',
+                  outline: 'none',
+                  transition: 'all 0.2s',
+                  boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.03)'
+                }}
+              />
+              {searchTerm && (
+                <span 
+                  onClick={() => setSearchTerm('')}
+                  style={{ 
+                    position: 'absolute', 
+                    right: '10px', 
+                    top: '50%', 
+                    transform: 'translateY(-50%)', 
+                    cursor: 'pointer', 
+                    fontSize: '0.75rem', 
+                    color: themeStyles.textMuted,
+                    fontWeight: 'bold'
+                  }}
+                >
+                  ✕
+                </span>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Dynamic Navigation List */}
         <div style={styles.navScroll}>
