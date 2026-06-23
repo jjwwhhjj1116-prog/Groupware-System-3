@@ -2965,7 +2965,7 @@ export default function App() {
         {/* 대화 피드 */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {chatbotMessages.map(msg => {
-            const isMe = msg.sender === 'me';
+            const isMe = msg.sender === 'me' || (currentUser && msg.sender === currentUser.id);
             return (
               <div 
                 key={msg.id} 

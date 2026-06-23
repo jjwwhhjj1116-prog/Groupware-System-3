@@ -473,7 +473,7 @@ export default function ChatArea({
             messages.map((msg, index) => {
               const isCeoBot = msg.sender === 'ceo-bot';
               const isYoungja = msg.sender === 'youngja';
-              const isMe = msg.sender === 'me';
+              const isMe = msg.sender === 'me' || (currentUser && msg.sender === currentUser.id);
               const isMatched = matchingMsgIds.includes(msg.id);
               const isCurrentMatch = isMatched && matchingMsgIds[currentMatchIdx] === msg.id;
               
