@@ -315,14 +315,28 @@ export default function App() {
   // --- SPA 브라우저 뒤로 가기 / 앞으로 가기 (Hash Routing) 연동 ---
   useEffect(() => {
     const handleHashChange = () => {
-      const hash = window.location.hash.replace('#/', '') || 'home';
+      const fullHash = window.location.hash.replace('#/', '') || 'home';
+      const [menu, subId] = fullHash.split('/');
       const validMenus = ['home', 'chat', 'mail', 'calendar', 'todo', 'board', 'hr', 'drive', 'project'];
-      if (validMenus.includes(hash)) {
-        setCurrentMenu(hash);
-        if (hash === 'home') {
+      
+      if (validMenus.includes(menu)) {
+        setCurrentMenu(menu);
+        if (menu === 'home') {
           setIsSidebarOpen(false);
         } else {
           setIsSidebarOpen(true);
+        }
+
+        if (menu === 'mail') {
+          if (subId) {
+            const mailIdNum = parseInt(subId, 10);
+            const foundMail = mails.find(m => m.id === mailIdNum);
+            if (foundMail) {
+              setSelectedMail(foundMail);
+            }
+          } else {
+            setSelectedMail(null);
+          }
         }
       }
     };
@@ -338,11 +352,12 @@ export default function App() {
     return () => {
       window.removeEventListener('hashchange', handleHashChange);
     };
-  }, []);
+  }, [mails]);
 
   useEffect(() => {
     const cleanHash = window.location.hash.replace('#/', '');
-    if (cleanHash !== currentMenu) {
+    const [menu] = cleanHash.split('/');
+    if (menu !== currentMenu) {
       window.location.hash = `#/${currentMenu}`;
     }
   }, [currentMenu]);
@@ -3179,7 +3194,9 @@ export default function App() {
                         color: 'var(--primary)',
                         borderColor: 'var(--primary)'
                       }} 
-                      onClick={() => setSelectedMail(null)}
+                      onClick={() => {
+                        window.location.hash = '#/mail';
+                      }}
                     >
                       ◀ {isViet ? 'Danh sách' : '목록'}
                     </button>
@@ -3205,7 +3222,7 @@ export default function App() {
                 <button style={styles.mailToolbarBtn} onClick={() => {
                   if (selectedMail) {
                     setMails(prev => prev.filter(m => m.id !== selectedMail.id));
-                    setSelectedMail(null);
+                    window.location.hash = '#/mail';
                   } else {
                     alert(isViet ? 'Vui lòng chọn thư.' : '메일을 선택해 주세요.');
                   }
@@ -3290,7 +3307,7 @@ export default function App() {
                             position: 'relative'
                           }}
                           onClick={() => {
-                            setSelectedMail({ ...mail, sender: senderName, title: mailTitle, desc: mailDesc });
+                            window.location.hash = `#/mail/${mail.id}`;
                             setMails(prev => prev.map(m => m.id === mail.id ? { ...m, read: true } : m));
                           }}
                         >
