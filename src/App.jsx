@@ -347,6 +347,8 @@ export default function App() {
   const [eventTitle, setEventTitle] = useState('');
   const [eventType, setEventType] = useState('meeting');
   const [activeChat, setActiveChat] = useState({ type: 'channel', id: 'general' });
+  const [globalSearchTerm, setGlobalSearchTerm] = useState(''); // 글로벌 통합 검색 쿼리
+  const [isSearchFocused, setIsSearchFocused] = useState(false); // 글로벌 검색 포커스 유무
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // HOME 화면에서는 기본적으로 닫아 둠
   const [subPanelWidth, setSubPanelWidth] = useState(() => {
@@ -667,23 +669,6 @@ export default function App() {
     socket.on('message:receive', (msg) => {
       const chatKey = msg.channelId; // channelId가 곧 chatKey
 
-      // 내 로컬에서 실시간 번역이 활성화되어 있고 수신 메시지에 번역 정보가 없을 때
-      if (msg.content && !msg.youngjaImageUrl && !msg.translation) {
-        const apiKey = localStorage.getItem('gemini_api_key') || '';
-        const isTransActive = localStorage.getItem('realtime_translation') === 'true';
-        if (apiKey && isTransActive) {
-          translateMessageContent(msg.content).then(transText => {
-            if (transText) {
-              setMessages(prev => {
-                const list = prev[chatKey] || [];
-                const updated = list.map(m => m.id === msg.id ? { ...m, translation: transText } : m);
-                return { ...prev, [chatKey]: updated };
-              });
-            }
-          });
-        }
-      }
-
       setMessages(prev => ({
         ...prev,
         [chatKey]: [...(prev[chatKey] || []), msg]
@@ -936,12 +921,31 @@ export default function App() {
     }
   };
 
-  // 채널 전환 시 소켓 채널 방 조인
+  // 채널 전환 시 소켓 채널 방 조인 및 이전 채팅 히스토리 로드
   useEffect(() => {
+    const channelId = getChatKey();
     if (socketRef.current) {
-      const channelId = getChatKey();
       socketRef.current.emit('chat:join', channelId);
     }
+
+    const fetchChatHistory = async () => {
+      if (activeChat.type === 'ai') return; // AI 비서는 API 호출 생략
+      try {
+        const res = await fetch(`/api/chats?channelId=${encodeURIComponent(channelId)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && Array.isArray(data.chats)) {
+            setMessages(prev => ({
+              ...prev,
+              [channelId]: data.chats
+            }));
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch chat history:', err);
+      }
+    };
+    fetchChatHistory();
   }, [activeChat, currentWorkspace]);
 
   // 테마 및 CSS 클래스 토글 & AI 어시스턴트 웰컴 메시지 동적 튜닝
@@ -1122,20 +1126,15 @@ export default function App() {
     const timeStr = now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
     const isViet = currentWorkspace === 'vietqs';
 
-    let autoTranslation = null;
-    if (content && !youngjaImageUrl && !fileObj) {
-      autoTranslation = await translateMessageContent(content);
-    }
-
     const newMsg = {
       id: `m-${Date.now()}`,
-      sender: 'me',
-      senderName: isViet ? 'Giám đốc' : '대표님',
+      sender: currentUser?.id || 'me',
+      senderName: currentUser?.userName || (isViet ? 'Giám đốc' : '대표님'),
       content: content || '',
       time: timeStr,
       channelId: chatKey, // 소켓 전송 식별자
       youngjaImageUrl,
-      translation: autoTranslation,
+      translation: null,
       fileName: fileObj ? fileObj.fileName : undefined,
       fileSize: fileObj ? fileObj.fileSize : undefined,
       fileData: fileObj ? fileObj.fileData : undefined,
@@ -1148,9 +1147,20 @@ export default function App() {
       [chatKey]: [...(prev[chatKey] || []), newMsg]
     }));
 
-    // --- 4. 소켓 서버 전송 (실시간 브로드캐스트) ---
-    if (socketRef.current && activeChat.type !== 'ai') {
-      socketRef.current.emit('message:send', newMsg);
+    // --- 4. 백엔드 REST API 전송 (하이브리드 신뢰성 확보) 및 소켓 실시간 알림 ---
+    if (activeChat.type !== 'ai') {
+      try {
+        await fetch('/api/chats/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newMsg)
+        });
+      } catch (err) {
+        console.error('REST API send failed, falling back to pure socket:', err);
+        if (socketRef.current) {
+          socketRef.current.emit('message:send', newMsg);
+        }
+      }
     }
 
     // AI 챗봇 방의 가상/실제 응답 처리
@@ -1471,6 +1481,55 @@ export default function App() {
     playNotificationSound();
   };
 
+  // 통합 검색 대상 필터링 계산 로직
+  const getSearchResults = () => {
+    if (!globalSearchTerm.trim()) return { employees: [], mails: [], files: [] };
+    const query = globalSearchTerm.toLowerCase();
+
+    // 1) 임직원 검색
+    const matchedEmployees = allEmployees.filter(emp => 
+      emp.userName.toLowerCase().includes(query) ||
+      (emp.dept && emp.dept.toLowerCase().includes(query)) ||
+      (emp.grade && emp.grade.toLowerCase().includes(query))
+    ).slice(0, 5);
+
+    // 2) 메일 검색
+    const matchedMails = mails.filter(mail => 
+      (mail.title && mail.title.toLowerCase().includes(query)) ||
+      (mail.content && mail.content.toLowerCase().includes(query)) ||
+      (mail.from && mail.from.toLowerCase().includes(query))
+    ).slice(0, 5);
+
+    // 3) 파일 검색 (메시지 목록 순회)
+    const matchedFiles = [];
+    Object.entries(messages).forEach(([chatKey, chatList]) => {
+      if (Array.isArray(chatList)) {
+        chatList.forEach(chat => {
+          if (chat.fileName && chat.fileName.toLowerCase().includes(query)) {
+            matchedFiles.push({
+              ...chat,
+              chatKey
+            });
+          }
+        });
+      }
+    });
+
+    const uniqueFiles = [];
+    const seenFiles = new Set();
+    for (const f of matchedFiles) {
+      if (!seenFiles.has(f.fileName)) {
+        seenFiles.add(f.fileName);
+        uniqueFiles.push(f);
+      }
+      if (uniqueFiles.length >= 5) break;
+    }
+
+    return { employees: matchedEmployees, mails: matchedMails, files: uniqueFiles };
+  };
+
+  const searchResults = getSearchResults();
+
   if (!currentUser) {
     return <LoginForm onLoginSuccess={(user) => setCurrentUser(user)} />;
   }
@@ -1480,25 +1539,28 @@ export default function App() {
       {/* 1. 상단 탑바 헤더 (네이버웍스 / Stitch 스타일) */}
       <header className="app-header" style={styles.appHeader}>
         <div style={styles.headerLeft}>
-          <button 
-            style={{
-              background: 'none',
-              border: 'none',
-              color: 'var(--text-secondary)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '6px',
-              marginRight: '8px',
-              borderRadius: '6px',
-              backgroundColor: isSidebarOpen ? 'var(--bg-secondary)' : 'transparent'
-            }}
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            title="사이드바 접기/펼치기"
-          >
-            <Menu size={20} />
-          </button>
+          {/* 무손실 SVG 브랜드 로고 마크 (워크스페이스 연동 오렌지/파랑 채색) */}
+          <div style={{ display: 'flex', alignItems: 'center', marginRight: '6px', padding: '4px' }}>
+            <svg 
+              width="26" 
+              height="26" 
+              viewBox="0 0 100 100" 
+              fill="none" 
+              xmlns="http://www.w3.org/2000/svg"
+              style={{ transition: 'fill 0.3s ease' }}
+            >
+              {/* 바깥쪽 오른쪽 방향 꺾쇠 */}
+              <path 
+                d="M20 15 L65 50 L20 85 L38 85 L83 50 L38 15 Z" 
+                fill={currentWorkspace === 'concost' ? '#ff6b00' : '#0058bc'} 
+              />
+              {/* 안쪽 왼쪽 방향 삼각형 */}
+              <path 
+                d="M48 50 L30 35 L30 65 Z" 
+                fill={currentWorkspace === 'concost' ? '#ff6b00' : '#0058bc'} 
+              />
+            </svg>
+          </div>
           
           <div 
             id="workspace-switcher"
@@ -1540,10 +1602,20 @@ export default function App() {
           display: 'flex',
           alignItems: 'center'
         }}>
+          <style>{`
+            .search-item-hover {
+              transition: background-color 0.15s ease;
+            }
+            .search-item-hover:hover {
+              background-color: var(--bg-tertiary) !important;
+            }
+          `}</style>
           <Search size={16} style={{ position: 'absolute', left: '12px', color: 'var(--text-muted)' }} />
           <input 
             type="text"
             placeholder="메일, 사람, 파일 검색"
+            value={globalSearchTerm}
+            onChange={(e) => setGlobalSearchTerm(e.target.value)}
             style={{
               width: '100%',
               padding: '8px 12px 8px 36px',
@@ -1555,9 +1627,139 @@ export default function App() {
               outline: 'none',
               transition: 'all 0.2s ease'
             }}
-            onFocus={(e) => e.target.style.borderColor = currentWorkspace === 'concost' ? '#ff6b00' : 'var(--primary)'}
-            onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
+            onFocus={(e) => {
+              e.target.style.borderColor = currentWorkspace === 'concost' ? '#ff6b00' : 'var(--primary)';
+              setIsSearchFocused(true);
+            }}
+            onBlur={(e) => {
+              e.target.style.borderColor = 'var(--border)';
+              setTimeout(() => setIsSearchFocused(false), 200);
+            }}
           />
+
+          {/* 실시간 드롭다운 통합 검색 결과 팝오버 */}
+          {isSearchFocused && globalSearchTerm.trim() && (
+            <div style={{
+              position: 'absolute',
+              top: '44px',
+              left: 0,
+              width: '100%',
+              backgroundColor: 'var(--bg-secondary)',
+              border: '1px solid var(--border)',
+              borderRadius: '12px',
+              boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.2)',
+              backdropFilter: 'blur(8px)',
+              maxHeight: '450px',
+              overflowY: 'auto',
+              zIndex: 1000,
+              padding: '12px'
+            }}>
+              {/* 1. 임직원 검색 결과 */}
+              <div style={{ marginBottom: '12px' }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--primary)', marginBottom: '6px', borderBottom: '1px dashed var(--border-light)', paddingBottom: '4px' }}>
+                  👤 임직원 ({searchResults.employees.length})
+                </div>
+                {searchResults.employees.length === 0 ? (
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', padding: '4px 8px' }}>일치하는 직원이 없습니다.</div>
+                ) : (
+                  searchResults.employees.map(emp => (
+                    <div 
+                      key={emp.empNo}
+                      onClick={() => {
+                        setSelectedEmployee(emp);
+                        setIsHrCardOpen(true);
+                        setGlobalSearchTerm('');
+                      }}
+                      style={{
+                        padding: '6px 8px',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                      }}
+                      className="search-item-hover"
+                    >
+                      <span style={{ fontSize: '0.825rem', fontWeight: 'bold', color: 'var(--text-primary)' }}>{emp.userName}</span>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{emp.dept} · {emp.grade}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* 2. 메일 검색 결과 */}
+              <div style={{ marginBottom: '12px' }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--primary)', marginBottom: '6px', borderBottom: '1px dashed var(--border-light)', paddingBottom: '4px' }}>
+                  ✉️ 메일 ({searchResults.mails.length})
+                </div>
+                {searchResults.mails.length === 0 ? (
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', padding: '4px 8px' }}>일치하는 메일이 없습니다.</div>
+                ) : (
+                  searchResults.mails.map(mail => (
+                    <div 
+                      key={mail.id}
+                      onClick={() => {
+                        setSelectedMail(mail);
+                        setCurrentMenu('mail');
+                        setGlobalSearchTerm('');
+                      }}
+                      style={{
+                        padding: '6px 8px',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '2px',
+                      }}
+                      className="search-item-hover"
+                    >
+                      <span style={{ fontSize: '0.825rem', fontWeight: 'bold', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{mail.title}</span>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>보낸 사람: {mail.from} · {mail.date}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* 3. 파일 검색 결과 */}
+              <div>
+                <div style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--primary)', marginBottom: '6px', borderBottom: '1px dashed var(--border-light)', paddingBottom: '4px' }}>
+                  📁 파일 ({searchResults.files.length})
+                </div>
+                {searchResults.files.length === 0 ? (
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', padding: '4px 8px' }}>일치하는 파일이 없습니다.</div>
+                ) : (
+                  searchResults.files.map(file => (
+                    <div 
+                      key={file.id}
+                      onClick={() => {
+                        const key = file.chatKey;
+                        if (key.startsWith('dm-')) {
+                          setActiveChat({ type: 'dm', id: key.replace('dm-', '') + '-dm' });
+                        } else {
+                          const rawId = key.replace('concost-', '').replace('vietqs-', '');
+                          setActiveChat({ type: 'channel', id: rawId });
+                        }
+                        setCurrentMenu('chat');
+                        setGlobalSearchTerm('');
+                      }}
+                      style={{
+                        padding: '6px 8px',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                      }}
+                      className="search-item-hover"
+                    >
+                      <span style={{ fontSize: '0.825rem', fontWeight: 'bold', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>📁 {file.fileName}</span>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{file.senderName} ({file.fileSize})</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         <div style={styles.headerRight}>
@@ -3011,12 +3213,12 @@ export default function App() {
     const roleLevel = getUserRoleLevel(currentUser);
 
     // 접근 권한 강제 차단 가드
-    if (currentMenu === 'hr' && roleLevel > 2) {
+    if (currentMenu === 'admin-hr' && roleLevel !== 0) {
       return (
         <div style={{ display: 'flex', flex: 1, height: '100%', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
           <ShieldAlert size={48} style={{ color: 'var(--danger)', marginBottom: '16px' }} />
           <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>접근 권한이 없습니다</h3>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '6px' }}>임원 등급 이상만 접근할 수 있는 메뉴입니다.</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '6px' }}>관리자만 접근할 수 있는 메뉴입니다.</p>
         </div>
       );
     }
@@ -3284,6 +3486,52 @@ export default function App() {
               )}
             </div>
           </div>
+        );
+
+      case 'admin-hr':
+        return (
+          <HrManager 
+            allEmployees={allEmployees}
+            onUpdateEmployee={async (emp) => {
+              try {
+                const res = await fetch('/api/employees/update', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(emp)
+                });
+                if (res.ok) {
+                  fetchEmployees(); // 목록 갱신
+                  alert('성공적으로 저장되었습니다.');
+                } else {
+                  const data = await res.json();
+                  alert(`에러: ${data.error}`);
+                }
+              } catch (err) {
+                console.error(err);
+                alert('저장 실패');
+              }
+            }}
+            onDeleteEmployee={async (empNo) => {
+              if (!confirm('정말 삭제하시겠습니까?')) return;
+              try {
+                const res = await fetch('/api/employees/delete', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ empNo })
+                });
+                if (res.ok) {
+                  fetchEmployees(); // 목록 갱신
+                  alert('삭제되었습니다.');
+                } else {
+                  const data = await res.json();
+                  alert(`에러: ${data.error}`);
+                }
+              } catch (err) {
+                console.error(err);
+                alert('삭제 실패');
+              }
+            }}
+          />
         );
 
       case 'hr':

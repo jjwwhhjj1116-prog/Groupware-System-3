@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Mail, Phone, MapPin, Building, ShieldAlert, MessageSquare, Edit2, Save, Trash2 } from 'lucide-react';
-import { getUserRoleLevel } from '../utils/permission'; // 권한 유틸 임포트
+import { getUserRoleLevel, getRoleLabel } from '../utils/permission'; // 권한 유틸 임포트
 
 export default function HrCardModal({ isOpen, onClose, employee, onStartDm, currentUser, onRefreshEmployees, onUpdateCurrentUser, onLogout }) {
   if (!isOpen || !employee) return null;
@@ -84,8 +84,8 @@ export default function HrCardModal({ isOpen, onClose, employee, onStartDm, curr
   const isSelf = currentUser && currentUser.empNo === employee.empNo;
   const roleLevel = getUserRoleLevel(currentUser);
   
-  // 사원 정보 수정 및 퇴사 처리는 오직 관리자(Level 1)만 가능
-  const isAdmin = roleLevel === 1;
+  // 사원 정보 수정 및 퇴사 처리는 오직 관리자(Level 0)만 가능
+  const isAdmin = roleLevel === 0;
 
   const handleSave = async () => {
     if (!editForm.userName.trim()) {
@@ -360,6 +360,14 @@ export default function HrCardModal({ isOpen, onClose, employee, onStartDm, curr
                   <div style={styles.badgeRow}>
                     {getCompanyBadge(employee.company)}
                     {getStatusBadge(employee.status)}
+                    <span style={{
+                      ...styles.badge,
+                      backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                      color: 'var(--danger)',
+                      border: '1px solid rgba(239, 68, 68, 0.2)'
+                    }}>
+                      {getRoleLabel(getUserRoleLevel(employee))}
+                    </span>
                   </div>
                 </div>
               </div>

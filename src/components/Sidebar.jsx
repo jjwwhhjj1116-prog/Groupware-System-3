@@ -20,6 +20,7 @@ import {
   Trash2,
   AlertCircle,
   Users,
+  User,
   Home,
   Search
 } from 'lucide-react';
@@ -139,13 +140,21 @@ export default function Sidebar({
     { id: 'board', label: t.board, icon: Megaphone, color: '#ff9500' }
   );
 
-  // 조직도: 임원 이상 (Level 1, 2) 노출
-  if (roleLevel <= 2) {
-    menuItems.push({ 
-      id: 'hr', 
-      label: currentWorkspace === 'vietqs' ? 'Sơ đồ tổ chức' : '조직도', 
-      icon: Users, 
-      color: '#52c41a' 
+  // 조직도: 전체 사원에게 전면 개방
+  menuItems.push({ 
+    id: 'hr', 
+    label: currentWorkspace === 'vietqs' ? 'Sơ đồ tổ chức' : '조직도', 
+    icon: Users, 
+    color: '#52c41a' 
+  });
+
+  // 인사 관리: 관리자(0등급) 전용 노출
+  if (roleLevel === 0) {
+    menuItems.push({
+      id: 'admin-hr',
+      label: '인사 관리',
+      icon: Settings,
+      color: '#ef4444'
     });
   }
 
@@ -1108,13 +1117,20 @@ export default function Sidebar({
             <Settings size={26} />
           </button>
           
-          <div style={styles.avatarWrapper} onClick={() => onUserClick && onUserClick(currentUser?.id)}>
+          <div 
+            style={styles.avatarWrapper} 
+            onClick={() => onUserClick && onUserClick(currentUser?.id)}
+            title={`${currentUser?.userName || '사용자'} (${getRoleLabel(roleLevel)})`}
+          >
             <div style={{ 
               ...styles.myAvatar, 
-              backgroundColor: currentUser?.photoUrl ? 'transparent' : 'rgba(255,255,255,0.2)',
+              backgroundColor: currentUser?.photoUrl ? 'transparent' : 'rgba(255,255,255,0.15)',
               border: '1.5px solid rgba(255,255,255,0.4)',
               cursor: 'pointer', 
-              overflow: 'hidden' 
+              overflow: 'hidden',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
             }}>
               {currentUser?.photoUrl ? (
                 <img 
@@ -1123,9 +1139,7 @@ export default function Sidebar({
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
                 />
               ) : (
-                <span style={{ fontSize: '0.95rem', fontWeight: 'bold', color: '#ffffff' }}>
-                  {currentUser?.userName ? currentUser.userName.charAt(0) : (currentWorkspace === 'vietqs' ? 'G' : '대')}
-                </span>
+                <User size={28} style={{ color: '#ffffff', opacity: 0.9, width: '100%', height: '100%', padding: '6px' }} />
               )}
             </div>
             <span className="status-dot online" style={{ ...styles.myStatus, borderColor: workspaceBarBg }} />

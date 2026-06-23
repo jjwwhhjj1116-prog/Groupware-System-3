@@ -779,7 +779,7 @@ export default function ChatArea({
                           boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
                           animation: 'fadeIn 0.15s ease'
                         }}>
-                          {/* 1. 번역/메뉴 (☰) */}
+                          {/* 1. 번역 (🌐) */}
                           <button 
                             type="button"
                             title="번역"
@@ -789,7 +789,7 @@ export default function ChatArea({
                             }}
                             style={styles.lowerToolBtn}
                           >
-                            <Menu size={11} />
+                            <Globe size={11} />
                           </button>
 
                           {/* 2. 복사 (📋) */}

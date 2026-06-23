@@ -14,7 +14,8 @@ require('dotenv').config();
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: '*', methods: ['GET', 'POST'] }
+  cors: { origin: '*', methods: ['GET', 'POST'] },
+  maxHttpBufferSize: 5e7 // 50MB로 설정하여 대용량 파일/이미지 전송 지원
 });
 
 const PORT = process.env.PORT || 8080;
@@ -110,6 +111,51 @@ async function migrateJsonToMongo() {
       console.log('🍃 MongoDB users list is empty or small. Inserting 전사 임직원 Seed...');
       
       const defaultUsers = [
+        {
+          id: 'kodari',
+          empNo: 'CC-000',
+          userName: '코다리',
+          company: 'CON-COST',
+          dept: '대표이사',
+          grade: '대표',
+          role: '대표',
+          status: '재직',
+          email: 'kodari@con-cost.com',
+          phone: '010-1234-5678',
+          nationality: '대한민국',
+          workplace: '서울 본사',
+          joinDate: '2015-01-01'
+        },
+        {
+          id: 'tgkang',
+          empNo: 'CC-007',
+          userName: '강태오',
+          company: 'CON-COST',
+          dept: '임원실',
+          grade: '부사장',
+          role: '부사장',
+          status: '재직',
+          email: 'tgkang@con-cost.com',
+          phone: '010-9876-5432',
+          nationality: '대한민국',
+          workplace: '서울 본사',
+          joinDate: '2017-03-01'
+        },
+        {
+          id: 'kdgang',
+          empNo: 'CC-006',
+          userName: '강동균',
+          company: 'CON-COST',
+          dept: 'QC',
+          grade: '실장',
+          role: '실장',
+          status: '재직',
+          email: 'kdgang@con-cost.com',
+          phone: '010-1111-2222',
+          nationality: '대한민국',
+          workplace: '서울 본사',
+          joinDate: '2019-05-01'
+        },
         {
           id: 'yjpark',
           empNo: 'EMP-2018-001',
@@ -359,6 +405,46 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// 채팅 기록 로드 API 추가
+app.get('/api/chats', async (req, res) => {
+  try {
+    const { channelId } = req.query;
+    if (!channelId) {
+      return res.status(400).json({ success: false, error: 'channelId 파라미터가 필요합니다.' });
+    }
+    const chats = await Chat.find({ channelId }).sort({ time: 1 });
+    res.json({ success: true, chats });
+  } catch (err) {
+    console.error('[Get Chats Error]', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 채팅 메시지 전송 API 추가 (REST API와 소켓 하이브리드 연동)
+app.post('/api/chats/send', async (req, res) => {
+  try {
+    const msg = req.body;
+    if (!msg.id || !msg.channelId) {
+      return res.status(400).json({ success: false, error: '유효한 메시지 형식이 아닙니다.' });
+    }
+    const exists = await Chat.exists({ id: msg.id });
+    let savedMsg;
+    if (!exists) {
+      savedMsg = await Chat.create(msg);
+    } else {
+      savedMsg = await Chat.findOne({ id: msg.id });
+    }
+
+    // 해당 대화방 소켓 룸으로 실시간 메시지 발송
+    io.to(msg.channelId).emit('message:receive', msg);
+
+    res.json({ success: true, chat: savedMsg });
+  } catch (err) {
+    console.error('[Send Chat API Error]', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // 로그인 검증 API
 app.post('/api/login', async (req, res) => {
   try {
@@ -367,35 +453,43 @@ app.post('/api/login', async (req, res) => {
       return res.status(400).json({ success: false, error: '이메일 또는 사번을 입력하세요.' });
     }
 
-    // 모든 직원 비밀번호를 '1234'로 일괄 강제 설정 검증
-    if (!password || password.trim() !== '1234') {
-      return res.status(401).json({ success: false, error: '비밀번호가 올바르지 않습니다.\n(임시 비밀번호: 1234)' });
-    }
-
     const inputEmail = email.trim().toLowerCase();
-    
-    // yjw 데모 계정 예외 처리
-    if (inputEmail === 'yjw@con-cost.com' || inputEmail === 'yjw') {
-      const demoUser = await User.findOne({ empNo: 'CC-002' }); // 유종욱 실장
-      if (demoUser) {
-        return res.json({ success: true, user: demoUser });
-      }
-    }
+    const emailIdPart = inputEmail.split('@')[0];
 
-    // DB 검색 (email 또는 empNo 또는 id)
+    // DB 검색 (email ID 파트, empNo, 또는 id 매칭)
     const user = await User.findOne({
       $or: [
-        { email: { $regex: new RegExp(`^${inputEmail}$`, 'i') } },
-        { empNo: { $regex: new RegExp(`^${inputEmail}$`, 'i') } },
-        { id: { $regex: new RegExp(`^${inputEmail}$`, 'i') } }
+        { email: { $regex: new RegExp(`^${emailIdPart}@`, 'i') } },
+        { empNo: { $regex: new RegExp(`^${emailIdPart}$`, 'i') } },
+        { id: { $regex: new RegExp(`^${emailIdPart}$`, 'i') } }
       ]
     });
 
-    if (user) {
-      return res.json({ success: true, user });
-    } else {
-      return res.status(401).json({ success: false, error: '유효한 사원 계정이 아닙니다.\n(데모: yjw@con-cost.com 또는 사번 CC-002)' });
+    if (!user) {
+      return res.status(401).json({ success: false, error: '유효한 사원 계정이 아닙니다.\n(사번 또는 이메일 아이디를 다시 확인하세요.)' });
     }
+
+    const empNoUpper = (user.empNo || '').toUpperCase();
+    const userIdLower = (user.id || '').toLowerCase();
+    const userName = user.userName || '';
+    let isPasswordCorrect = false;
+
+    if (empNoUpper === 'CC-002' || userIdLower === 'yjw' || userName.includes('유종욱')) {
+      // 유종욱 실장: dbwhddnr1! 또는 1234
+      isPasswordCorrect = password === 'dbwhddnr1!' || password === '1234';
+    } else if (empNoUpper === 'EMP-2018-001' || userIdLower === 'yjpark' || userName.includes('박용진')) {
+      // 박용진 수석: qkrdydwls1! 또는 1234
+      isPasswordCorrect = password === 'qkrdydwls1!' || password === '1234';
+    } else {
+      // 일반 임직원: 1234
+      isPasswordCorrect = password === '1234';
+    }
+
+    if (!isPasswordCorrect) {
+      return res.status(401).json({ success: false, error: '비밀번호가 올바르지 않습니다.' });
+    }
+
+    return res.json({ success: true, user });
   } catch (err) {
     console.error('[Login Error]', err);
     res.status(500).json({ success: false, error: '서버 내부 오류가 발생했습니다.' });

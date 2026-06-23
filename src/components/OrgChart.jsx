@@ -67,16 +67,19 @@ export default function OrgChart({ allEmployees, onUserClick, currentWorkspace }
   };
 
   // --- 부서 및 구성원 수집 로직 ---
-  const ceoEmp = allEmployees.find(e => e.empNo === "VQS-001");
-  const advisorEmp = allEmployees.find(e => e.empNo === "VQS-002");
+  const isConcost = activeCompany === 'CON-COST';
+  const ceoEmp = allEmployees.find(e => isConcost ? e.id === 'kodari' : e.empNo === "VQS-001");
+  const advisorEmp = allEmployees.find(e => isConcost ? e.id === 'tgkang' : e.empNo === "VQS-002");
 
-  const deptsConfig = activeCompany === 'CON-COST' 
+  const deptsConfig = isConcost 
     ? [
-        { name: "경영지원본부", leadId: "CC-001", color: "#3b82f6" },
-        { name: "BIM파트", leadId: "CC-029", color: "#ff6b00" },
-        { name: "토목·조경파트", leadId: "CC-030", color: "#10b981" },
+        { name: "대표이사", leadId: "CC-000", color: "#3b82f6" },
+        { name: "임원실", leadId: "CC-007", color: "#8b5cf6" },
+        { name: "경영지원본부", leadId: "CC-001", color: "#10b981" },
         { name: "QC", leadId: "CC-008", color: "#ef4444" },
-        { name: "클레임센터", leadId: "CC-031", color: "#8b5cf6" },
+        { name: "BIM파트", leadId: "CC-029", color: "#ff6b00" },
+        { name: "토목·조경파트", leadId: "CC-030", color: "#f59e0b" },
+        { name: "클레임센터", leadId: "CC-031", color: "#6366f1" },
         { name: "마감", leadId: "CC-011", color: "#ec4899" },
         { name: "구조/토목 조경", leadId: "CC-023", color: "#6b7280" }
       ]
@@ -91,15 +94,26 @@ export default function OrgChart({ allEmployees, onUserClick, currentWorkspace }
         { name: "Horizon / Foundation", leadId: "VQS-049", color: "#ec4899" }
       ];
 
+  // 직급 정렬 랭크 점수 산출
+  const getGradeRank = (grade) => {
+    const ranks = [
+      '대표', 'CEO', '부사장', 'Executive Vice President', 
+      '상무', '본부장', '실장', '센터장', '팀장', '파트장', '기술이사', 'General Manager',
+      '수석', '책임', '선임', 'Asst. Team Leader', '프로', '주임', '사원', 'Staff'
+    ];
+    const idx = ranks.indexOf(grade);
+    return idx === -1 ? 99 : idx;
+  };
+
   // 검색어와 일치하는지 판별 헬퍼
   const matchesSearch = (emp) => {
     if (!searchTerm.trim()) return true;
     const term = searchTerm.toLowerCase();
     return (
       emp.userName.toLowerCase().includes(term) ||
-      emp.dept.toLowerCase().includes(term) ||
-      emp.grade.toLowerCase().includes(term) ||
-      emp.empNo.toLowerCase().includes(term)
+      (emp.dept && emp.dept.toLowerCase().includes(term)) ||
+      (emp.grade && emp.grade.toLowerCase().includes(term)) ||
+      (emp.empNo && emp.empNo.toLowerCase().includes(term))
     );
   };
 
@@ -201,34 +215,39 @@ export default function OrgChart({ allEmployees, onUserClick, currentWorkspace }
             transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
           }}
         >
-          {/* 1) 최상단 CEO 및 Executive Advisor 행 */}
-          <div style={styles.ceoRow}>
+          {/* 1) 최상단 CEO (대표이사) 수직 트리 시작 */}
+          {ceoEmp && (
             <div style={styles.ceoNodeWrapper}>
               <span style={styles.roleHeader}>CEO (대표이사)</span>
               {renderEmployeeCard(ceoEmp, true)}
             </div>
-
-            {/* 연결 데코 라인 */}
-            <div style={styles.linkLine}>
-              <div style={styles.linkCircle} />
-            </div>
-
-            <div style={styles.ceoNodeWrapper}>
-              <span style={{ ...styles.roleHeader, color: '#3b82f6' }}>Executive Advisor</span>
-              {renderEmployeeCard(advisorEmp, false)}
-            </div>
-          </div>
+          )}
 
           {/* 수직 하강 데코 선 */}
           <div style={styles.verticalLinkLine} />
 
-          {/* 2) 가로 배치 1단계 부서 블록들 */}
+          {/* 2) 2단계 Executive Advisor (부사장) 배치 */}
+          {advisorEmp && (
+            <div style={styles.ceoNodeWrapper}>
+              <span style={{ ...styles.roleHeader, color: 'var(--primary)' }}>
+                {isConcost ? 'Executive Vice President (부사장)' : 'Executive Vice President'}
+              </span>
+              {renderEmployeeCard(advisorEmp, false)}
+            </div>
+          )}
+
+          {/* 수직 하강 데코 선 */}
+          <div style={styles.verticalLinkLine} />
+
+          {/* 3) 가로 배치 1단계 부서 블록들 */}
           <div style={styles.deptsRow}>
             {deptsConfig.map(dept => {
-              const lead = allEmployees.find(e => e.empNo === dept.leadId);
-              const members = allEmployees.filter(
-                e => e.company === activeCompany && e.dept === dept.name && e.empNo !== dept.leadId
-              );
+              // 부서장(Leader) 추출
+              const lead = allEmployees.find(e => e.company === activeCompany && e.empNo === dept.leadId);
+              // 부서원들 추출 (부서장 제외 및 직급순 정렬)
+              const members = allEmployees
+                .filter(e => e.company === activeCompany && e.dept === dept.name && e.empNo !== dept.leadId)
+                .sort((a, b) => getGradeRank(a.grade) - getGradeRank(b.grade));
 
               const totalCount = (lead ? 1 : 0) + members.length;
 
@@ -251,10 +270,53 @@ export default function OrgChart({ allEmployees, onUserClick, currentWorkspace }
                     {lead ? renderEmployeeCard(lead, true) : <div style={styles.emptyLead}>부서장 공석</div>}
                   </div>
 
-                  {/* 팀원 그리드 배치 (2열) */}
+                  {/* 팀원 수직 곁가지 가이드선 구조 배치 */}
                   {members.length > 0 && (
-                    <div style={styles.membersGrid}>
-                      {members.map(m => renderEmployeeCard(m, false))}
+                    <div style={{
+                      position: 'relative',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'flex-start',
+                      gap: '10px',
+                      marginTop: '14px',
+                      paddingTop: '14px',
+                      borderTop: '1px dashed var(--border-light)',
+                      width: '100%',
+                      paddingLeft: '22px'
+                    }}>
+                      {/* 수직 안내 가이드라인 */}
+                      <div style={{
+                        position: 'absolute',
+                        left: '10px',
+                        top: '0',
+                        bottom: '22px', // 마지막 카드의 50% 높이에서 끝나도록
+                        width: '2px',
+                        backgroundColor: 'var(--border-light)'
+                      }} />
+
+                      {members.map(m => (
+                        <div 
+                          key={m.empNo} 
+                          style={{ 
+                            position: 'relative', 
+                            width: '100%', 
+                            display: 'flex', 
+                            alignItems: 'center' 
+                          }}
+                        >
+                          {/* 가로 곁가지 꺾쇠 수평선 */}
+                          <div style={{
+                            position: 'absolute',
+                            left: '-12px',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            width: '12px',
+                            height: '2px',
+                            backgroundColor: 'var(--border-light)'
+                          }} />
+                          {renderEmployeeCard(m, false)}
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
@@ -407,7 +469,7 @@ const styles = {
   },
   deptsRow: {
     display: 'flex',
-    gap: '32px',
+    gap: '24px',
     justifyContent: 'center',
     position: 'relative',
     paddingTop: '16px',
@@ -422,7 +484,7 @@ const styles = {
     borderRadius: '6px',
     padding: '16px',
     boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.15)',
-    minWidth: '380px',
+    minWidth: '230px',
     flexShrink: 0,
   },
   deptHeader: {

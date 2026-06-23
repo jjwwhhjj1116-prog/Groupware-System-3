@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Plus, Save, Trash2, Edit2, ShieldCheck, Search } from 'lucide-react';
+import { getUserRoleLevel, getRoleLabel } from '../utils/permission';
 
 export default function HrManager({ currentWorkspace }) {
   const [employees, setEmployees] = useState([]);
@@ -205,12 +206,14 @@ export default function HrManager({ currentWorkspace }) {
                   <th style={styles.th}>소속 회사</th>
                   <th style={styles.th}>부서</th>
                   <th style={styles.th}>직급</th>
+                  <th style={styles.th}>권한 등급</th>
                   <th style={styles.th}>상태</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredEmployees.map(emp => {
                   const isSelected = selectedEmp?.empNo === emp.empNo;
+                  const roleLevel = getUserRoleLevel(emp);
                   return (
                     <tr 
                       key={emp.empNo} 
@@ -234,6 +237,18 @@ export default function HrManager({ currentWorkspace }) {
                       </td>
                       <td style={styles.td}>{emp.dept}</td>
                       <td style={styles.td}>{emp.grade}</td>
+                      <td style={styles.td}>
+                        <span style={{
+                          fontSize: '0.72rem',
+                          fontWeight: '700',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          color: roleLevel === 0 ? '#ef4444' : roleLevel === 1 ? '#10b981' : roleLevel === 2 ? '#8b5cf6' : roleLevel === 3 ? '#ff6b00' : 'var(--text-secondary)',
+                          backgroundColor: roleLevel === 0 ? 'rgba(239,68,68,0.08)' : roleLevel === 1 ? 'rgba(16,185,129,0.08)' : roleLevel === 2 ? 'rgba(139,92,246,0.08)' : roleLevel === 3 ? 'rgba(255,107,0,0.08)' : 'var(--bg-tertiary)'
+                        }}>
+                          {getRoleLabel(roleLevel)}
+                        </span>
+                      </td>
                       <td style={styles.td}>
                         <span style={{
                           ...styles.statusBadge,
@@ -260,6 +275,20 @@ export default function HrManager({ currentWorkspace }) {
                   <Edit2 size={16} style={{ color: 'var(--primary)', marginRight: '6px' }} />
                   {isNewMode ? '🆕 신규 직원 인사카드 생성' : `🪪 ${editForm.userName} 사원 정보 편집`}
                 </h3>
+                <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 'bold' }}>실시간 산정 권한 등급:</span>
+                  <span style={{
+                    fontSize: '0.72rem',
+                    fontWeight: '800',
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    color: '#ffffff',
+                    backgroundColor: 'var(--primary)',
+                    boxShadow: '0 1px 3px rgba(255,107,0,0.3)'
+                  }}>
+                    {getRoleLabel(getUserRoleLevel(editForm))}
+                  </span>
+                </div>
               </div>
 
               <div style={styles.formGrid}>
