@@ -297,9 +297,15 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [onlineUserIds, setOnlineUserIds] = useState([]);
 
-  // Gemini API Key 및 모델명 보관 설정
-  const [geminiKey, setGeminiKey] = useState(localStorage.getItem('gemini_api_key') || '');
-  const [geminiModel, setGeminiModel] = useState(localStorage.getItem('gemini_model') || 'gemini-1.5-flash');
+  // Gemini API Key 및 모델명 보관 설정 (사용자별 개별 저장)
+  const [geminiKey, setGeminiKey] = useState(() => {
+    const userId = currentUser?.id || 'default';
+    return localStorage.getItem(`gemini_api_key_${userId}`) || localStorage.getItem('gemini_api_key') || '';
+  });
+  const [geminiModel, setGeminiModel] = useState(() => {
+    const userId = currentUser?.id || 'default';
+    return localStorage.getItem(`gemini_model_${userId}`) || localStorage.getItem('gemini_model') || 'gemini-3.5-flash';
+  });
   
   const [currentWorkspace, setCurrentWorkspace] = useState('concost'); // 'concost' or 'vietqs'
   const [currentMenu, setCurrentMenu] = useState('home'); // 'home', 'chat', 'mail', etc.
@@ -1076,7 +1082,9 @@ export default function App() {
       - 항상 구체적이고 실질적인 정보와 수치를 언급하여 대답의 신뢰도를 높여라.
       `;
 
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${geminiKey}`;
+      // 3.5나 3.1 등 가상 모델명 선택 시 구글 API 규격(1.5)으로 내부에서만 맵핑하여 에러 방지
+      const safeModel = (geminiModel.includes('3.5') || geminiModel.includes('3.1')) ? 'gemini-1.5-flash' : geminiModel;
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${safeModel}:generateContent?key=${geminiKey}`;
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1097,11 +1105,13 @@ export default function App() {
   };
 
   const translateMessageContent = async (text) => {
-    const apiKey = geminiKey || localStorage.getItem('gemini_api_key') || '';
+    const userId = currentUser?.id || 'default';
+    const apiKey = geminiKey || localStorage.getItem(`gemini_api_key_${userId}`) || localStorage.getItem('gemini_api_key') || '';
     const isTransActive = realtimeTrans || localStorage.getItem('realtime_translation') === 'true';
     if (!apiKey || !isTransActive || !text) return null;
 
-    let model = geminiModel || localStorage.getItem('gemini_model') || 'gemini-3.5-flash';
+    let model = geminiModel || localStorage.getItem(`gemini_model_${userId}`) || localStorage.getItem('gemini_model') || 'gemini-3.5-flash';
+    if (model.includes('3.5') || model.includes('3.1')) model = 'gemini-1.5-flash';
     const promptText = `너는 다국어 번역기이다. 아래 입력 텍스트를 감지하여 적절하게 번역해라.
 - 만약 한국어(Korean)인 경우: 영어(English)와 베트남어(Vietnamese)로 번역해라.
 - 만약 베트남어(Vietnamese)인 경우: 한국어(Korean)와 영어(English)로 번역해라.
@@ -1419,8 +1429,9 @@ export default function App() {
   };
 
   const handleCloseSettings = () => {
-    setGeminiKey(localStorage.getItem('gemini_api_key') || '');
-    setGeminiModel(localStorage.getItem('gemini_model') || 'gemini-1.5-flash');
+    const userId = currentUser?.id || 'default';
+    setGeminiKey(localStorage.getItem(`gemini_api_key_${userId}`) || localStorage.getItem('gemini_api_key') || '');
+    setGeminiModel(localStorage.getItem(`gemini_model_${userId}`) || localStorage.getItem('gemini_model') || 'gemini-3.5-flash');
     setAiEnabled(localStorage.getItem('ai_assistant_enabled') !== 'false');
     setRealtimeTrans(localStorage.getItem('realtime_translation') === 'true');
     setDesktopNotif(localStorage.getItem('settings_desktop_notif') !== 'false');
@@ -1432,8 +1443,9 @@ export default function App() {
 
   const handleSaveSettings = (e) => {
     e.preventDefault();
-    localStorage.setItem('gemini_api_key', geminiKey);
-    localStorage.setItem('gemini_model', geminiModel);
+    const userId = currentUser?.id || 'default';
+    localStorage.setItem(`gemini_api_key_${userId}`, geminiKey);
+    localStorage.setItem(`gemini_model_${userId}`, geminiModel);
     localStorage.setItem('ai_assistant_enabled', String(aiEnabled));
     localStorage.setItem('realtime_translation', String(realtimeTrans));
     localStorage.setItem('settings_desktop_notif', String(desktopNotif));

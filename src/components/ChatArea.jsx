@@ -229,13 +229,15 @@ export default function ChatArea({
       return;
     }
 
-    const apiKey = localStorage.getItem('gemini_api_key') || '';
+    const userId = currentUser?.id || 'default';
+    const apiKey = localStorage.getItem(`gemini_api_key_${userId}`) || localStorage.getItem('gemini_api_key') || '';
     if (!apiKey) {
       alert('⚙️ 설정에서 Gemini API Key를 등록해야 번역 기능이 작동합니다.');
       return;
     }
 
-    const model = localStorage.getItem('gemini_model') || 'gemini-1.5-flash';
+    let model = localStorage.getItem(`gemini_model_${userId}`) || localStorage.getItem('gemini_model') || 'gemini-3.5-flash';
+    if (model.includes('3.5') || model.includes('3.1')) model = 'gemini-1.5-flash';
 
     setTranslatingIds(prev => {
       const next = new Set(prev);
