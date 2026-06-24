@@ -787,9 +787,10 @@ export default function ChatArea({
                               e.stopPropagation();
                               handleTranslate(msg.id, msg.content || '', !!msg.translation);
                             }}
-                            style={styles.lowerToolBtn}
+                            style={{ ...styles.lowerToolBtn, width: 'auto', padding: '0 6px', gap: '4px' }}
                           >
                             <Globe size={11} />
+                            <span style={{ fontSize: '10px', fontWeight: '500' }}>번역</span>
                           </button>
 
                           {/* 2. 복사 (📋) */}
