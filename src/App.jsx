@@ -1095,12 +1095,15 @@ export default function App() {
         })
       });
 
-      if (!response.ok) throw new Error('Gemini API call failed');
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(`[${response.status}] ${errData.error?.message || response.statusText || '알 수 없는 오류'}`);
+      }
       const data = await response.json();
       return data.candidates[0].content.parts[0].text;
     } catch (e) {
       console.error('[Gemini API Error]', e);
-      return null;
+      return `❌ API 통신 실패\n상세 에러: ${e.message}\n(설정창에서 등록하신 API 키가 유효한지 다시 한번 확인해 주세요.)`;
     }
   };
 
