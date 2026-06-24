@@ -1154,7 +1154,7 @@ export default function Sidebar({
           ...styles.subPanel,
           backgroundColor: subPanelBg,
           width: `${subPanelWidth}px`,
-          display: (currentMenu === 'home' || !isSidebarOpen) ? 'none' : 'flex',
+          display: (currentMenu === 'home' || currentMenu === 'orgChart' || !isSidebarOpen) ? 'none' : 'flex',
           position: 'relative',
           borderRight: `1px solid ${themeStyles.borderLight}`
         }}

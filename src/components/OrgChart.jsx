@@ -1,72 +1,55 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Users, Search, Maximize2, Minimize2, ZoomIn, ZoomOut } from 'lucide-react';
+import { Search, Maximize2, ZoomIn, ZoomOut } from 'lucide-react';
 
 export default function OrgChart({ allEmployees, onUserClick, currentWorkspace }) {
   const [activeCompany, setActiveCompany] = useState(currentWorkspace === 'vietqs' ? 'Viet QS' : 'CON-COST');
   const [searchTerm, setSearchTerm] = useState('');
   
-  // 마우스 팬 & 줌 상태
   const [scale, setScale] = useState(0.85);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   
   const viewportRef = useRef(null);
-  const contentRef = useRef(null);
   const isDragging = useRef(false);
   const dragStart = useRef({ x: 0, y: 0 });
 
-  // 휠 줌(wheel zoom) 감지용 바닐라 이벤트 수동 바인딩 (passive: false 차단용)
   useEffect(() => {
     const viewport = viewportRef.current;
     if (!viewport) return;
-
     const handleWheel = (e) => {
       e.preventDefault();
       const zoomFactor = 0.06;
       let nextScale = scale + (e.deltaY < 0 ? zoomFactor : -zoomFactor);
-      nextScale = Math.min(Math.max(nextScale, 0.4), 1.6);
+      nextScale = Math.min(Math.max(nextScale, 0.3), 2.0);
       setScale(nextScale);
     };
-
     viewport.addEventListener('wheel', handleWheel, { passive: false });
-    return () => {
-      viewport.removeEventListener('wheel', handleWheel);
-    };
+    return () => viewport.removeEventListener('wheel', handleWheel);
   }, [scale]);
 
-  // 마우스 팬(drag to PAN) 조작
   const handleMouseDown = (e) => {
-    // 왼쪽 클릭(0) 또는 가운데 휠 클릭(1) 모두 드래그 지원
     if (e.button === 0 || e.button === 1) {
       isDragging.current = true;
       dragStart.current = { x: e.clientX - position.x, y: e.clientY - position.y };
       viewportRef.current.style.cursor = 'grabbing';
-      if (e.button === 1) {
-        e.preventDefault(); // 브라우저 자체의 휠 스크롤 스크롤바 이동 방지
-      }
+      if (e.button === 1) e.preventDefault();
     }
   };
 
   const handleMouseMove = (e) => {
     if (!isDragging.current) return;
-    const nextX = e.clientX - dragStart.current.x;
-    const nextY = e.clientY - dragStart.current.y;
-    setPosition({ x: nextX, y: nextY });
+    setPosition({ x: e.clientX - dragStart.current.x, y: e.clientY - dragStart.current.y });
   };
 
   const handleMouseUp = () => {
     isDragging.current = false;
-    if (viewportRef.current) {
-      viewportRef.current.style.cursor = 'grab';
-    }
+    if (viewportRef.current) viewportRef.current.style.cursor = 'grab';
   };
 
-  // 뷰포트 초기화
   const resetViewport = () => {
     setScale(0.85);
     setPosition({ x: 0, y: 0 });
   };
 
-  // --- 부서 및 구성원 수집 로직 ---
   const isConcost = activeCompany === 'CON-COST';
   const ceoEmp = allEmployees.find(e => isConcost ? e.id === 'kodari' : e.empNo === "VQS-001");
   const advisorEmp = allEmployees.find(e => isConcost ? e.id === 'tgkang' : e.empNo === "VQS-002");
@@ -94,240 +77,143 @@ export default function OrgChart({ allEmployees, onUserClick, currentWorkspace }
         { name: "Horizon / Foundation", leadId: "VQS-049", color: "#ec4899" }
       ];
 
-  // 직급 정렬 랭크 점수 산출
   const getGradeRank = (grade) => {
-    const ranks = [
-      '대표', 'CEO', '부사장', 'Executive Vice President', 
-      '상무', '본부장', '실장', '센터장', '팀장', '파트장', '기술이사', 'General Manager',
-      '수석', '책임', '선임', 'Asst. Team Leader', '프로', '주임', '사원', 'Staff'
-    ];
+    const ranks = ['대표', 'CEO', '부사장', 'Executive Vice President', '상무', '본부장', '실장', '센터장', '팀장', '파트장', '기술이사', 'General Manager', '수석', '책임', '선임', 'Asst. Team Leader', '프로', '주임', '사원', 'Staff'];
     const idx = ranks.indexOf(grade);
     return idx === -1 ? 99 : idx;
   };
 
-  // 검색어와 일치하는지 판별 헬퍼
   const matchesSearch = (emp) => {
-    if (!searchTerm.trim()) return true;
+    if (!searchTerm.trim() || !emp) return true;
     const term = searchTerm.toLowerCase();
-    return (
-      emp.userName.toLowerCase().includes(term) ||
-      (emp.dept && emp.dept.toLowerCase().includes(term)) ||
-      (emp.grade && emp.grade.toLowerCase().includes(term)) ||
-      (emp.empNo && emp.empNo.toLowerCase().includes(term))
-    );
+    return (emp.userName && emp.userName.toLowerCase().includes(term)) || (emp.dept && emp.dept.toLowerCase().includes(term)) || (emp.grade && emp.grade.toLowerCase().includes(term));
   };
 
-  // 직원 카드 렌더러
-  const renderEmployeeCard = (emp, isLead = false) => {
-    if (!emp) return null;
+  const renderTreeCard = (emp, ringColor = 'var(--primary)', overrideName = null) => {
+    if (!emp) {
+      return (
+        <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', opacity: 0.5, zIndex: 10, position: 'relative' }}>
+          <div style={{ width: '64px', height: '64px', borderRadius: '50%', backgroundColor: 'var(--bg-active)', border: `3px solid ${ringColor}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '1.2rem', fontWeight: 'bold' }}>?</div>
+          <div style={{ marginTop: '8px', fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--text-primary)' }}>{overrideName || '공석'}</div>
+        </div>
+      );
+    }
     const isMatched = matchesSearch(emp);
     const opacity = isMatched ? 1 : 0.22;
-    const scaleFactor = isMatched && searchTerm.trim() ? 'scale(1.03)' : 'scale(1)';
-    const borderColor = isMatched && searchTerm.trim() ? 'var(--primary)' : 'var(--border-light)';
+    const transform = isMatched && searchTerm.trim() ? 'scale(1.15)' : 'scale(1)';
 
     return (
-      <div
-        key={emp.empNo}
+      <div 
         onClick={() => onUserClick && onUserClick(emp.id)}
-        style={{
-          ...styles.nodeCard,
-          opacity,
-          transform: scaleFactor,
-          borderColor,
-          borderWidth: isLead ? '2px' : '1px'
-        }}
-        className="org-node-card-hover"
+        style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', opacity, cursor: 'pointer', transform, transition: 'all 0.2s', zIndex: 10, position: 'relative' }}
       >
-        <div style={styles.avatar}>
-          {emp.userName.charAt(0)}
+        <div style={{ width: '64px', height: '64px', borderRadius: '50%', border: `3px solid ${ringColor}`, padding: '2px', backgroundColor: 'var(--bg-primary)' }}>
+          <div style={{
+            width: '100%', height: '100%', borderRadius: '50%',
+            backgroundColor: emp.photoUrl ? 'transparent' : 'var(--bg-active)',
+            backgroundImage: emp.photoUrl ? `url(${emp.photoUrl})` : 'none',
+            backgroundSize: 'cover', backgroundPosition: 'center',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: 'var(--text-secondary)', fontSize: '1.2rem', fontWeight: 'bold'
+          }}>
+            {!emp.photoUrl && emp.userName.charAt(0)}
+          </div>
         </div>
-        <div style={styles.cardMeta}>
-          <div style={styles.cardName}>{emp.userName}</div>
-          <div style={styles.cardGrade}>{emp.grade}</div>
-          <div style={styles.cardWorkplace}>📍 {emp.workplace || '서울 본사'}</div>
-        </div>
-        {isLead && <div style={styles.leadLabel}>LEADER</div>}
+        <div style={{ marginTop: '8px', fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>{emp.userName}</div>
+        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{emp.grade || '사원'}</div>
       </div>
     );
   };
 
   return (
     <div style={styles.container}>
-      {/* 상단 액션 및 필터 바 */}
       <div style={styles.toolbar}>
         <div style={styles.companyTabs}>
-          <button 
-            style={{
-              ...styles.tabBtn,
-              backgroundColor: activeCompany === 'CON-COST' ? 'var(--primary)' : 'transparent',
-              color: activeCompany === 'CON-COST' ? '#ffffff' : 'var(--text-secondary)',
-              borderColor: activeCompany === 'CON-COST' ? 'var(--primary)' : 'var(--border-light)'
-            }}
-            onClick={() => { setActiveCompany('CON-COST'); resetViewport(); }}
-          >
-            CON-COST 조직도
-          </button>
-          <button 
-            style={{
-              ...styles.tabBtn,
-              backgroundColor: activeCompany === 'Viet QS' ? 'var(--primary)' : 'transparent',
-              color: activeCompany === 'Viet QS' ? '#ffffff' : 'var(--text-secondary)',
-              borderColor: activeCompany === 'Viet QS' ? 'var(--primary)' : 'var(--border-light)'
-            }}
-            onClick={() => { setActiveCompany('Viet QS'); resetViewport(); }}
-          >
-            Viet QS 조직도
-          </button>
+          <button style={{...styles.tabBtn, backgroundColor: activeCompany === 'CON-COST' ? 'var(--primary)' : 'transparent', color: activeCompany === 'CON-COST' ? '#ffffff' : 'var(--text-secondary)', borderColor: activeCompany === 'CON-COST' ? 'var(--primary)' : 'var(--border-light)'}} onClick={() => { setActiveCompany('CON-COST'); resetViewport(); }}>CON-COST 조직도</button>
+          <button style={{...styles.tabBtn, backgroundColor: activeCompany === 'Viet QS' ? 'var(--primary)' : 'transparent', color: activeCompany === 'Viet QS' ? '#ffffff' : 'var(--text-secondary)', borderColor: activeCompany === 'Viet QS' ? 'var(--primary)' : 'var(--border-light)'}} onClick={() => { setActiveCompany('Viet QS'); resetViewport(); }}>Viet QS 조직도</button>
         </div>
-
-        {/* 조작 툴바 및 검색 */}
         <div style={styles.rightControls}>
           <div style={styles.searchWrapper}>
             <Search size={16} style={styles.searchIcon} />
-            <input
-              type="text"
-              placeholder="사원명, 직급, 부서 검색..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              style={styles.searchInput}
-            />
+            <input type="text" placeholder="사원명, 직급, 부서 검색..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={styles.searchInput} />
           </div>
-
-          <button style={styles.controlBtn} onClick={() => setScale(prev => Math.min(prev + 0.1, 1.6))} title="확대"><ZoomIn size={16} /></button>
-          <button style={styles.controlBtn} onClick={() => setScale(prev => Math.max(prev - 0.1, 0.4))} title="축소"><ZoomOut size={16} /></button>
+          <button style={styles.controlBtn} onClick={() => setScale(prev => Math.min(prev + 0.1, 2.0))} title="확대"><ZoomIn size={16} /></button>
+          <button style={styles.controlBtn} onClick={() => setScale(prev => Math.max(prev - 0.1, 0.3))} title="축소"><ZoomOut size={16} /></button>
           <button style={styles.controlBtn} onClick={resetViewport} title="초기화"><Maximize2 size={16} /></button>
         </div>
       </div>
 
-      {/* 가상 조직도 드래그 뷰포트 영역 */}
-      <div
-        ref={viewportRef}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-        style={styles.viewport}
-      >
-        <div
-          ref={contentRef}
-          style={{
-            ...styles.treeWrapper,
-            transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
-          }}
-        >
-          {/* 1) 최상단 CEO (대표이사) 수직 트리 시작 */}
-          {ceoEmp && (
-            <div style={styles.ceoNodeWrapper}>
-              <span style={styles.roleHeader}>CEO (대표이사)</span>
-              {renderEmployeeCard(ceoEmp, true)}
-            </div>
-          )}
-
-          {/* 수직 하강 데코 선 */}
-          <div style={styles.verticalLinkLine} />
-
-          {/* 2) 2단계 Executive Advisor (부사장) 배치 */}
-          {advisorEmp && (
-            <div style={styles.ceoNodeWrapper}>
-              <span style={{ ...styles.roleHeader, color: 'var(--primary)' }}>
-                {isConcost ? 'Executive Vice President (부사장)' : 'Executive Vice President'}
-              </span>
-              {renderEmployeeCard(advisorEmp, false)}
-            </div>
-          )}
-
-          {/* 수직 하강 데코 선 */}
-          <div style={styles.verticalLinkLine} />
-
-          {/* 3) 가로 배치 1단계 부서 블록들 */}
-          <div style={styles.deptsRow}>
-            {deptsConfig.map(dept => {
-              // 부서장(Leader) 추출
-              const lead = allEmployees.find(e => e.company === activeCompany && e.empNo === dept.leadId);
-              // 부서원들 추출 (부서장 제외 및 직급순 정렬)
-              const members = allEmployees
-                .filter(e => e.company === activeCompany && e.dept === dept.name && e.empNo !== dept.leadId)
-                .sort((a, b) => getGradeRank(a.grade) - getGradeRank(b.grade));
-
-              const totalCount = (lead ? 1 : 0) + members.length;
-
-              return (
-                <div 
-                  key={dept.name} 
-                  style={{
-                    ...styles.deptBlock,
-                    borderTop: `5px solid ${dept.color}`
-                  }}
-                >
-                  {/* 부서 이름 및 머릿수 뱃지 */}
-                  <div style={styles.deptHeader}>
-                    <span style={styles.deptTitle}>📁 {dept.name}</span>
-                    <span style={styles.deptBadge}>👤 {totalCount}명</span>
-                  </div>
-
-                  {/* 부서장 카드 */}
-                  <div style={styles.deptLeadArea}>
-                    {lead ? renderEmployeeCard(lead, true) : <div style={styles.emptyLead}>부서장 공석</div>}
-                  </div>
-
-                  {/* 팀원 수직 곁가지 가이드선 구조 배치 */}
-                  {members.length > 0 && (
-                    <div style={{
-                      position: 'relative',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'flex-start',
-                      gap: '10px',
-                      marginTop: '14px',
-                      paddingTop: '14px',
-                      borderTop: '1px dashed var(--border-light)',
-                      width: '100%',
-                      paddingLeft: '22px'
-                    }}>
-                      {/* 수직 안내 가이드라인 */}
-                      <div style={{
-                        position: 'absolute',
-                        left: '10px',
-                        top: '0',
-                        bottom: '22px', // 마지막 카드의 50% 높이에서 끝나도록
-                        width: '2px',
-                        backgroundColor: 'var(--border-light)'
-                      }} />
-
-                      {members.map(m => (
-                        <div 
-                          key={m.empNo} 
-                          style={{ 
-                            position: 'relative', 
-                            width: '100%', 
-                            display: 'flex', 
-                            alignItems: 'center' 
-                          }}
-                        >
-                          {/* 가로 곁가지 꺾쇠 수평선 */}
-                          <div style={{
-                            position: 'absolute',
-                            left: '-12px',
-                            top: '50%',
-                            transform: 'translateY(-50%)',
-                            width: '12px',
-                            height: '2px',
-                            backgroundColor: 'var(--border-light)'
-                          }} />
-                          {renderEmployeeCard(m, false)}
-                        </div>
-                      ))}
-                    </div>
+      <div ref={viewportRef} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} style={styles.viewport}>
+        <div style={{ position: 'absolute', top: '40px', left: '50%', transform: `translate(calc(-50% + ${position.x}px), ${position.y}px) scale(${scale})`, transformOrigin: 'top center', transition: isDragging.current ? 'none' : 'transform 0.05s ease-out' }}>
+          
+          <div className="org-tree">
+            <ul>
+              <li>
+                {ceoEmp && (
+                  <>
+                    <div style={{ color: 'var(--primary)', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '8px' }}>CEO (대표이사)</div>
+                    {renderTreeCard(ceoEmp)}
+                  </>
+                )}
+                {/* Advisor and Depts Branching */}
+                <ul>
+                  {advisorEmp && (
+                    <li>
+                      <div style={{ color: 'var(--primary)', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '8px' }}>Executive Vice President</div>
+                      {renderTreeCard(advisorEmp)}
+                      <ul>
+                        {/* Rendering Departments under Advisor */}
+                        {deptsConfig.map(dept => {
+                          const lead = allEmployees.find(e => e.company === activeCompany && e.empNo === dept.leadId);
+                          const members = allEmployees.filter(e => e.company === activeCompany && e.dept === dept.name && e.empNo !== dept.leadId).sort((a, b) => getGradeRank(a.grade) - getGradeRank(b.grade));
+                          return (
+                            <li key={dept.name}>
+                              <div style={{ display: 'inline-block', backgroundColor: 'var(--bg-active)', padding: '4px 10px', borderRadius: '12px', color: dept.color, fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '12px', border: `1px solid ${dept.color}` }}>{dept.name}</div>
+                              <br/>
+                              {renderTreeCard(lead, dept.color, lead ? null : '부서장 공석')}
+                              {members.length > 0 && (
+                                <ul>
+                                  {members.map(m => (
+                                    <li key={m.empNo}>
+                                      {renderTreeCard(m, dept.color)}
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </li>
                   )}
-                </div>
-              );
-            })}
+                  {!advisorEmp && deptsConfig.map(dept => {
+                    const lead = allEmployees.find(e => e.company === activeCompany && e.empNo === dept.leadId);
+                    const members = allEmployees.filter(e => e.company === activeCompany && e.dept === dept.name && e.empNo !== dept.leadId).sort((a, b) => getGradeRank(a.grade) - getGradeRank(b.grade));
+                    return (
+                      <li key={dept.name}>
+                        <div style={{ display: 'inline-block', backgroundColor: 'var(--bg-active)', padding: '4px 10px', borderRadius: '12px', color: dept.color, fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '12px', border: `1px solid ${dept.color}` }}>{dept.name}</div>
+                        <br/>
+                        {renderTreeCard(lead, dept.color, lead ? null : '부서장 공석')}
+                        {members.length > 0 && (
+                          <ul>
+                            {members.map(m => (
+                              <li key={m.empNo}>
+                                {renderTreeCard(m, dept.color)}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </li>
+            </ul>
           </div>
 
         </div>
       </div>
       
-      {/* 하단 인터랙션 팁 */}
       <div style={styles.tipBar}>
         💡 마우스 왼쪽 또는 **휠 클릭 후 드래그**하여 화면을 자유롭게 이동(PAN)하고, **마우스 휠 스크롤**로 확대/축소(ZOOM)하세요!
       </div>
@@ -336,279 +222,15 @@ export default function OrgChart({ allEmployees, onUserClick, currentWorkspace }
 }
 
 const styles = {
-  container: {
-    display: 'flex',
-    flexDirection: 'column',
-    flex: 1,
-    height: '100%',
-    backgroundColor: 'var(--bg-primary)',
-    overflow: 'hidden'
-  },
-  toolbar: {
-    height: '60px',
-    borderBottom: '1px solid var(--border)',
-    backgroundColor: 'var(--bg-secondary)',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '0 24px',
-    flexShrink: 0,
-    zIndex: 10,
-  },
-  companyTabs: {
-    display: 'flex',
-    gap: '8px',
-  },
-  tabBtn: {
-    padding: '6px 16px',
-    borderRadius: '4px',
-    fontSize: '0.85rem',
-    fontWeight: '700',
-    border: '1px solid',
-    cursor: 'pointer',
-    transition: 'all 0.2s ease',
-  },
-  rightControls: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-  },
-  searchWrapper: {
-    position: 'relative',
-    display: 'flex',
-    alignItems: 'center',
-    marginRight: '8px',
-  },
-  searchIcon: {
-    position: 'absolute',
-    left: '10px',
-    color: 'var(--text-muted)',
-  },
-  searchInput: {
-    padding: '7px 10px 7px 32px',
-    backgroundColor: 'var(--bg-tertiary)',
-    border: '1px solid var(--border-light)',
-    borderRadius: '4px',
-    color: 'var(--text-primary)',
-    fontSize: '0.825rem',
-    outline: 'none',
-    width: '200px',
-  },
-  controlBtn: {
-    width: '32px',
-    height: '32px',
-    borderRadius: '4px',
-    border: '1px solid var(--border-light)',
-    backgroundColor: 'var(--bg-secondary)',
-    color: 'var(--text-primary)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    cursor: 'pointer',
-  },
-  viewport: {
-    flex: 1,
-    width: '100%',
-    overflow: 'hidden',
-    backgroundColor: 'var(--bg-tertiary)',
-    position: 'relative',
-    cursor: 'grab',
-  },
-  treeWrapper: {
-    position: 'absolute',
-    top: '40px',
-    left: '50%',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: '40px',
-    minWidth: 'max-content',
-    transformOrigin: 'top center',
-    transition: 'transform 0.05s ease-out',
-  },
-  ceoRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '40px',
-    position: 'relative',
-  },
-  ceoNodeWrapper: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-  },
-  roleHeader: {
-    fontSize: '11px',
-    fontWeight: '800',
-    color: 'var(--primary)',
-    marginBottom: '8px',
-    letterSpacing: '0.5px',
-    textTransform: 'uppercase',
-  },
-  linkLine: {
-    width: '40px',
-    height: '2px',
-    backgroundColor: 'var(--border)',
-    position: 'relative',
-  },
-  linkCircle: {
-    position: 'absolute',
-    left: '50%',
-    top: '-4px',
-    transform: 'translateX(-50%)',
-    width: '8px',
-    height: '8px',
-    backgroundColor: 'var(--border)',
-    borderRadius: '50%',
-  },
-  verticalLinkLine: {
-    width: '2px',
-    height: '30px',
-    backgroundColor: 'var(--border)',
-    marginTop: '-25px',
-  },
-  deptsRow: {
-    display: 'flex',
-    gap: '24px',
-    justifyContent: 'center',
-    position: 'relative',
-    paddingTop: '16px',
-    borderTop: '2px solid var(--border)',
-  },
-  deptBlock: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    backgroundColor: 'var(--bg-secondary)',
-    border: '1px solid var(--border)',
-    borderRadius: '6px',
-    padding: '16px',
-    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.15)',
-    minWidth: '230px',
-    flexShrink: 0,
-  },
-  deptHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    width: '100%',
-    marginBottom: '14px',
-    fontWeight: '800',
-    fontSize: '0.85rem',
-    color: 'var(--text-primary)',
-  },
-  deptTitle: {
-    whiteSpace: 'nowrap',
-  },
-  deptBadge: {
-    backgroundColor: 'var(--bg-tertiary)',
-    color: 'var(--text-secondary)',
-    border: '1px solid var(--border-light)',
-    fontSize: '0.7rem',
-    padding: '1px 6px',
-    borderRadius: '4px',
-  },
-  deptLeadArea: {
-    width: '100%',
-    display: 'flex',
-    justifyContent: 'center',
-  },
-  emptyLead: {
-    color: 'var(--text-muted)',
-    fontSize: '0.75rem',
-    fontStyle: 'italic',
-    padding: '8px',
-  },
-  membersGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(2, 175px)',
-    gap: '10px',
-    justifyContent: 'center',
-    marginTop: '14px',
-    paddingTop: '14px',
-    borderTop: '1px dashed var(--border-light)',
-  },
-  nodeCard: {
-    border: '1px solid var(--border-light)',
-    borderRadius: '6px',
-    backgroundColor: 'var(--bg-primary)',
-    padding: '10px 14px',
-    width: '175px',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-    transition: 'transform 0.2s ease, border-color 0.2s ease, opacity 0.2s ease',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-    flexShrink: 0,
-    textAlign: 'left',
-    position: 'relative',
-  },
-  avatar: {
-    width: '32px',
-    height: '32px',
-    borderRadius: '6px',
-    backgroundColor: 'var(--primary)',
-    color: '#ffffff',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontWeight: '800',
-    fontSize: '13px',
-    flexShrink: 0,
-  },
-  cardMeta: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '2px',
-    minWidth: 0,
-    flex: 1,
-  },
-  cardName: {
-    fontSize: '0.825rem',
-    fontWeight: '800',
-    color: 'var(--text-primary)',
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-  },
-  cardGrade: {
-    fontSize: '0.675rem',
-    color: 'var(--text-muted)',
-    fontWeight: '700',
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-  },
-  cardWorkplace: {
-    fontSize: '0.6rem',
-    color: 'var(--text-muted)',
-    fontWeight: '500',
-  },
-  leadLabel: {
-    position: 'absolute',
-    top: '-6px',
-    right: '6px',
-    backgroundColor: 'rgba(255, 107, 0, 0.1)',
-    border: '1px solid rgba(255, 107, 0, 0.3)',
-    color: 'var(--primary)',
-    fontSize: '7px',
-    fontWeight: '800',
-    padding: '1px 4px',
-    borderRadius: '3px',
-    letterSpacing: '0.5px',
-  },
-  tipBar: {
-    height: '36px',
-    backgroundColor: 'var(--bg-secondary)',
-    borderTop: '1px solid var(--border)',
-    fontSize: '0.75rem',
-    fontWeight: '600',
-    color: 'var(--text-secondary)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-    userSelect: 'none',
-  }
+  container: { display: 'flex', flexDirection: 'column', flex: 1, height: '100%', backgroundColor: 'var(--bg-primary)', overflow: 'hidden' },
+  toolbar: { height: '60px', borderBottom: '1px solid var(--border)', backgroundColor: 'var(--bg-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 24px', flexShrink: 0, zIndex: 10 },
+  companyTabs: { display: 'flex', gap: '8px' },
+  tabBtn: { padding: '6px 16px', borderRadius: '4px', fontSize: '0.85rem', fontWeight: '700', border: '1px solid', cursor: 'pointer', transition: 'all 0.2s ease' },
+  rightControls: { display: 'flex', alignItems: 'center', gap: '8px' },
+  searchWrapper: { position: 'relative', display: 'flex', alignItems: 'center', marginRight: '8px' },
+  searchIcon: { position: 'absolute', left: '10px', color: 'var(--text-muted)' },
+  searchInput: { padding: '7px 10px 7px 32px', backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-light)', borderRadius: '4px', color: 'var(--text-primary)', fontSize: '0.825rem', outline: 'none', width: '200px' },
+  controlBtn: { width: '32px', height: '32px', borderRadius: '4px', border: '1px solid var(--border-light)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  viewport: { flex: 1, width: '100%', overflow: 'hidden', backgroundColor: 'var(--bg-tertiary)', position: 'relative', cursor: 'grab' },
+  tipBar: { height: '36px', backgroundColor: 'var(--bg-secondary)', borderTop: '1px solid var(--border)', fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, userSelect: 'none' }
 };
