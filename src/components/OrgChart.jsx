@@ -51,30 +51,33 @@ export default function OrgChart({ allEmployees, onUserClick, currentWorkspace }
   };
 
   const isConcost = activeCompany === 'CON-COST';
-  const ceoEmp = allEmployees.find(e => e.company === activeCompany && (e.grade === '대표' || e.grade === 'CEO' || e.dept === '대표이사')) || allEmployees.find(e => e.empNo === 'CC-000' || e.empNo === 'VQS-001');
-  const advisorEmp = allEmployees.find(e => e.company === activeCompany && (e.grade === '부사장' || e.dept === '임원실')) || allEmployees.find(e => e.empNo === 'CC-007' || e.empNo === 'VQS-002');
+  const ceoEmp = allEmployees.find(e => e.company === activeCompany && (e.grade === '대표' || e.grade === 'CEO' || e.grade === '대표이사' || e.dept === '임원')) || allEmployees.find(e => e.empNo === 'CC-001' || e.empNo === 'VQS-001');
+  const advisorEmp = allEmployees.find(e => e.company === activeCompany && (e.grade === '부사장' || e.dept === '임원실')) || allEmployees.find(e => e.empNo === 'CC-002');
 
-  const deptsConfig = isConcost 
-    ? [
-        { name: "개발 TF팀", leadId: "CC-002", color: "#2563eb" },
-        { name: "경영지원본부", leadId: "CC-001", color: "#10b981" },
-        { name: "QC", leadId: "CC-008", color: "#ef4444" },
-        { name: "BIM파트", leadId: "CC-029", color: "#ff6b00" },
-        { name: "토목·조경파트", leadId: "CC-030", color: "#f59e0b" },
-        { name: "클레임센터", leadId: "CC-031", color: "#6366f1" },
-        { name: "마감", leadId: "CC-011", color: "#ec4899" },
-        { name: "구조/토목 조경", leadId: "CC-023", color: "#6b7280" }
-      ]
-    : [
-        { name: "Management Support", leadId: "VQS-003", color: "#3b82f6" },
-        { name: "Internal 1", leadId: "VQS-006", color: "#ef4444" },
-        { name: "Internal 2", leadId: "VQS-007", color: "#1e3a8a" },
-        { name: "Internal 3", leadId: "VQS-017", color: "#10b981" },
-        { name: "Partition&Opening", leadId: "VQS-022", color: "#ff6b00" },
-        { name: "External", leadId: "VQS-027", color: "#6b7280" },
-        { name: "Vertical", leadId: "VQS-032", color: "#8b5cf6" },
-        { name: "Horizon / Foundation", leadId: "VQS-049", color: "#ec4899" }
-      ];
+  const concostDeptsList = ['경영지원본부', '기술본부', '클레임센터', '개발 T/F', '마감', '구조/토목·조경', '구조', 'BIM파트', '토목·조경파트'];
+  const vietqsDeptsList = ['Management Support', 'Finish', 'Structure', 'Civil', '개발 T/F'];
+
+  const deptsConfig = (isConcost ? concostDeptsList : vietqsDeptsList).map((deptName, i) => {
+    const colors = ["#10b981", "#ef4444", "#ff6b00", "#f59e0b", "#6366f1", "#ec4899", "#6b7280", "#2563eb", "#8b5cf6", "#14b8a6"];
+    const deptMembers = allEmployees.filter(e => e.company === activeCompany && e.dept === deptName);
+    
+    const rankOrder = ['본부장', '센터장', '실장', '팀장', '부팀장', '수석', '책임', '선임', '사원'];
+    deptMembers.sort((a, b) => {
+      let rA = rankOrder.indexOf(a.grade);
+      let rB = rankOrder.indexOf(b.grade);
+      if(rA === -1) rA = 99;
+      if(rB === -1) rB = 99;
+      return rA - rB;
+    });
+
+    const lead = deptMembers.length > 0 ? deptMembers[0] : null;
+
+    return {
+      name: deptName,
+      leadId: lead ? lead.empNo : null,
+      color: colors[i % colors.length]
+    };
+  });
 
   const getGradeRank = (grade) => {
     const ranks = ['대표', 'CEO', '부사장', 'Executive Vice President', '상무', '본부장', '실장', '센터장', '팀장', '파트장', '기술이사', 'General Manager', '수석', '책임', '선임', 'Asst. Team Leader', '프로', '주임', '사원', 'Staff'];
