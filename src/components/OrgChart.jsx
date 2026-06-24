@@ -172,13 +172,17 @@ export default function OrgChart({ allEmployees, onUserClick, currentWorkspace }
                               <br/>
                               {renderTreeCard(lead, dept.color, lead ? null : '부서장 공석')}
                               {members.length > 0 && (
-                                <ul>
-                                  {members.map(m => (
-                                    <li key={m.empNo}>
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: '16px', position: 'relative' }}>
+                                  <div style={{ position: 'absolute', top: '-16px', left: '50%', width: '2px', height: '16px', backgroundColor: 'var(--border-light)', transform: 'translateX(-50%)' }} />
+                                  {members.map((m, index) => (
+                                    <div key={m.empNo} style={{ position: 'relative', paddingBottom: index === members.length - 1 ? '0' : '16px' }}>
+                                      {index < members.length - 1 && (
+                                        <div style={{ position: 'absolute', bottom: '0', left: '50%', width: '2px', height: '16px', backgroundColor: 'var(--border-light)', transform: 'translateX(-50%)' }} />
+                                      )}
                                       {renderTreeCard(m, dept.color)}
-                                    </li>
+                                    </div>
                                   ))}
-                                </ul>
+                                </div>
                               )}
                             </li>
                           );
@@ -195,13 +199,17 @@ export default function OrgChart({ allEmployees, onUserClick, currentWorkspace }
                         <br/>
                         {renderTreeCard(lead, dept.color, lead ? null : '부서장 공석')}
                         {members.length > 0 && (
-                          <ul>
-                            {members.map(m => (
-                              <li key={m.empNo}>
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: '16px', position: 'relative' }}>
+                            <div style={{ position: 'absolute', top: '-16px', left: '50%', width: '2px', height: '16px', backgroundColor: 'var(--border-light)', transform: 'translateX(-50%)' }} />
+                            {members.map((m, index) => (
+                              <div key={m.empNo} style={{ position: 'relative', paddingBottom: index === members.length - 1 ? '0' : '16px' }}>
+                                {index < members.length - 1 && (
+                                  <div style={{ position: 'absolute', bottom: '0', left: '50%', width: '2px', height: '16px', backgroundColor: 'var(--border-light)', transform: 'translateX(-50%)' }} />
+                                )}
                                 {renderTreeCard(m, dept.color)}
-                              </li>
+                              </div>
                             ))}
-                          </ul>
+                          </div>
                         )}
                       </li>
                     );
