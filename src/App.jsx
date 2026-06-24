@@ -2652,7 +2652,12 @@ export default function App() {
               </div>
 
               <div style={styles.inputGroup}>
-                <label style={styles.label}>Google Gemini API Key</label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <label style={{ ...styles.label, marginBottom: 0 }}>Google Gemini API Key</label>
+                  <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.8rem', color: 'var(--primary)', textDecoration: 'none', fontWeight: 'bold' }}>
+                    🔑 무료 키 발급받기 ↗
+                  </a>
+                </div>
                 <input
                   type="password"
                   value={geminiKey}
