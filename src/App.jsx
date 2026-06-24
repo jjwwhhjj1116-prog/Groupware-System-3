@@ -1076,8 +1076,7 @@ export default function App() {
       - 항상 구체적이고 실질적인 정보와 수치를 언급하여 대답의 신뢰도를 높여라.
       `;
 
-      const safeModel = (geminiModel.includes('3.5') || geminiModel.includes('3.1')) ? 'gemini-1.5-flash' : geminiModel;
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${safeModel}:generateContent?key=${geminiKey}`;
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${geminiKey}`;
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1102,8 +1101,7 @@ export default function App() {
     const isTransActive = realtimeTrans || localStorage.getItem('realtime_translation') === 'true';
     if (!apiKey || !isTransActive || !text) return null;
 
-    let model = geminiModel || localStorage.getItem('gemini_model') || 'gemini-1.5-flash';
-    if (model.includes('3.5') || model.includes('3.1')) model = 'gemini-1.5-flash';
+    let model = geminiModel || localStorage.getItem('gemini_model') || 'gemini-3.5-flash';
     const promptText = `너는 다국어 번역기이다. 아래 입력 텍스트를 감지하여 적절하게 번역해라.
 - 만약 한국어(Korean)인 경우: 영어(English)와 베트남어(Vietnamese)로 번역해라.
 - 만약 베트남어(Vietnamese)인 경우: 한국어(Korean)와 영어(English)로 번역해라.
@@ -2671,8 +2669,8 @@ export default function App() {
                   onChange={(e) => setGeminiModel(e.target.value)}
                   style={styles.settingsSelect}
                 >
-                  <option value="gemini-1.5-flash">Gemini 1.5 Flash (권장, 경량・고속)</option>
-                  <option value="gemini-1.5-pro">Gemini 1.5 Pro (고성능・정밀)</option>
+                  <option value="gemini-3.5-flash">Gemini 3.5 Flash (권장 모델)</option>
+                  <option value="gemini-3.1-pro">Gemini 3.1 Pro (고성능 모델)</option>
                 </select>
               </div>
             </div>
