@@ -51,13 +51,11 @@ export default function OrgChart({ allEmployees, onUserClick, currentWorkspace }
   };
 
   const isConcost = activeCompany === 'CON-COST';
-  const ceoEmp = allEmployees.find(e => isConcost ? e.id === 'kodari' : e.empNo === "VQS-001");
-  const advisorEmp = allEmployees.find(e => isConcost ? e.id === 'tgkang' : e.empNo === "VQS-002");
+  const ceoEmp = allEmployees.find(e => e.company === activeCompany && (e.grade === '대표' || e.grade === 'CEO' || e.dept === '대표이사')) || allEmployees.find(e => e.empNo === 'CC-000' || e.empNo === 'VQS-001');
+  const advisorEmp = allEmployees.find(e => e.company === activeCompany && (e.grade === '부사장' || e.dept === '임원실')) || allEmployees.find(e => e.empNo === 'CC-007' || e.empNo === 'VQS-002');
 
   const deptsConfig = isConcost 
     ? [
-        { name: "대표이사", leadId: "CC-000", color: "#3b82f6" },
-        { name: "임원실", leadId: "CC-007", color: "#8b5cf6" },
         { name: "경영지원본부", leadId: "CC-001", color: "#10b981" },
         { name: "QC", leadId: "CC-008", color: "#ef4444" },
         { name: "BIM파트", leadId: "CC-029", color: "#ff6b00" },
@@ -149,21 +147,16 @@ export default function OrgChart({ allEmployees, onUserClick, currentWorkspace }
           <div className="org-tree">
             <ul>
               <li>
-                {ceoEmp && (
-                  <>
-                    <div style={{ color: 'var(--primary)', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '8px' }}>CEO (대표이사)</div>
-                    {renderTreeCard(ceoEmp)}
-                  </>
-                )}
+                <div style={{ color: 'var(--primary)', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '8px' }}>CEO (대표이사)</div>
+                {renderTreeCard(ceoEmp, 'var(--primary)', '대표 공석')}
                 {/* Advisor and Depts Branching */}
                 <ul>
-                  {advisorEmp && (
-                    <li>
-                      <div style={{ color: 'var(--primary)', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '8px' }}>Executive Vice President</div>
-                      {renderTreeCard(advisorEmp)}
-                      <ul>
-                        {/* Rendering Departments under Advisor */}
-                        {deptsConfig.map(dept => {
+                  <li>
+                    <div style={{ color: 'var(--primary)', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '8px' }}>Executive Vice President</div>
+                    {renderTreeCard(advisorEmp, '#8b5cf6', '부사장 공석')}
+                    <ul>
+                      {/* Rendering Departments under Advisor */}
+                      {deptsConfig.map(dept => {
                           const lead = allEmployees.find(e => e.company === activeCompany && e.empNo === dept.leadId);
                           const members = allEmployees.filter(e => e.company === activeCompany && e.dept === dept.name && e.empNo !== dept.leadId).sort((a, b) => getGradeRank(a.grade) - getGradeRank(b.grade));
                           return (
@@ -186,34 +179,9 @@ export default function OrgChart({ allEmployees, onUserClick, currentWorkspace }
                               )}
                             </li>
                           );
-                        })}
-                      </ul>
-                    </li>
-                  )}
-                  {!advisorEmp && deptsConfig.map(dept => {
-                    const lead = allEmployees.find(e => e.company === activeCompany && e.empNo === dept.leadId);
-                    const members = allEmployees.filter(e => e.company === activeCompany && e.dept === dept.name && e.empNo !== dept.leadId).sort((a, b) => getGradeRank(a.grade) - getGradeRank(b.grade));
-                    return (
-                      <li key={dept.name}>
-                        <div style={{ display: 'inline-block', backgroundColor: 'var(--bg-active)', padding: '4px 10px', borderRadius: '12px', color: dept.color, fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '12px', border: `1px solid ${dept.color}` }}>{dept.name}</div>
-                        <br/>
-                        {renderTreeCard(lead, dept.color, lead ? null : '부서장 공석')}
-                        {members.length > 0 && (
-                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: '16px', position: 'relative' }}>
-                            <div style={{ position: 'absolute', top: '-16px', left: '50%', width: '2px', height: '16px', backgroundColor: 'var(--border-light)', transform: 'translateX(-50%)' }} />
-                            {members.map((m, index) => (
-                              <div key={m.empNo} style={{ position: 'relative', paddingBottom: index === members.length - 1 ? '0' : '16px' }}>
-                                {index < members.length - 1 && (
-                                  <div style={{ position: 'absolute', bottom: '0', left: '50%', width: '2px', height: '16px', backgroundColor: 'var(--border-light)', transform: 'translateX(-50%)' }} />
-                                )}
-                                {renderTreeCard(m, dept.color)}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </li>
-                    );
-                  })}
+                      })}
+                    </ul>
+                  </li>
                 </ul>
               </li>
             </ul>
