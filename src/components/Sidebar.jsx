@@ -610,7 +610,7 @@ export default function Sidebar({
       case 'mail':
         const isViet = currentWorkspace === 'vietqs';
         return (
-          <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '12px 12px 16px 12px', gap: '16px', backgroundColor: 'var(--bg-primary)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '12px 12px 16px 12px', gap: '16px', backgroundColor: 'transparent' }}>
             {/* 1. 메일쓰기 / 메모쓰기 알약형(Pill) 버튼 그룹 */}
             <div style={{ display: 'flex', width: '100%', height: '40px', borderRadius: '20px', overflow: 'hidden', boxShadow: '0 2px 5px rgba(0,0,0,0.1)', flexShrink: 0 }}>
               <button 

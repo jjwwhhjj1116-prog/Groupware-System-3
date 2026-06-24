@@ -161,7 +161,7 @@ async function migrateJsonToMongo() {
           empNo: 'EMP-2018-001',
           userName: '박용진',
           company: 'CON-COST',
-          dept: 'BIM파트',
+          dept: '개발 TF팀',
           grade: '수석',
           role: '수석',
           status: '재직',

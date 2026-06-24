@@ -56,6 +56,7 @@ export default function OrgChart({ allEmployees, onUserClick, currentWorkspace }
 
   const deptsConfig = isConcost 
     ? [
+        { name: "개발 TF팀", leadId: "CC-002", color: "#2563eb" },
         { name: "경영지원본부", leadId: "CC-001", color: "#10b981" },
         { name: "QC", leadId: "CC-008", color: "#ef4444" },
         { name: "BIM파트", leadId: "CC-029", color: "#ff6b00" },
