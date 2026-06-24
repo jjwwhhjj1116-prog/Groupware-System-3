@@ -295,6 +295,7 @@ export default function App() {
     return saved ? JSON.parse(saved) : null;
   });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [onlineUserIds, setOnlineUserIds] = useState([]);
 
   // Gemini API Key 및 모델명 보관 설정
   const [geminiKey, setGeminiKey] = useState(localStorage.getItem('gemini_api_key') || '');
@@ -665,22 +666,37 @@ export default function App() {
       }
     });
 
+    // 접속 유저 업데이트 리스너
+    socket.on('users:online', (ids) => {
+      setOnlineUserIds(ids);
+    });
+
     // 메시지 수신 리스너
     socket.on('message:receive', (msg) => {
       const chatKey = msg.channelId; // channelId가 곧 chatKey
 
-      setMessages(prev => ({
-        ...prev,
-        [chatKey]: [...(prev[chatKey] || []), msg]
-      }));
+      setMessages(prev => {
+        const currentMsgs = prev[chatKey] || [];
+        // 이미 존재하는 메시지면 추가하지 않음 (로컬 optimistic 업데이트 중복 방지)
+        if (currentMsgs.some(m => m.id === msg.id)) {
+          return prev;
+        }
+        return {
+          ...prev,
+          [chatKey]: [...currentMsgs, msg]
+        };
+      });
 
-      // 알림음 및 바탕화면 토스트 알림 띄우기
-      playNotificationSound();
-      if (Notification.permission === 'granted') {
-        new Notification('CONCOST Works 알림', {
-          body: `${msg.senderName}: ${msg.content}`,
-          icon: '/favicon.ico'
-        });
+      // 알림음 및 바탕화면 토스트 알림 띄우기 (내가 보낸 메시지가 아닐 때만)
+      const isMyMsg = currentUser ? msg.sender === currentUser.id : msg.sender === 'me';
+      if (!isMyMsg) {
+        playNotificationSound();
+        if (Notification.permission === 'granted') {
+          new Notification('CONCOST Works 알림', {
+            body: `${msg.senderName}: ${msg.content}`,
+            icon: '/favicon.ico'
+          });
+        }
       }
     });
 
@@ -2232,19 +2248,31 @@ export default function App() {
                     onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'}
                     onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                   >
-                    <div style={{
-                      width: '32px',
-                      height: '32px',
-                      borderRadius: '4px',
-                      backgroundColor: emp.company === 'Viet QS' ? '#0058bc' : '#ff6b00',
-                      color: '#ffffff',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '0.85rem',
-                      fontWeight: 'bold'
-                    }}>
-                      {emp.userName.charAt(0)}
+                    <div style={{ position: 'relative' }}>
+                      <div style={{
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '4px',
+                        backgroundColor: emp.company === 'Viet QS' ? '#0058bc' : '#ff6b00',
+                        color: '#ffffff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '0.85rem',
+                        fontWeight: 'bold'
+                      }}>
+                        {emp.userName.charAt(0)}
+                      </div>
+                      <span className={`status-dot ${onlineUserIds.includes(emp.id) ? 'online' : ''}`} style={{
+                        position: 'absolute',
+                        bottom: '-2px',
+                        right: '-2px',
+                        width: '10px',
+                        height: '10px',
+                        borderRadius: '50%',
+                        backgroundColor: onlineUserIds.includes(emp.id) ? 'var(--success)' : '#c0c0c0',
+                        border: '2px solid var(--bg-primary)'
+                      }} />
                     </div>
                     <div>
                       <div style={{ fontSize: '0.875rem', fontWeight: 'bold' }}>{emp.userName} {emp.grade || ''}</div>
