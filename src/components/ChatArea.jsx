@@ -261,7 +261,7 @@ export default function ChatArea({
       return;
     }
 
-    let model = localStorage.getItem(`gemini_model_${userId}`) || localStorage.getItem('gemini_model') || 'gemini-1.5-pro';
+    let model = localStorage.getItem(`gemini_model_${userId}`) || localStorage.getItem('gemini_model') || 'gemini-3.5-flash';
 
     setTranslatingIds(prev => {
       const next = new Set(prev);
@@ -1525,6 +1525,7 @@ export default function ChatArea({
                       
                       // 2. Gemini 요약 요청 (사용자 API Key 위임 전달)
                       const userApiKey = localStorage.getItem(`gemini_api_key_${currentUser?.id}`) || localStorage.getItem('gemini_api_key') || '';
+                      const userModel = localStorage.getItem(`gemini_model_${currentUser?.id}`) || localStorage.getItem('gemini_model') || 'gemini-3.5-flash';
                       let ai_summary = '요약 실패';
                       try {
                         const sumRes = await fetch('/api/gemini/summarize', {
@@ -1532,7 +1533,8 @@ export default function ChatArea({
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({ 
                             messages: selectedMsgs,
-                            apiKey: userApiKey
+                            apiKey: userApiKey,
+                            model: userModel
                           })
                         });
                         const sumData = await sumRes.json();

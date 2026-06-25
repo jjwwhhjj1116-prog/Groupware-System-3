@@ -720,7 +720,7 @@ io.on('connection', (socket) => {
 
 app.post('/api/gemini/summarize', async (req, res) => {
   try {
-    const { messages, apiKey: clientApiKey } = req.body;
+    const { messages, apiKey: clientApiKey, model: clientModel } = req.body;
     if (!messages || !Array.isArray(messages)) return res.status(400).json({ error: 'messages array required' });
     
     // Combine messages
@@ -731,7 +731,8 @@ app.post('/api/gemini/summarize', async (req, res) => {
     if (!apiKey) return res.status(500).json({ error: 'Server missing GEMINI_API_KEY' });
     
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const useModel = clientModel || "gemini-3.5-flash";
+    const model = genAI.getGenerativeModel({ model: useModel });
     
     const prompt = `다음 업무 대화에서 발생한 오류의 핵심과 원인을 1~2문장으로 객관적으로 요약하라. 감정적 표현은 철저히 배제할 것:\n\n${combinedContent}`;
     
@@ -741,7 +742,7 @@ app.post('/api/gemini/summarize', async (req, res) => {
     res.json({ summary });
   } catch (error) {
     console.error('Gemini Summarize Error:', error);
-    res.status(500).json({ error: 'Failed to summarize' });
+    res.status(500).json({ error: 'Failed to summarize: ' + error.message });
   }
 });
 

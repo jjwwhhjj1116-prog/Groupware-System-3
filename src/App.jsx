@@ -1207,13 +1207,8 @@ export default function App() {
       - 항상 구체적이고 실질적인 정보와 수치를 언급하여 대답의 신뢰도를 높여라.
       `;
 
-      // 3.5나 3.1 등 가상 모델명 선택 시 구글 API 규격으로 내부에서만 맵핑하여 에러 방지
+      // 사용자가 지정한 모델 그대로 API 호출에 패싱
       let safeModel = geminiModel || 'gemini-3.5-flash';
-      if (safeModel.includes('3.5') || safeModel.includes('2.0') || safeModel.includes('1.5-flash')) {
-        safeModel = 'gemini-2.0-flash';
-      } else if (safeModel.includes('3.1') || safeModel.includes('1.5-pro')) {
-        safeModel = 'gemini-1.5-pro';
-      }
 
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${safeModel}:generateContent?key=${geminiKey}`;
       const response = await fetch(endpoint, {
@@ -1245,11 +1240,6 @@ export default function App() {
     if (!apiKey || !isTransActive || !text) return null;
 
     let model = geminiModel || localStorage.getItem(`gemini_model_${userId}`) || localStorage.getItem('gemini_model') || 'gemini-3.5-flash';
-    if (model.includes('3.5') || model.includes('3.1') || model.includes('2.0') || model.includes('1.5-flash')) {
-      model = 'gemini-2.0-flash';
-    } else {
-      model = 'gemini-1.5-pro';
-    }
     const promptText = `너는 다국어 번역기이다. 아래 입력 텍스트를 감지하여 적절하게 번역해라.
 - 만약 한국어(Korean)인 경우: 영어(English)와 베트남어(Vietnamese)로 번역해라.
 - 만약 베트남어(Vietnamese)인 경우: 한국어(Korean)와 영어(English)로 번역해라.
