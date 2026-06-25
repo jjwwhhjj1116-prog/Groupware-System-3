@@ -783,7 +783,7 @@ app.put('/api/reports/:id/status', async (req, res) => {
 });
 
 // React app catch-all
-app.get('*', (req, res) => {
+app.get('*any', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
