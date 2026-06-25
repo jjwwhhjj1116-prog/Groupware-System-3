@@ -9,6 +9,10 @@
 export const getUserRoleLevel = (user) => {
   if (!user) return 4; // 기본값 일반(Staff)
 
+  if (user.roleLevel !== undefined && user.roleLevel !== null && user.roleLevel !== '') {
+    return Number(user.roleLevel);
+  }
+
   const id = (user.id || '').toLowerCase();
   const empNo = (user.empNo || '').toUpperCase();
   const grade = user.grade || '';

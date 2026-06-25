@@ -49,7 +49,8 @@ export default function ChatArea({
   favoritedChats = [],
   onToggleFavorite,
   onToggleMessageReaction,
-  currentUser
+  currentUser,
+  allEmployees = []
 }) {
   const [inputText, setInputText] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -73,6 +74,30 @@ export default function ChatArea({
   const [searchQuery, setSearchQuery] = useState('');
   const [currentMatchIdx, setCurrentMatchIdx] = useState(-1);
   const [matchingMsgIds, setMatchingMsgIds] = useState([]);
+
+  // 오류 추적(신고) 연동 상태
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedMessageIds, setSelectedMessageIds] = useState([]);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [reportTargetEmp, setReportTargetEmp] = useState(''); // 사번 입력 또는 선택
+  const [reportSeverity, setReportSeverity] = useState('경'); // '경', '중', '심각'
+  const [isReporting, setIsReporting] = useState(false);
+
+  const handleOpenReportModal = () => {
+    const selectedMsgs = messages.filter(m => selectedMessageIds.includes(m.id));
+    const firstMsg = selectedMsgs[0];
+    if (firstMsg && allEmployees) {
+      const foundEmp = allEmployees.find(e => e.id === firstMsg.sender || e.empNo === firstMsg.sender || e.userName === firstMsg.senderName);
+      if (foundEmp) {
+        setReportTargetEmp(foundEmp.empNo);
+      } else {
+        setReportTargetEmp('');
+      }
+    } else {
+      setReportTargetEmp('');
+    }
+    setIsReportModalOpen(true);
+  };
 
   // 대화방 내 검색 로직
   useEffect(() => {
@@ -236,8 +261,7 @@ export default function ChatArea({
       return;
     }
 
-    let model = localStorage.getItem(`gemini_model_${userId}`) || localStorage.getItem('gemini_model') || 'gemini-3.5-flash';
-    if (model.includes('3.5') || model.includes('3.1')) model = 'gemini-1.5-flash';
+    let model = localStorage.getItem(`gemini_model_${userId}`) || localStorage.getItem('gemini_model') || 'gemini-1.5-pro';
 
     setTranslatingIds(prev => {
       const next = new Set(prev);
@@ -546,40 +570,62 @@ export default function ChatArea({
                       </div>
                     )}
 
-                    {/* Chat Bubble */}
-                    <div 
-                      id={`msg-${msg.id}`}
-                      style={{
-                        ...styles.bubble,
-                        backgroundColor: (msg.youngjaImageUrl && !msg.content)
-                          ? 'transparent'
-                          : isCurrentMatch
-                            ? 'rgba(255, 107, 0, 0.45)'
-                            : isMatched
-                              ? 'rgba(255, 107, 0, 0.2)'
-                              : (isMe 
-                                ? '#e1f3fc' // 네이버웍스 내 말풍선 (연한 하늘색)
-                                : '#f2f3f5'), // 네이버웍스 상대 말풍선 (연한 회색)
-                        color: '#1e1e1e', // 눈이 편안한 다크그레이 텍스트로 고정
-                        borderBottomRightRadius: isMe ? '2px' : '10px',
-                        borderBottomLeftRadius: isMe ? '10px' : '2px',
-                        border: (msg.youngjaImageUrl && !msg.content)
-                          ? 'none'
-                          : isCurrentMatch 
-                            ? '1px solid #ff6b00' 
-                            : (isMe ? '1px solid #c7e5f5' : '1px solid #e4e6eb'),
-                        boxShadow: (msg.youngjaImageUrl && !msg.content)
-                          ? 'none'
-                          : (hoveredMsgId === msg.id)
-                            ? '0 4px 12px rgba(0,0,0,0.08)' // 호버 시 그림자
-                            : '0 2px 4px rgba(0,0,0,0.02)',
-                        transform: (hoveredMsgId === msg.id && !(msg.youngjaImageUrl && !msg.content))
-                          ? 'translateY(-1px)' // 호버 시 입체 업 무브먼트
-                          : 'none',
-                        transition: 'all 0.22s cubic-bezier(0.4, 0, 0.2, 1)',
-                        padding: (msg.youngjaImageUrl && !msg.content) ? '0' : '10px 14px'
-                      }}
-                    >
+                      {/* Chat Bubble Context Menu Wrapper */}
+                      <div
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          setIsSelectMode(true);
+                          if (!selectedMessageIds.includes(msg.id)) {
+                            setSelectedMessageIds(prev => [...prev, msg.id]);
+                          }
+                        }}
+                      >
+                      {/* Chat Bubble */}
+                      <div 
+                        id={`msg-${msg.id}`}
+                        style={{
+                          ...styles.bubble,
+                          backgroundColor: (msg.youngjaImageUrl && !msg.content)
+                            ? 'transparent'
+                            : isCurrentMatch
+                              ? 'rgba(255, 107, 0, 0.45)'
+                              : isMatched
+                                ? 'rgba(255, 107, 0, 0.2)'
+                                : selectedMessageIds.includes(msg.id)
+                                  ? 'rgba(239, 68, 68, 0.2)' // Selected state
+                                  : (isMe 
+                                    ? '#e1f3fc' // 네이버웍스 내 말풍선 (연한 하늘색)
+                                    : '#f2f3f5'), // 네이버웍스 상대 말풍선 (연한 회색)
+                          color: '#1e1e1e', // 눈이 편안한 다크그레이 텍스트로 고정
+                          borderBottomRightRadius: isMe ? '2px' : '10px',
+                          borderBottomLeftRadius: isMe ? '10px' : '2px',
+                          border: (msg.youngjaImageUrl && !msg.content)
+                            ? 'none'
+                            : selectedMessageIds.includes(msg.id)
+                              ? '2px solid #ef4444' // Selected border
+                              : isCurrentMatch 
+                                ? '1px solid #ff6b00' 
+                                : (isMe ? '1px solid #c7e5f5' : '1px solid #e4e6eb'),
+                          boxShadow: (msg.youngjaImageUrl && !msg.content)
+                            ? 'none'
+                            : (hoveredMsgId === msg.id)
+                              ? '0 4px 12px rgba(0,0,0,0.08)' // 호버 시 그림자
+                              : '0 2px 4px rgba(0,0,0,0.02)',
+                          transform: (hoveredMsgId === msg.id && !(msg.youngjaImageUrl && !msg.content))
+                            ? 'translateY(-1px)' // 호버 시 입체 업 무브먼트
+                            : 'none',
+                          transition: 'all 0.22s cubic-bezier(0.4, 0, 0.2, 1)',
+                          padding: (msg.youngjaImageUrl && !msg.content) ? '0' : '10px 14px',
+                          cursor: isSelectMode ? 'pointer' : 'default'
+                        }}
+                        onClick={() => {
+                          if (isSelectMode) {
+                            setSelectedMessageIds(prev => 
+                              prev.includes(msg.id) ? prev.filter(id => id !== msg.id) : [...prev, msg.id]
+                            );
+                          }
+                        }}
+                      >
                       {msg.content && <div style={styles.msgText}>{msg.content}</div>}
 
                       {/* 파일 첨부 및 프리뷰/다운로드 */}
@@ -645,6 +691,35 @@ export default function ChatArea({
                           />
                         </div>
                       )}
+
+                        {/* AI 영자 표정 이미지 (youngjaImageUrl) */}
+                        {msg.youngjaImageUrl && !msg.content && (
+                          <div style={{ position: 'relative' }}>
+                            <img 
+                              src={msg.youngjaImageUrl} 
+                              alt="Youngja Expression" 
+                              style={{ width: '120px', height: '120px', objectFit: 'contain' }} 
+                            />
+                            {hoveredMsgId === msg.id && (
+                              <button
+                                onClick={() => handleDownloadFile('youngja_image.png', msg.youngjaImageUrl)}
+                                style={{
+                                  position: 'absolute', top: '8px', right: '8px',
+                                  width: '28px', height: '28px', borderRadius: '50%',
+                                  backgroundColor: 'rgba(0,0,0,0.5)', color: '#fff',
+                                  border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  cursor: 'pointer', zIndex: 10
+                                }}
+                                title="이미지 다운로드"
+                              >
+                                ⬇
+                              </button>
+                            )}
+                          </div>
+                        )}
+                        
+                      </div>
+                      </div>
 
                       {/* 번역 텍스트 */}
                       {translatedMessages[msg.id] !== 'hide' && (translatedMessages[msg.id] || msg.translation) && (
@@ -864,7 +939,6 @@ export default function ChatArea({
                       )}
                     </div>
                   </div>
-                </div>
               );
             })
           )}
@@ -895,8 +969,70 @@ export default function ChatArea({
               </div>
             </div>
           )}
-          <div ref={messagesEndRef} />
-        </div>
+        {/* Scroll To Bottom Button */}
+        <div style={{ visibility: 'hidden' }} ref={messagesEndRef} />
+      </div>
+        
+        {/* Floating Multi-Select Toolbar */}
+        {isSelectMode && (
+          <div style={{
+            position: 'absolute',
+            bottom: '20px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            backgroundColor: 'var(--bg-secondary)',
+            padding: '12px 24px',
+            borderRadius: '24px',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '16px',
+            zIndex: 100,
+            border: '1px solid var(--border)'
+          }}>
+            <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--text-primary)' }}>
+              {selectedMessageIds.length}개 선택됨
+            </span>
+            <button 
+              onClick={handleOpenReportModal}
+              disabled={selectedMessageIds.length === 0}
+              style={{
+                backgroundColor: 'var(--primary)',
+                color: '#fff',
+                border: 'none',
+                padding: '6px 12px',
+                borderRadius: '16px',
+                fontSize: '0.8rem',
+                fontWeight: 'bold',
+                cursor: selectedMessageIds.length > 0 ? 'pointer' : 'not-allowed',
+                opacity: selectedMessageIds.length > 0 ? 1 : 0.5,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+            >
+              <ShieldAlert size={16} />
+              신고 / DB로 저장하기
+            </button>
+            <button 
+              onClick={() => {
+                setIsSelectMode(false);
+                setSelectedMessageIds([]);
+              }}
+              style={{
+                backgroundColor: 'transparent',
+                color: 'var(--text-secondary)',
+                border: 'none',
+                padding: '6px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center'
+              }}
+            >
+              <X size={16} />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Chat Input Area */}
@@ -1332,6 +1468,128 @@ export default function ChatArea({
           </div>
         </div>
       )}
+      {/* 모달: 오류 추적 신고/저장 */}
+      {isReportModalOpen && (
+        <div style={styles.modalOverlay}>
+          <div className="glass-panel animate-scale" style={styles.modalContent}>
+            <div style={styles.modalHeader}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <ShieldAlert size={20} color="var(--primary)" />
+                <h3 style={{ margin: 0, fontSize: '1rem', color: 'var(--text-primary)' }}>인사관리 오류 DB 적재</h3>
+              </div>
+              <button type="button" onClick={() => setIsReportModalOpen(false)} style={styles.closeBtn}><X size={20}/></button>
+            </div>
+            
+            <div style={{ padding: '16px' }}>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>
+                선택한 {selectedMessageIds.length}개의 말풍선을 기반으로 오류를 DB에 적재합니다. <br/> Gemini AI가 자동으로 요약을 진행합니다.
+              </p>
+              
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '4px' }}>오류 당사자 사번 (target_emp_id)</label>
+                <input 
+                  type="text" 
+                  placeholder="예: CC-003"
+                  value={reportTargetEmp}
+                  onChange={(e) => setReportTargetEmp(e.target.value)}
+                  style={styles.input}
+                />
+              </div>
+
+              <div style={{ marginBottom: '24px' }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '4px' }}>심각도 (severity)</label>
+                <select 
+                  value={reportSeverity} 
+                  onChange={(e) => setReportSeverity(e.target.value)}
+                  style={styles.input}
+                >
+                  <option value="경">경 (Minor)</option>
+                  <option value="중">중 (Major)</option>
+                  <option value="심각">심각 (Critical)</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                <button 
+                  onClick={() => setIsReportModalOpen(false)}
+                  style={{ ...styles.actionBtn, backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)' }}
+                >취소</button>
+                <button 
+                  onClick={async () => {
+                    if (!reportTargetEmp.trim()) { alert('당사자 사번을 입력해주세요.'); return; }
+                    setIsReporting(true);
+                    
+                    try {
+                      // 1. 선택된 메시지들
+                      const selectedMsgs = messages.filter(m => selectedMessageIds.includes(m.id));
+                      
+                      // 2. Gemini 요약 요청 (사용자 API Key 위임 전달)
+                      const userApiKey = localStorage.getItem(`gemini_api_key_${currentUser?.id}`) || localStorage.getItem('gemini_api_key') || '';
+                      let ai_summary = '요약 실패';
+                      try {
+                        const sumRes = await fetch('/api/gemini/summarize', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ 
+                            messages: selectedMsgs,
+                            apiKey: userApiKey
+                          })
+                        });
+                        const sumData = await sumRes.json();
+                        if (sumData.summary) ai_summary = sumData.summary;
+                      } catch (e) { console.error('Gemini error', e); }
+
+                      // 3. 당사자 사원대장 매칭
+                      const foundEmp = allEmployees.find(e => e.empNo === reportTargetEmp || e.id === reportTargetEmp);
+                      const targetName = foundEmp ? foundEmp.userName : reportTargetEmp;
+                      const targetEmpId = foundEmp ? foundEmp.empNo : reportTargetEmp;
+
+                      // 4. DB 적재 요청
+                      const reportData = {
+                        project_channel: chatTitle,
+                        target_emp_id: targetEmpId,
+                        target_name: targetName,
+                        reporter_emp_id: currentUser?.empNo || '알수없음',
+                        error_content: selectedMsgs.map(m => `[${m.senderName}] ${m.content}`).join('\n'),
+                        ai_summary,
+                        severity: reportSeverity,
+                        status: '접수',
+                        private_thread_id: 'report-thread-' + Date.now()
+                      };
+
+                      const saveRes = await fetch('/api/reports', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(reportData)
+                      });
+                      
+                      if (!saveRes.ok) throw new Error('DB 저장 실패');
+
+                      alert('신고 및 DB 적재가 완료되었습니다. 비공개 소명 스레드가 생성되었습니다.');
+                      setIsReportModalOpen(false);
+                      setIsSelectMode(false);
+                      setSelectedMessageIds([]);
+                      
+                      // App.jsx에서 socket.on('report:created')로 자동 처리됨
+
+                    } catch (err) {
+                      console.error(err);
+                      alert('저장 중 오류가 발생했습니다.');
+                    } finally {
+                      setIsReporting(false);
+                    }
+                  }}
+                  disabled={isReporting}
+                  style={{ ...styles.actionBtn, backgroundColor: 'var(--primary)', color: '#fff', opacity: isReporting ? 0.7 : 1 }}
+                >
+                  {isReporting ? 'AI 분석 중...' : '신고 / DB 저장'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

@@ -59,7 +59,8 @@ export default function Sidebar({
   subPanelWidth = 260,
   onSubPanelWidthChange,
   favoritedChats = [],
-  onToggleFavorite
+  onToggleFavorite,
+  adminSubTab = 'hr'
 }) {
 
   // 채팅방 검색 및 Collapsible 트리 관련 상태
@@ -152,7 +153,7 @@ export default function Sidebar({
   if (roleLevel === 0) {
     menuItems.push({
       id: 'admin-hr',
-      label: '인사 관리',
+      label: '관리자 설정',
       icon: Settings,
       color: '#ef4444'
     });
@@ -174,6 +175,13 @@ export default function Sidebar({
         });
 
         const filteredDms = dms.filter(d => {
+          if (d.isReportThread) {
+            const isReporter = currentUser?.empNo === d.reporter_emp_id;
+            const isTarget = currentUser?.empNo === d.target_emp_id || currentUser?.id === d.target_emp_id;
+            const isAdmin = roleLevel === 0;
+            if (!isReporter && !isTarget && !isAdmin) return false;
+          }
+
           let name = d.name;
           if (currentWorkspace === 'vietqs') {
             if (d.id === 'youngja-dm') name = 'P.Thiết kế Youngja';
@@ -187,7 +195,15 @@ export default function Sidebar({
 
         // 2. 즐겨찾기 아이템 추출 (favoritedChats 리스트에 id가 포함된 것들)
         const favoriteChannels = channels.filter(c => favoritedChats.includes(c.id));
-        const favoriteDms = dms.filter(d => favoritedChats.includes(d.id));
+        const favoriteDms = dms.filter(d => {
+          if (d.isReportThread) {
+            const isReporter = currentUser?.empNo === d.reporter_emp_id;
+            const isTarget = currentUser?.empNo === d.target_emp_id || currentUser?.id === d.target_emp_id;
+            const isAdmin = roleLevel === 0;
+            if (!isReporter && !isTarget && !isAdmin) return false;
+          }
+          return favoritedChats.includes(d.id);
+        });
 
         const favChansFiltered = favoriteChannels.filter(c => {
           let name = c.name;
@@ -947,6 +963,45 @@ export default function Sidebar({
               <button style={styles.itemBtn}>
                 <Layers size={16} style={{ color: 'var(--text-muted)' }} />
                 <span style={styles.itemText}>{t.pro3}</span>
+              </button>
+            </div>
+          </div>
+        );
+
+      case 'admin-hr':
+        return (
+          <div style={styles.section}>
+            <div style={styles.sectionHeader}>
+              <span style={styles.sectionTitle}>관리자 설정</span>
+            </div>
+            <div style={styles.sectionList}>
+              <button 
+                onClick={() => {
+                  window.dispatchEvent(new CustomEvent('admin-tab-change', { detail: 'hr' }));
+                }}
+                style={{ 
+                  ...styles.itemBtn, 
+                  backgroundColor: adminSubTab === 'hr' ? themeStyles.bgActive : 'transparent',
+                  color: adminSubTab === 'hr' ? 'var(--primary)' : themeStyles.textSecondary,
+                  fontWeight: adminSubTab === 'hr' ? '600' : '400'
+                }}
+              >
+                <Users size={16} style={{ color: adminSubTab === 'hr' ? 'var(--primary)' : themeStyles.textMuted }} />
+                <span style={styles.itemText}>인사관리 (임직원)</span>
+              </button>
+              <button 
+                onClick={() => {
+                  window.dispatchEvent(new CustomEvent('admin-tab-change', { detail: 'report' }));
+                }}
+                style={{ 
+                  ...styles.itemBtn, 
+                  backgroundColor: adminSubTab === 'report' ? themeStyles.bgActive : 'transparent',
+                  color: adminSubTab === 'report' ? 'var(--primary)' : themeStyles.textSecondary,
+                  fontWeight: adminSubTab === 'report' ? '600' : '400'
+                }}
+              >
+                <Database size={16} style={{ color: adminSubTab === 'report' ? 'var(--primary)' : themeStyles.textMuted }} />
+                <span style={styles.itemText}>인사관리 신고/DB</span>
               </button>
             </div>
           </div>

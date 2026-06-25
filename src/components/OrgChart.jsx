@@ -54,33 +54,31 @@ export default function OrgChart({ allEmployees, onUserClick, currentWorkspace }
   const ceoEmp = allEmployees.find(e => e.company === activeCompany && (e.grade === '대표' || e.grade === 'CEO' || e.grade === '대표이사' || e.dept === '임원')) || allEmployees.find(e => e.empNo === 'CC-001' || e.empNo === 'VQS-001');
   const advisorEmp = allEmployees.find(e => e.company === activeCompany && (e.grade === '부사장' || e.dept === '임원실')) || allEmployees.find(e => e.empNo === 'CC-002');
 
-  const concostDeptsList = ['경영지원본부', '기술본부', '클레임센터', '개발 T/F', '마감', '구조/토목·조경', '구조', 'BIM파트', '토목·조경파트'];
-  const vietqsDeptsList = ['Management Support', 'Finish', 'Structure', 'Civil', '개발 T/F'];
+  const concostDeptsConfig = [
+    { name: '경영지원본부', children: [] },
+    { name: '기술본부', children: [
+        { name: '마감', children: [] },
+        { name: '구조/토목·조경', children: [] },
+        { name: '구조', children: [] },
+        { name: 'BIM파트', children: [] },
+        { name: '토목·조경파트', children: [] }
+      ]
+    },
+    { name: '클레임센터', children: [] },
+    { name: '개발 T/F', children: [] }
+  ];
 
-  const deptsConfig = (isConcost ? concostDeptsList : vietqsDeptsList).map((deptName, i) => {
-    const colors = ["#10b981", "#ef4444", "#ff6b00", "#f59e0b", "#6366f1", "#ec4899", "#6b7280", "#2563eb", "#8b5cf6", "#14b8a6"];
-    const deptMembers = allEmployees.filter(e => e.company === activeCompany && e.dept === deptName);
-    
-    const rankOrder = ['본부장', '센터장', '실장', '팀장', '부팀장', '수석', '책임', '선임', '사원'];
-    deptMembers.sort((a, b) => {
-      let rA = rankOrder.indexOf(a.grade);
-      let rB = rankOrder.indexOf(b.grade);
-      if(rA === -1) rA = 99;
-      if(rB === -1) rB = 99;
-      return rA - rB;
-    });
+  const vietqsDeptsConfig = [
+    { name: 'Management Support', children: [] },
+    { name: 'Finish', children: [] },
+    { name: 'Structure', children: [] },
+    { name: 'Civil', children: [] },
+    { name: '개발 T/F', children: [] }
+  ];
 
-    const lead = deptMembers.length > 0 ? deptMembers[0] : null;
-
-    return {
-      name: deptName,
-      leadId: lead ? lead.empNo : null,
-      color: colors[i % colors.length]
-    };
-  });
-
+  const deptsConfig = isConcost ? concostDeptsConfig : vietqsDeptsConfig;
   const getGradeRank = (grade) => {
-    const ranks = ['대표', 'CEO', '부사장', 'Executive Vice President', '상무', '본부장', '실장', '센터장', '팀장', '파트장', '기술이사', 'General Manager', '수석', '책임', '선임', 'Asst. Team Leader', '프로', '주임', '사원', 'Staff'];
+    const ranks = ['대표', '대표이사', 'CEO', '부사장', 'Executive Vice President', '상무', '센터장', '본부장', '실장', '팀장', '파트장', '기술이사', 'General Manager', '수석', '책임', '선임', 'Asst. Team Leader', '프로', '주임', '사원', 'Staff'];
     const idx = ranks.indexOf(grade);
     return idx === -1 ? 99 : idx;
   };
@@ -159,30 +157,46 @@ export default function OrgChart({ allEmployees, onUserClick, currentWorkspace }
                     <div style={{ color: 'var(--primary)', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '8px' }}>Executive Vice President</div>
                     {renderTreeCard(advisorEmp, '#8b5cf6', '부사장 공석')}
                     <ul>
-                      {/* Rendering Departments under Advisor */}
-                      {deptsConfig.map(dept => {
-                          const lead = allEmployees.find(e => e.company === activeCompany && e.empNo === dept.leadId);
-                          const members = allEmployees.filter(e => e.company === activeCompany && e.dept === dept.name && e.empNo !== dept.leadId).sort((a, b) => getGradeRank(a.grade) - getGradeRank(b.grade));
+                      {/* Rendering Departments Hierarchy */}
+                      {deptsConfig.map((dept, index) => {
+                        const renderDeptNode = (deptObj, colorIdx) => {
+                          const colors = ["#10b981", "#ef4444", "#ff6b00", "#f59e0b", "#6366f1", "#ec4899", "#6b7280", "#2563eb", "#8b5cf6", "#14b8a6"];
+                          const color = colors[colorIdx % colors.length];
+                          
+                          const deptMembers = allEmployees.filter(e => e.company === activeCompany && e.dept === deptObj.name);
+                          deptMembers.sort((a, b) => getGradeRank(a.grade) - getGradeRank(b.grade));
+                          
+                          const lead = deptMembers.length > 0 ? deptMembers[0] : null;
+                          const restMembers = deptMembers.length > 1 ? deptMembers.slice(1) : [];
+
                           return (
-                            <li key={dept.name}>
-                              <div style={{ display: 'inline-block', backgroundColor: 'var(--bg-active)', padding: '4px 10px', borderRadius: '12px', color: dept.color, fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '12px', border: `1px solid ${dept.color}` }}>{dept.name}</div>
+                            <li key={deptObj.name}>
+                              <div style={{ display: 'inline-block', backgroundColor: 'var(--bg-active)', padding: '4px 10px', borderRadius: '12px', color: color, fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '12px', border: `1px solid ${color}` }}>{deptObj.name}</div>
                               <br/>
-                              {renderTreeCard(lead, dept.color, lead ? null : '부서장 공석')}
-                              {members.length > 0 && (
+                              {renderTreeCard(lead, color, lead ? null : '부서장 공석')}
+                              {restMembers.length > 0 && (
                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: '16px', position: 'relative' }}>
                                   <div style={{ position: 'absolute', top: '-16px', left: '50%', width: '2px', height: '16px', backgroundColor: 'var(--border-light)', transform: 'translateX(-50%)' }} />
-                                  {members.map((m, index) => (
-                                    <div key={m.empNo} style={{ position: 'relative', paddingBottom: index === members.length - 1 ? '0' : '16px' }}>
-                                      {index < members.length - 1 && (
+                                  {restMembers.map((m, idx) => (
+                                    <div key={m.empNo} style={{ position: 'relative', paddingBottom: idx === restMembers.length - 1 ? '0' : '16px' }}>
+                                      {idx < restMembers.length - 1 && (
                                         <div style={{ position: 'absolute', bottom: '0', left: '50%', width: '2px', height: '16px', backgroundColor: 'var(--border-light)', transform: 'translateX(-50%)' }} />
                                       )}
-                                      {renderTreeCard(m, dept.color)}
+                                      {renderTreeCard(m, color)}
                                     </div>
                                   ))}
                                 </div>
                               )}
+                              {deptObj.children && deptObj.children.length > 0 && (
+                                <ul>
+                                  {deptObj.children.map((child, cIdx) => renderDeptNode(child, colorIdx + cIdx + 1))}
+                                </ul>
+                              )}
                             </li>
                           );
+                        };
+
+                        return renderDeptNode(dept, index);
                       })}
                     </ul>
                   </li>

@@ -371,6 +371,22 @@ export default function HrManager({ currentWorkspace }) {
                 </div>
 
                 <div style={styles.formGroup}>
+                  <label style={styles.label}>권한 등급 (수동 지정)</label>
+                  <select
+                    value={editForm.roleLevel !== undefined && editForm.roleLevel !== null ? String(editForm.roleLevel) : ''}
+                    onChange={(e) => handleFormChange('roleLevel', e.target.value === '' ? '' : Number(e.target.value))}
+                    style={styles.select}
+                  >
+                    <option value="">자동 산정</option>
+                    <option value="0">관리자 (0등급)</option>
+                    <option value="1">1등급 (대표/부사장/경영지원)</option>
+                    <option value="2">2등급 (임원)</option>
+                    <option value="3">3등급 (PM급)</option>
+                    <option value="4">4등급 (일반)</option>
+                  </select>
+                </div>
+
+                <div style={styles.formGroup}>
                   <label style={styles.label}>이메일</label>
                   <input
                     type="email"

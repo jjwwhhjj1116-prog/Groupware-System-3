@@ -5,6 +5,7 @@ import Modal from './components/Modal';
 import LoginForm from './components/LoginForm';
 import HrCardModal from './components/HrCardModal';
 import HrManager from './components/HrManager';
+import ReportManager from './components/ReportManager';
 import OrgChart from './components/OrgChart';
 import { io } from 'socket.io-client';
 import { 
@@ -309,6 +310,7 @@ export default function App() {
   
   const [currentWorkspace, setCurrentWorkspace] = useState('concost'); // 'concost' or 'vietqs'
   const [currentMenu, setCurrentMenu] = useState('home'); // 'home', 'chat', 'mail', etc.
+  const [adminSubTab, setAdminSubTab] = useState('hr'); // 'hr' or 'report'
 
   // 즐겨찾기(⭐) 채팅방 ID 목록 상태
   const [favoritedChats, setFavoritedChats] = useState(() => {
@@ -719,6 +721,50 @@ export default function App() {
       });
     });
 
+    // 보고서 생성 (비공개 스레드) 수신
+    socket.on('report:created', (report) => {
+      const roleLevel = getUserRoleLevel(currentUser);
+      const isReporter = currentUser?.empNo === report.reporter_emp_id;
+      const isTarget = currentUser?.empNo === report.target_emp_id || currentUser?.id === report.target_emp_id;
+      const isAdmin = roleLevel === 0;
+
+      if (isReporter || isTarget || isAdmin) {
+        const threadId = report.private_thread_id || `report-${report._id}`;
+        
+        // DM 목록에 비공개 스레드 추가
+        setDms(prev => {
+          if (prev.some(d => d.id === threadId)) return prev;
+          return [...prev, {
+            id: threadId,
+            name: `[비공개 소명] ${report.target_name || report.target_emp_id}`,
+            avatarColor: '#ef4444',
+            status: 'online',
+            isReportThread: true,
+            reportId: report._id,
+            reporter_emp_id: report.reporter_emp_id,
+            target_emp_id: report.target_emp_id
+          }];
+        });
+
+        // 시스템 안내 메시지 추가
+        setMessages(prev => {
+          if (prev[threadId]) return prev;
+          return {
+            ...prev,
+            [threadId]: [
+              {
+                id: `sys-${Date.now()}`,
+                sender: 'system',
+                senderName: '시스템',
+                content: `[오류 소명 절차 안내]\n\n대상자: ${report.target_name || report.target_emp_id}\n심각도: ${report.severity}\n\nAI 요약: ${report.ai_summary}\n\n위 내용에 대한 소명을 진행해 주시기 바랍니다.`,
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+              }
+            ]
+          };
+        });
+      }
+    });
+
     return () => {
       socket.disconnect();
     };
@@ -737,9 +783,78 @@ export default function App() {
     }
   };
 
+  const fetchReportsAndPopulateDms = async () => {
+    try {
+      const res = await fetch('/api/reports');
+      if (res.ok) {
+        const reports = await res.json();
+        const roleLevel = getUserRoleLevel(currentUser);
+        
+        // Filter reports the user has access to
+        const userReports = reports.filter(report => {
+          const isReporter = currentUser?.empNo === report.reporter_emp_id;
+          const isTarget = currentUser?.empNo === report.target_emp_id || currentUser?.id === report.target_emp_id;
+          const isAdmin = roleLevel === 0;
+          return isReporter || isTarget || isAdmin;
+        });
+
+        // Add to dms
+        setDms(prev => {
+          const nonReportDms = prev.filter(d => !d.isReportThread);
+          const reportDms = userReports.map(report => {
+            const threadId = report.private_thread_id || `report-${report._id}`;
+            return {
+              id: threadId,
+              name: `[비공개 소명] ${report.target_name || report.target_emp_id}`,
+              avatarColor: '#ef4444',
+              status: 'online',
+              isReportThread: true,
+              reportId: report._id,
+              reporter_emp_id: report.reporter_emp_id,
+              target_emp_id: report.target_emp_id
+            };
+          });
+          
+          const combined = [...nonReportDms];
+          reportDms.forEach(rd => {
+            if (!combined.some(c => c.id === rd.id)) {
+              combined.push(rd);
+            }
+          });
+          return combined;
+        });
+
+        // Add system message if not present
+        setMessages(prev => {
+          const next = { ...prev };
+          userReports.forEach(report => {
+            const threadId = report.private_thread_id || `report-${report._id}`;
+            if (!next[threadId]) {
+              next[threadId] = [
+                {
+                  id: `sys-${Date.now()}`,
+                  sender: 'system',
+                  senderName: '시스템',
+                  content: `[오류 소명 절차 안내]\n\n대상자: ${report.target_name || report.target_emp_id}\n심각도: ${report.severity}\n\nAI 요약: ${report.ai_summary}\n\n위 내용에 대한 소명을 진행해 주시기 바랍니다.`,
+                  time: new Date(report.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                }
+              ];
+            }
+          });
+          return next;
+        });
+      }
+    } catch (err) {
+      console.error('Failed to fetch reports for DMs:', err);
+    }
+  };
+
   // --- 2.5 사원대장 로드 및 인사카드 / DM 연동 함수들 ---
   useEffect(() => {
     fetchEmployees();
+    if (currentUser) {
+      fetchReportsAndPopulateDms();
+    }
   }, [currentUser]);
 
   // --- SPA 브라우저 뒤로 가기 / 앞으로 가기 (Hash Routing) 연동 (TDZ 버그 복구 위치) ---
@@ -783,6 +898,16 @@ export default function App() {
       window.removeEventListener('hashchange', handleHashChange);
     };
   }, [mails]);
+
+  useEffect(() => {
+    const handleAdminTabChange = (e) => {
+      setAdminSubTab(e.detail);
+    };
+    window.addEventListener('admin-tab-change', handleAdminTabChange);
+    return () => {
+      window.removeEventListener('admin-tab-change', handleAdminTabChange);
+    };
+  }, []);
 
   useEffect(() => {
     const cleanHash = window.location.hash.replace('#/', '');
@@ -1082,8 +1207,14 @@ export default function App() {
       - 항상 구체적이고 실질적인 정보와 수치를 언급하여 대답의 신뢰도를 높여라.
       `;
 
-      // 3.5나 3.1 등 가상 모델명 선택 시 구글 API 규격(1.5)으로 내부에서만 맵핑하여 에러 방지
-      const safeModel = (geminiModel.includes('3.5') || geminiModel.includes('3.1')) ? 'gemini-1.5-flash' : geminiModel;
+      // 3.5나 3.1 등 가상 모델명 선택 시 구글 API 규격으로 내부에서만 맵핑하여 에러 방지
+      let safeModel = geminiModel || 'gemini-3.5-flash';
+      if (safeModel.includes('3.5') || safeModel.includes('2.0') || safeModel.includes('1.5-flash')) {
+        safeModel = 'gemini-2.0-flash';
+      } else if (safeModel.includes('3.1') || safeModel.includes('1.5-pro')) {
+        safeModel = 'gemini-1.5-pro';
+      }
+
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${safeModel}:generateContent?key=${geminiKey}`;
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -1114,7 +1245,11 @@ export default function App() {
     if (!apiKey || !isTransActive || !text) return null;
 
     let model = geminiModel || localStorage.getItem(`gemini_model_${userId}`) || localStorage.getItem('gemini_model') || 'gemini-3.5-flash';
-    if (model.includes('3.5') || model.includes('3.1')) model = 'gemini-1.5-flash';
+    if (model.includes('3.5') || model.includes('3.1') || model.includes('2.0') || model.includes('1.5-flash')) {
+      model = 'gemini-2.0-flash';
+    } else {
+      model = 'gemini-1.5-pro';
+    }
     const promptText = `너는 다국어 번역기이다. 아래 입력 텍스트를 감지하여 적절하게 번역해라.
 - 만약 한국어(Korean)인 경우: 영어(English)와 베트남어(Vietnamese)로 번역해라.
 - 만약 베트남어(Vietnamese)인 경우: 한국어(Korean)와 영어(English)로 번역해라.
@@ -2153,6 +2288,7 @@ export default function App() {
             isSidebarOpen={isSidebarOpen}
             subPanelWidth={subPanelWidth}
             onSubPanelWidthChange={handleSubPanelWidthChange}
+            adminSubTab={adminSubTab}
           />
         </div>
 
@@ -3301,6 +3437,7 @@ export default function App() {
             onToggleFavorite={handleToggleFavorite}
             onToggleMessageReaction={handleToggleMessageReaction}
             currentUser={currentUser}
+            allEmployees={allEmployees}
           />
         );
 
@@ -3536,7 +3673,9 @@ export default function App() {
         );
 
       case 'admin-hr':
-        return (
+        return adminSubTab === 'report' ? (
+          <ReportManager />
+        ) : (
           <HrManager 
             allEmployees={allEmployees}
             onUpdateEmployee={async (emp) => {

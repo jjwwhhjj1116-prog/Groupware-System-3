@@ -10,6 +10,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const mongoose = require('mongoose');
 require('dotenv').config();
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const app = express();
 const server = http.createServer(app);
@@ -101,6 +102,21 @@ const ChannelSchema = new mongoose.Schema({
   workspace: String
 });
 const Channel = mongoose.model('Channel', ChannelSchema);
+
+// 5. Report Schema (인사평가 연동 오류 추적)
+const ReportSchema = new mongoose.Schema({
+  project_channel: String,
+  target_emp_id: String,
+  target_name: String,
+  reporter_emp_id: String,
+  error_content: String,
+  ai_summary: String,
+  severity: { type: String, enum: ['경', '중', '심각'], default: '경' },
+  status: { type: String, enum: ['접수', '소명중', '종결'], default: '접수' },
+  created_at: { type: Date, default: Date.now },
+  private_thread_id: String // 비공개 스레드 채널 ID
+});
+const Report = mongoose.model('Report', ReportSchema);
 
 // JSON 파일 DB 백업 및 전사 사원 시드 마이그레이션 헬퍼
 async function migrateJsonToMongo() {
@@ -700,8 +716,73 @@ io.on('connection', (socket) => {
   });
 });
 
-// React Router Fallback
-app.use((req, res) => {
+// --- Report & Gemini APIs ---
+
+app.post('/api/gemini/summarize', async (req, res) => {
+  try {
+    const { messages, apiKey: clientApiKey } = req.body;
+    if (!messages || !Array.isArray(messages)) return res.status(400).json({ error: 'messages array required' });
+    
+    // Combine messages
+    const combinedContent = messages.map(m => `[${m.senderName}] ${m.content}`).join('\n');
+    
+    // Server-side default Gemini API Key (fallback or required if user doesn't provide one)
+    const apiKey = clientApiKey || process.env.GEMINI_API_KEY;
+    if (!apiKey) return res.status(500).json({ error: 'Server missing GEMINI_API_KEY' });
+    
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    
+    const prompt = `다음 업무 대화에서 발생한 오류의 핵심과 원인을 1~2문장으로 객관적으로 요약하라. 감정적 표현은 철저히 배제할 것:\n\n${combinedContent}`;
+    
+    const result = await model.generateContent(prompt);
+    const summary = result.response.text().trim();
+    
+    res.json({ summary });
+  } catch (error) {
+    console.error('Gemini Summarize Error:', error);
+    res.status(500).json({ error: 'Failed to summarize' });
+  }
+});
+
+app.post('/api/reports', async (req, res) => {
+  try {
+    const newReport = new Report(req.body);
+    const saved = await newReport.save();
+    
+    // Broadcast report creation via Socket.io
+    io.emit('report:created', saved);
+    
+    res.json(saved);
+  } catch (error) {
+    console.error('Report Create Error:', error);
+    res.status(500).json({ error: 'Failed to save report' });
+  }
+});
+
+app.get('/api/reports', async (req, res) => {
+  try {
+    const reports = await Report.find().sort({ created_at: -1 });
+    res.json(reports);
+  } catch (error) {
+    console.error('Report Fetch Error:', error);
+    res.status(500).json({ error: 'Failed to fetch reports' });
+  }
+});
+
+app.put('/api/reports/:id/status', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    const updated = await Report.findByIdAndUpdate(id, { status }, { new: true });
+    res.json(updated);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update report status' });
+  }
+});
+
+// React app catch-all
+app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
