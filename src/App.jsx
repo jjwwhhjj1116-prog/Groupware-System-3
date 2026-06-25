@@ -305,7 +305,11 @@ export default function App() {
   });
   const [geminiModel, setGeminiModel] = useState(() => {
     const userId = currentUser?.id || 'default';
-    return localStorage.getItem(`gemini_model_${userId}`) || localStorage.getItem('gemini_model') || 'gemini-3.5-flash';
+    const rawModel = localStorage.getItem(`gemini_model_${userId}`) || localStorage.getItem('gemini_model') || 'gemini-3.5-flash';
+    if (rawModel !== 'gemini-3.5-flash' && rawModel !== 'gemini-3.1-pro') {
+      return 'gemini-3.5-flash';
+    }
+    return rawModel;
   });
   
   const [currentWorkspace, setCurrentWorkspace] = useState('concost'); // 'concost' or 'vietqs'
@@ -769,6 +773,37 @@ export default function App() {
       socket.disconnect();
     };
   }, [currentWorkspace, currentUser, geminiKey, realtimeTrans]);
+
+  // 브라우저 로컬스토리지에 예전 버전(1.5-flash 등 404 유발) 모델명이 남아있는 경우를 위한 마이그레이션 세이프가드
+  useEffect(() => {
+    const userId = currentUser?.id || 'default';
+    const storedModelUser = localStorage.getItem(`gemini_model_${userId}`);
+    const storedModelGlobal = localStorage.getItem('gemini_model');
+    
+    const sanitizeModel = (modelName) => {
+      if (!modelName) return null;
+      // 3.5 flash와 3.1 pro 이외의 모델은 강제로 유효한 3.5 flash로 치환
+      if (modelName !== 'gemini-3.5-flash' && modelName !== 'gemini-3.1-pro') {
+        return 'gemini-3.5-flash';
+      }
+      return modelName;
+    };
+
+    if (storedModelUser) {
+      const sanitized = sanitizeModel(storedModelUser);
+      if (sanitized !== storedModelUser) {
+        localStorage.setItem(`gemini_model_${userId}`, sanitized);
+        setGeminiModel(sanitized);
+      }
+    }
+    if (storedModelGlobal) {
+      const sanitized = sanitizeModel(storedModelGlobal);
+      if (sanitized !== storedModelGlobal) {
+        localStorage.setItem('gemini_model', sanitized);
+        setGeminiModel(sanitized);
+      }
+    }
+  }, [currentUser]);
 
   const fetchEmployees = async () => {
     try {
