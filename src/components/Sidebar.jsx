@@ -22,7 +22,8 @@ import {
   Users,
   User,
   Home,
-  Search
+  Search,
+  Database
 } from 'lucide-react';
 import concostVert from '../assets/concost_logo_vert.png';
 import vietqsLogo from '../assets/vietqs_logo.png';
