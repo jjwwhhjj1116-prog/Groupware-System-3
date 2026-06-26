@@ -805,6 +805,15 @@ export default function App() {
     }
   }, [currentUser]);
 
+  // 로그인 사용자 세션 변경에 맞춰 Google Gemini API Key 및 모델 실시간 연동 업데이트
+  useEffect(() => {
+    const userId = currentUser?.id || 'default';
+    const userKey = localStorage.getItem(`gemini_api_key_${userId}`) || localStorage.getItem('gemini_api_key') || '';
+    const userModel = localStorage.getItem(`gemini_model_${userId}`) || localStorage.getItem('gemini_model') || 'gemini-3.5-flash';
+    setGeminiKey(userKey);
+    setGeminiModel(userModel);
+  }, [currentUser]);
+
   const fetchEmployees = async () => {
     try {
       const res = await fetch('/api/employees');
@@ -897,7 +906,7 @@ export default function App() {
     const handleHashChange = () => {
       const fullHash = window.location.hash.replace('#/', '') || 'home';
       const [menu, subId] = fullHash.split('/');
-      const validMenus = ['home', 'chat', 'mail', 'calendar', 'todo', 'board', 'hr', 'drive', 'project'];
+      const validMenus = ['home', 'chat', 'mail', 'calendar', 'todo', 'board', 'hr', 'drive', 'project', 'admin-hr'];
       
       if (validMenus.includes(menu)) {
         setCurrentMenu(menu);
@@ -3702,6 +3711,7 @@ export default function App() {
           <ReportManager />
         ) : (
           <HrManager 
+            currentWorkspace={currentWorkspace}
             allEmployees={allEmployees}
             onUpdateEmployee={async (emp) => {
               try {

@@ -353,8 +353,11 @@ async function migrateJsonToMongo() {
             u.empNo = u.empNo || 'CC-002';
             u.userName = u.userName || '유종욱';
           }
+          // db.json에는 userName 대신 name 필드가 있으므로 required 속성을 위해 매핑
+          u.userName = u.userName || u.name;
+
           await User.findOneAndUpdate(
-            { id: u.id },
+            { empNo: u.empNo },
             { $set: u },
             { upsert: true, new: true }
           );

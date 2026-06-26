@@ -19,10 +19,21 @@ export default function ReportManager() {
     setLoading(true);
     try {
       const res = await fetch('/api/reports');
-      const data = await res.json();
-      setReports(data);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setReports(data);
+        } else {
+          console.error('Invalid reports data structure:', data);
+          setReports([]);
+        }
+      } else {
+        console.error('Failed to fetch reports status:', res.status);
+        setReports([]);
+      }
     } catch (err) {
       console.error(err);
+      setReports([]);
     } finally {
       setLoading(false);
     }

@@ -54,10 +54,10 @@ export default function HrManager({ currentWorkspace }) {
   useEffect(() => {
     const term = searchTerm.toLowerCase();
     const filtered = employees.filter(emp => 
-      emp.userName.toLowerCase().includes(term) ||
-      emp.empNo.toLowerCase().includes(term) ||
-      emp.dept.toLowerCase().includes(term) ||
-      emp.company.toLowerCase().includes(term)
+      (emp.userName || '').toLowerCase().includes(term) ||
+      (emp.empNo || '').toLowerCase().includes(term) ||
+      (emp.dept || '').toLowerCase().includes(term) ||
+      (emp.company || '').toLowerCase().includes(term)
     );
     setFilteredEmployees(filtered);
   }, [searchTerm, employees]);
