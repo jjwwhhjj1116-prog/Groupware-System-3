@@ -17,7 +17,9 @@ import {
    Copy,
    Forward,
    Globe,
-   Star
+   Star,
+   AlertTriangle,
+   ShieldAlert
 } from 'lucide-react';
 import ceoDongmyungImg from '../assets/ceo_dongmyung.png';
 
@@ -58,6 +60,96 @@ export default function ChatArea({
   const [translatingIds, setTranslatingIds] = useState(new Set());
   const [pickerTab, setPickerTab] = useState('emoji');
   const messagesEndRef = useRef(null);
+
+  // 신고 관련 상태
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportTargetMsg, setReportTargetMsg] = useState(null);
+
+  const handleSubmitReport = async (e) => {
+    if (e) e.preventDefault();
+    if (!reportTargetMsg) return;
+
+    setIsReporting(true);
+    try {
+      // 1. 피신고자 정보 보정 로직
+      let targetEmpId = reportTargetMsg.sender;
+      let targetName = reportTargetMsg.senderName;
+
+      if (allEmployees && allEmployees.length > 0) {
+        const found = allEmployees.find(emp => 
+          (emp.userName && emp.userName === reportTargetMsg.senderName) ||
+          (emp.empNo && emp.empNo === reportTargetMsg.sender) ||
+          (emp.id && emp.id === reportTargetMsg.sender)
+        );
+        if (found) {
+          targetEmpId = found.empNo || found.id || targetEmpId;
+          targetName = found.userName || targetName;
+        }
+      }
+
+      // 2. Gemini 요약 생성
+      const userApiKey = localStorage.getItem(`gemini_api_key_${currentUser?.id}`) || localStorage.getItem('gemini_api_key') || '';
+      const userModel = localStorage.getItem(`gemini_model_${currentUser?.id}`) || localStorage.getItem('gemini_model') || 'gemini-3.5-flash';
+      let aiSummary = '';
+      try {
+        const sumRes = await fetch('/api/gemini/summarize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: [{
+              senderName: targetName,
+              content: reportTargetMsg.content || reportTargetMsg.fileName || '첨부파일'
+            }],
+            apiKey: userApiKey,
+            model: userModel
+          })
+        });
+        if (sumRes.ok) {
+          const sumData = await sumRes.json();
+          aiSummary = sumData.summary;
+        }
+      } catch (sumErr) {
+        console.error('Gemini 요약 실패:', sumErr);
+      }
+
+      if (!aiSummary) {
+        aiSummary = `[단순 요약] ${targetName}의 대화: "${reportTargetMsg.content || reportTargetMsg.fileName || '첨부파일'}"`;
+      }
+
+      // 3. 신고 데이터 DB 저장
+      const reportPayload = {
+        project_channel: activeChat?.name || '일반 채널',
+        target_emp_id: targetEmpId,
+        target_name: targetName,
+        reporter_emp_id: currentUser?.empNo || currentUser?.id || 'me',
+        error_content: reportTargetMsg.content || reportTargetMsg.fileName || '첨부파일',
+        ai_summary: aiSummary,
+        severity: reportSeverity,
+        status: '접수',
+        private_thread_id: `report-${Date.now()}` // 비공개 소명 스레드 ID
+      };
+
+      const repRes = await fetch('/api/reports', {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify(reportPayload)
+      });
+
+      if (repRes.ok) {
+         alert('🚨 대화가 성공적으로 신고 및 인사평가 DB로 연동되었습니다.\n(소명 및 감사 절차를 위한 비공개 소명 스레드가 자동 개설됩니다.)');
+         setShowReportModal(false);
+         setReportTargetMsg(null);
+      } else {
+         const errData = await repRes.json();
+         alert(`신고 저장 실패: ${errData.error || '알 수 없는 오류'}`);
+      }
+    } catch (err) {
+      console.error('Report submission error:', err);
+      alert('신고 중 서버 통신 에러가 발생했습니다.');
+    } finally {
+      setIsReporting(false);
+    }
+  };
 
   // 호버 및 편의기능(복사/전달) 상태
   const [hoveredMsgId, setHoveredMsgId] = useState(null);
@@ -548,7 +640,8 @@ export default function ChatArea({
                     style={{
                       ...styles.bubbleCol,
                       alignItems: isMe ? 'flex-end' : 'flex-start',
-                      position: 'relative' // 툴바 배치 기준
+                      position: 'relative', // 툴바 배치 기준
+                      width: 'fit-content'
                     }}
                     onMouseEnter={() => setHoveredMsgId(msg.id)}
                     onMouseLeave={() => setHoveredMsgId(null)}
@@ -585,6 +678,7 @@ export default function ChatArea({
                         id={`msg-${msg.id}`}
                         style={{
                           ...styles.bubble,
+                          width: 'fit-content',
                           backgroundColor: (msg.youngjaImageUrl && !msg.content)
                             ? 'transparent'
                             : isCurrentMatch
@@ -844,17 +938,20 @@ export default function ChatArea({
                       {/* 마우스오버 시 표시되는 5개 호버 버튼 툴바 */}
                       {hoveredMsgId === msg.id && (
                         <div style={{
+                          position: 'absolute',
+                          top: 'calc(100% - 6px)',
+                          right: isMe ? '8px' : 'auto',
+                          left: isMe ? 'auto' : '8px',
                           display: 'flex',
                           alignItems: 'center',
                           gap: '6px',
-                          marginLeft: isMe ? '0' : '8px',
-                          marginRight: isMe ? '8px' : '0',
                           backgroundColor: 'var(--bg-secondary)',
                           border: '1px solid var(--border-light)',
                           borderRadius: '20px',
                           padding: '2px 8px',
                           boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
-                          animation: 'fadeIn 0.15s ease'
+                          animation: 'fadeIn 0.15s ease',
+                          zIndex: 50
                         }}>
                           {/* 1. 번역 (🌐) */}
                           <button 
@@ -934,6 +1031,24 @@ export default function ChatArea({
                             }}
                           >
                             <Star size={11} fill={favoritedChats && favoritedChats.includes(activeChat.id) ? '#ffcc00' : 'none'} />
+                          </button>
+
+                          {/* 6. 신고하기 (⚠️) */}
+                          <button 
+                            type="button"
+                            title="신고하기"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setReportTargetMsg(msg);
+                              setReportSeverity('경');
+                              setShowReportModal(true);
+                            }}
+                            style={{
+                              ...styles.lowerToolBtn,
+                              color: 'var(--danger)'
+                            }}
+                          >
+                            <AlertTriangle size={11} />
                           </button>
                         </div>
                       )}
@@ -1587,6 +1702,124 @@ export default function ChatArea({
                   {isReporting ? 'AI 분석 중...' : '신고 / DB 저장'}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 단일 메시지 신고 모달 */}
+      {showReportModal && reportTargetMsg && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+        }}>
+          <div style={{
+            backgroundColor: 'var(--bg-secondary)',
+            border: '1px solid var(--border)',
+            borderRadius: '12px',
+            padding: '24px',
+            width: '450px',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+            color: 'var(--text-primary)',
+          }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '1.1rem', fontWeight: 'bold', color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <AlertTriangle size={20} />
+              인사평가 연동 대화 신고하기 (Audit Report)
+            </h3>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
+              <div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 'bold' }}>피신고자(작성자)</span>
+                <div style={{ fontSize: '0.9rem', marginTop: '2px', fontWeight: 'bold' }}>{reportTargetMsg.senderName} ({reportTargetMsg.sender})</div>
+              </div>
+              
+              <div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 'bold' }}>대화 내용</span>
+                <div style={{
+                  fontSize: '0.85rem',
+                  marginTop: '4px',
+                  padding: '10px',
+                  backgroundColor: 'var(--bg-tertiary)',
+                  border: '1px solid var(--border-light)',
+                  borderRadius: '6px',
+                  maxHeight: '100px',
+                  overflowY: 'auto',
+                  whiteSpace: 'pre-wrap'
+                }}>
+                  {reportTargetMsg.content || reportTargetMsg.fileName || '첨부파일'}
+                </div>
+              </div>
+              
+              <div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 'bold' }}>오류 심각도 (인사 반영 수위)</span>
+                <div style={{ display: 'flex', gap: '12px', marginTop: '6px' }}>
+                  {['경', '중', '심각'].map((sev) => (
+                    <label key={sev} style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontSize: '0.85rem' }}>
+                      <input
+                        type="radio"
+                        name="reportSeverity"
+                        value={sev}
+                        checked={reportSeverity === sev}
+                        onChange={(e) => setReportSeverity(e.target.value)}
+                      />
+                      <span style={{
+                        fontWeight: 'bold',
+                        color: sev === '심각' ? '#ef4444' : sev === '중' ? '#f59e0b' : '#3b82f6'
+                      }}>
+                        {sev === '심각' ? '🔴 심각 (중대과실)' : sev === '중' ? '🟡 중 (업무과실)' : '🔵 경 (단순실수)'}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+            
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button 
+                type="button" 
+                onClick={() => {
+                  setShowReportModal(false);
+                  setReportTargetMsg(null);
+                }}
+                style={{
+                  padding: '8px 16px',
+                  border: '1px solid var(--border)',
+                  borderRadius: '6px',
+                  backgroundColor: 'var(--bg-primary)',
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer',
+                  fontSize: '0.85rem',
+                  fontWeight: 'bold'
+                }}
+              >
+                취소
+              </button>
+              <button 
+                type="button"
+                disabled={isReporting}
+                onClick={handleSubmitReport}
+                style={{
+                  padding: '8px 18px',
+                  border: 'none',
+                  borderRadius: '6px',
+                  backgroundColor: '#ef4444',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  fontSize: '0.85rem',
+                  fontWeight: 'bold',
+                  boxShadow: '0 2px 4px rgba(239, 68, 68, 0.2)'
+                }}
+              >
+                {isReporting ? '신고 중...' : '🚨 신고 접수'}
+              </button>
             </div>
           </div>
         </div>

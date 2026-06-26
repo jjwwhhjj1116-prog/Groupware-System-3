@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ShieldAlert, CheckCircle, Clock, Filter, BarChart2, Calendar, User, Layers, RefreshCw } from 'lucide-react';
 
-export default function ReportManager() {
+export default function ReportManager({ socket }) {
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -13,7 +13,20 @@ export default function ReportManager() {
 
   useEffect(() => {
     fetchReports();
-  }, []);
+
+    if (socket) {
+      const handleReportCreated = (newReport) => {
+        setReports(prev => {
+          if (prev.some(r => r._id === newReport._id)) return prev;
+          return [newReport, ...prev];
+        });
+      };
+      socket.on('report:created', handleReportCreated);
+      return () => {
+        socket.off('report:created', handleReportCreated);
+      };
+    }
+  }, [socket]);
 
   const fetchReports = async () => {
     setLoading(true);

@@ -350,17 +350,39 @@ async function migrateJsonToMongo() {
       if (parsed.users && parsed.users.length > 0) {
         for (const u of parsed.users) {
           if (u.id === 'me') {
-            u.empNo = u.empNo || 'CC-002';
+            u.empNo = u.empNo || 'CC-010';
             u.userName = u.userName || '유종욱';
           }
-          // db.json에는 userName 대신 name 필드가 있으므로 required 속성을 위해 매핑
-          u.userName = u.userName || u.name;
+          const nameToFind = u.userName || u.name;
+          if (!nameToFind) continue;
 
-          await User.findOneAndUpdate(
-            { empNo: u.empNo },
-            { $set: u },
-            { upsert: true, new: true }
-          );
+          // DB에서 이름으로 먼저 매칭을 찾아 엑셀 기준의 사번(empNo)과 ID 정합성을 유지하며 정보 병합
+          const dbUser = await User.findOne({ userName: nameToFind.trim() });
+          if (dbUser) {
+            const mergedUser = {
+              ...u,
+              id: dbUser.id,
+              empNo: dbUser.empNo,
+              company: dbUser.company,
+              dept: dbUser.dept || u.dept,
+              grade: dbUser.grade || u.grade,
+              role: dbUser.role || u.role,
+              userName: dbUser.userName
+            };
+            await User.findOneAndUpdate(
+              { empNo: dbUser.empNo },
+              { $set: mergedUser },
+              { upsert: true, new: true }
+            );
+          } else {
+            // 엑셀에는 없지만 db.json에만 정의된 사원인 경우 덮어씌움
+            u.userName = nameToFind;
+            await User.findOneAndUpdate(
+              { empNo: u.empNo },
+              { $set: u },
+              { upsert: true, new: true }
+            );
+          }
         }
       }
 

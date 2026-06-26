@@ -23,7 +23,7 @@ import {
   X,
   Key,
   Database,
-  ShieldAlert, // 추가
+  ShieldAlert,
   Menu,
   Star,
   Home,
@@ -35,7 +35,7 @@ import {
   AlertCircle,
   Search
 } from 'lucide-react';
-import { getUserRoleLevel, getRoleLabel } from './utils/permission'; // 추가
+import { getUserRoleLevel, getRoleLabel } from './utils/permission';
 import ceoDongmyungImg from './assets/ceo_dongmyung.png';
 import ceoDongmyungThinkingImg from './assets/ceo_dongmyung_thinking.png';
 import concostVert from './assets/concost_logo_vert.png';
@@ -3708,11 +3708,12 @@ export default function App() {
 
       case 'admin-hr':
         return adminSubTab === 'report' ? (
-          <ReportManager />
+          <ReportManager socket={socketRef.current} />
         ) : (
           <HrManager 
             currentWorkspace={currentWorkspace}
             allEmployees={allEmployees}
+            currentUser={currentUser}
             onUpdateEmployee={async (emp) => {
               try {
                 const res = await fetch('/api/employees/update', {

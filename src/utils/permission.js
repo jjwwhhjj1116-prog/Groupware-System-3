@@ -19,15 +19,15 @@ export const getUserRoleLevel = (user) => {
   const role = user.role || '';
   const dept = user.dept || '';
 
-  // 0. 관리자 권한 명시적 부여 (유종욱 실장, 박용진 수석, 강동균 실장)
+  // 0. 관리자 권한 명시적 부여 (유종욱 실장, 박용진 수석만 허용)
   if (
     id === 'yjw' || 
     id === 'yjpark' || 
-    id === 'kdgang' ||
     empNo === 'CC-002' || 
+    empNo === 'CC-010' || 
+    empNo === 'CC-011' || 
     empNo === 'EMP-2018-001' || 
-    empNo === 'CC-006' ||
-    ['유종욱', '박용진', '강동균'].includes(user.userName)
+    ['유종욱', '박용진'].includes(user.userName)
   ) {
     return 0;
   }

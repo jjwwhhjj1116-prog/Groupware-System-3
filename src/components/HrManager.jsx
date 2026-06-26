@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Users, Plus, Save, Trash2, Edit2, ShieldCheck, Search } from 'lucide-react';
 import { getUserRoleLevel, getRoleLabel } from '../utils/permission';
 
-export default function HrManager({ currentWorkspace }) {
+export default function HrManager({ currentWorkspace, currentUser }) {
   const [employees, setEmployees] = useState([]);
   const [filteredEmployees, setFilteredEmployees] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -376,6 +376,7 @@ export default function HrManager({ currentWorkspace }) {
                     value={editForm.roleLevel !== undefined && editForm.roleLevel !== null ? String(editForm.roleLevel) : ''}
                     onChange={(e) => handleFormChange('roleLevel', e.target.value === '' ? '' : Number(e.target.value))}
                     style={styles.select}
+                    disabled={getUserRoleLevel(currentUser) !== 0}
                   >
                     <option value="">자동 산정</option>
                     <option value="0">관리자 (0등급)</option>
