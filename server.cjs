@@ -86,7 +86,8 @@ const ChatSchema = new mongoose.Schema({
     id: String,
     senderName: String,
     content: String
-  }
+  },
+  isPrivate: { type: Boolean, default: false }
 });
 const Chat = mongoose.model('Chat', ChatSchema);
 

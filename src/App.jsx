@@ -1346,7 +1346,7 @@ export default function App() {
     return null;
   };
 
-  const handleSendMessage = async (content, youngjaImageUrl = null, fileObj = null, replyTo = null) => {
+  const handleSendMessage = async (content, youngjaImageUrl = null, fileObj = null, replyTo = null, isPrivate = false) => {
     const chatKey = getChatKey();
     const now = new Date();
     const timeStr = now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
@@ -1369,7 +1369,8 @@ export default function App() {
         id: replyTo.id,
         senderName: replyTo.senderName,
         content: replyTo.content || (replyTo.fileName ? `[파일] ${replyTo.fileName}` : '')
-      } : undefined
+      } : undefined,
+      isPrivate: isPrivate || false
     };
 
     // 로컬 상태 반영

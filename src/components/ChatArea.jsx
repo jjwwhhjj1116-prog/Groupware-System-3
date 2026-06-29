@@ -23,6 +23,7 @@ import {
    X
 } from 'lucide-react';
 import ceoDongmyungImg from '../assets/ceo_dongmyung.png';
+import { getUserRoleLevel } from '../utils/permission';
 
 const YOUNGJA_IMAGES = {
   hello: "https://raw.githubusercontent.com/wonseokjung/solopreneur-ai-agents/main/agents/youngja/assets/youngja_hello.png",
@@ -177,10 +178,13 @@ export default function ChatArea({
   const [selectedMessageIds, setSelectedMessageIds] = useState([]);
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, msg: null });
   const [replyingTo, setReplyingTo] = useState(null);
+  const [clickedMsgId, setClickedMsgId] = useState(null);
+  const [isPrivateMsg, setIsPrivateMsg] = useState(false);
 
   useEffect(() => {
     const handleCloseMenu = () => {
       setContextMenu(prev => prev.visible ? { ...prev, visible: false } : prev);
+      setClickedMsgId(null);
     };
     document.addEventListener('click', handleCloseMenu);
     return () => document.removeEventListener('click', handleCloseMenu);
@@ -325,9 +329,10 @@ export default function ChatArea({
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!inputText.trim()) return;
-    onSendMessage(inputText.trim(), null, null, replyingTo);
+    onSendMessage(inputText.trim(), null, null, replyingTo, isPrivateMsg);
     setInputText('');
     setReplyingTo(null);
+    setIsPrivateMsg(false);
   };
 
   const handleKeyPress = (e) => {
@@ -652,9 +657,12 @@ export default function ChatArea({
             </div>
           ) : (
             messages.map((msg, index) => {
+              const isMe = msg.sender === 'me' || (currentUser && msg.sender === currentUser.id);
+              if (msg.isPrivate && !isMe) {
+                return null;
+              }
               const isCeoBot = msg.sender === 'ceo-bot';
               const isYoungja = msg.sender === 'youngja';
-              const isMe = msg.sender === 'me' || (currentUser && msg.sender === currentUser.id);
               const isMatched = matchingMsgIds.includes(msg.id);
               const isCurrentMatch = isMatched && matchingMsgIds[currentMatchIdx] === msg.id;
               
@@ -1036,17 +1044,22 @@ export default function ChatArea({
                       minHeight: '20px'
                     }}>
                       {isMe && <Check size={12} style={{ color: 'var(--text-muted)' }} />}
+                      {msg.isPrivate && (
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '2px', cursor: 'default' }} title="나에게만 보이는 비공개 답글">
+                          🔒 나에게만 보임
+                        </span>
+                      )}
                       <span style={styles.msgTime}>{msg.time}</span>
                       
-                      {/* 마우스오버 시 표시되는 호버 버튼 툴바 */}
-                      {hoveredMsgId === msg.id && (
+                      {/* 말풍선을 클릭하면 말풍선 바로 아래에 표시되는 편의기능 툴바 */}
+                      {clickedMsgId === msg.id && (
                         <div 
-                          onMouseEnter={() => setHoveredMsgId(msg.id)}
+                          onClick={(e) => e.stopPropagation()}
                           style={{
                             position: 'absolute',
-                            top: '-16px',
-                            right: isMe ? 'auto' : '8px',
-                            left: isMe ? '8px' : 'auto',
+                            top: 'calc(100% + 4px)',
+                            right: isMe ? '0px' : 'auto',
+                            left: isMe ? 'auto' : '0px',
                             display: 'flex',
                             alignItems: 'center',
                             gap: '4px',
@@ -1054,7 +1067,7 @@ export default function ChatArea({
                             border: '1px solid #dcdfe6',
                             borderRadius: '16px',
                             padding: '3px 8px',
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
                             animation: 'fadeIn 0.12s ease-out',
                             zIndex: 50
                           }}
@@ -1302,9 +1315,31 @@ export default function ChatArea({
                 {replyingTo.content || '[첨부파일]'}
               </span>
             </div>
+            <label style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              fontSize: '0.75rem',
+              color: 'var(--text-secondary)',
+              marginRight: '12px',
+              cursor: 'pointer',
+              userSelect: 'none',
+              fontWeight: '500'
+            }}>
+              <input 
+                type="checkbox" 
+                checked={isPrivateMsg} 
+                onChange={(e) => setIsPrivateMsg(e.target.checked)} 
+                style={{ cursor: 'pointer' }}
+              />
+              🔒 나에게만 보이기 (비공개)
+            </label>
             <button 
               type="button" 
-              onClick={() => setReplyingTo(null)} 
+              onClick={() => {
+                setReplyingTo(null);
+                setIsPrivateMsg(false);
+              }} 
               style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}
             >
               <X size={14} />
@@ -2078,20 +2113,22 @@ export default function ChatArea({
               <span style={{ fontSize: '12px' }}>🗑️</span> 삭제
             </button>
           ) : (
-            <button
-              type="button"
-              onClick={() => {
-                setReportTargetMsg(contextMenu.msg);
-                setReportSeverity('경');
-                setShowReportModal(true);
-                setContextMenu({ visible: false, x: 0, y: 0, msg: null });
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f7fa'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-              style={{ ...styles.contextMenuItem, color: '#ef4444' }}
-            >
-              <span style={{ fontSize: '12px' }}>🚨</span> 신고하기
-            </button>
+            getUserRoleLevel(currentUser) <= 3 ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setReportTargetMsg(contextMenu.msg);
+                  setReportSeverity('경');
+                  setShowReportModal(true);
+                  setContextMenu({ visible: false, x: 0, y: 0, msg: null });
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f7fa'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                style={{ ...styles.contextMenuItem, color: '#ef4444' }}
+              >
+                <span style={{ fontSize: '12px' }}>🚨</span> 신고하기
+              </button>
+            ) : null
           )}
         </div>
       )}
