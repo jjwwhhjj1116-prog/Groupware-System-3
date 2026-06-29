@@ -19,7 +19,8 @@ import {
    Globe,
    Star,
    AlertTriangle,
-   ShieldAlert
+   ShieldAlert,
+   X
 } from 'lucide-react';
 import ceoDongmyungImg from '../assets/ceo_dongmyung.png';
 
@@ -52,7 +53,11 @@ export default function ChatArea({
   onToggleFavorite,
   onToggleMessageReaction,
   currentUser,
-  allEmployees = []
+  allEmployees = [],
+  onAddTodo,
+  onDeleteMessage,
+  onNoticeUpdate,
+  onNoticeDelete
 }) {
   const [inputText, setInputText] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -170,6 +175,16 @@ export default function ChatArea({
   // 오류 추적(신고) 연동 상태
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedMessageIds, setSelectedMessageIds] = useState([]);
+  const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, msg: null });
+  const [replyingTo, setReplyingTo] = useState(null);
+
+  useEffect(() => {
+    const handleCloseMenu = () => {
+      setContextMenu(prev => prev.visible ? { ...prev, visible: false } : prev);
+    };
+    document.addEventListener('click', handleCloseMenu);
+    return () => document.removeEventListener('click', handleCloseMenu);
+  }, []);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [reportTargetEmp, setReportTargetEmp] = useState(''); // 사번 입력 또는 선택
   const [reportSeverity, setReportSeverity] = useState('경'); // '경', '중', '심각'
@@ -310,8 +325,9 @@ export default function ChatArea({
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!inputText.trim()) return;
-    onSendMessage(inputText.trim());
+    onSendMessage(inputText.trim(), null, null, replyingTo);
     setInputText('');
+    setReplyingTo(null);
   };
 
   const handleKeyPress = (e) => {
@@ -488,6 +504,53 @@ export default function ChatArea({
           <button className="header-btn" style={styles.headerBtn} title="더보기"><MoreVertical size={18} /></button>
         </div>
       </div>
+
+      {/* 채널 상단 공지 배너 */}
+      {activeChat && activeChat.notice && (
+        <div style={styles.noticeBanner}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
+            <span style={{ fontSize: '1.1rem' }}>📢</span>
+            <div 
+              onClick={() => {
+                const element = document.getElementById(`msg-${activeChat.notice.msgId}`);
+                if (element) {
+                  element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  // 일시적 강조
+                  const originalColor = element.style.backgroundColor;
+                  element.style.backgroundColor = 'rgba(255, 107, 0, 0.3)';
+                  setTimeout(() => { element.style.backgroundColor = originalColor; }, 1000);
+                }
+              }}
+              style={{
+                fontSize: '0.825rem',
+                fontWeight: '500',
+                color: '#e07a22',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                flex: 1
+              }}
+            >
+              <strong>{activeChat.notice.senderName}</strong>: {activeChat.notice.content}
+            </div>
+          </div>
+          <button 
+            type="button" 
+            onClick={() => onNoticeDelete && onNoticeDelete(activeChat.id)} 
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--text-muted)',
+              fontSize: '0.75rem',
+              cursor: 'pointer'
+            }}
+            title="공지 내리기"
+          >
+            공지 해제
+          </button>
+        </div>
+      )}
 
       {/* 대화방 내 특정 문자 찾기(검색) 바 */}
       {showSearchBar && (
@@ -667,10 +730,13 @@ export default function ChatArea({
                       <div
                         onContextMenu={(e) => {
                           e.preventDefault();
-                          setIsSelectMode(true);
-                          if (!selectedMessageIds.includes(msg.id)) {
-                            setSelectedMessageIds(prev => [...prev, msg.id]);
-                          }
+                          e.stopPropagation();
+                          setContextMenu({
+                            visible: true,
+                            x: e.clientX,
+                            y: e.clientY,
+                            msg: msg
+                          });
                         }}
                       >
                       {/* Chat Bubble */}
@@ -720,7 +786,44 @@ export default function ChatArea({
                           }
                         }}
                       >
-                      {msg.content && <div style={styles.msgText}>{msg.content}</div>}
+                        {msg.replyTo && (
+                          <div 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const element = document.getElementById(`msg-${msg.replyTo.id}`);
+                              if (element) {
+                                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                const originalBg = element.style.backgroundColor;
+                                const originalBorder = element.style.border;
+                                element.style.backgroundColor = 'rgba(255, 107, 0, 0.35)';
+                                element.style.border = '2px dashed #ff6b00';
+                                setTimeout(() => {
+                                  element.style.backgroundColor = '';
+                                  element.style.border = '';
+                                }, 1500);
+                              }
+                            }}
+                            style={{
+                              backgroundColor: 'rgba(0,0,0,0.06)',
+                              borderLeft: '3px solid var(--primary)',
+                              borderRadius: '4px',
+                              padding: '6px 10px',
+                              marginBottom: '6px',
+                              fontSize: '0.75rem',
+                              color: '#555555',
+                              cursor: 'pointer',
+                              userSelect: 'none'
+                            }}
+                          >
+                            <div style={{ fontWeight: 'bold', fontSize: '0.7rem', color: 'var(--primary)' }}>
+                              ↩️ {msg.replyTo.senderName}님에게 답장
+                            </div>
+                            <div style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                              {msg.replyTo.content}
+                            </div>
+                          </div>
+                        )}
+                        {msg.content && <div style={styles.msgText}>{msg.content}</div>}
 
                       {/* 파일 첨부 및 프리뷰/다운로드 */}
                       {msg.fileName && msg.fileData && (
@@ -935,36 +1038,38 @@ export default function ChatArea({
                       {isMe && <Check size={12} style={{ color: 'var(--text-muted)' }} />}
                       <span style={styles.msgTime}>{msg.time}</span>
                       
-                      {/* 마우스오버 시 표시되는 5개 호버 버튼 툴바 */}
+                      {/* 마우스오버 시 표시되는 호버 버튼 툴바 */}
                       {hoveredMsgId === msg.id && (
-                        <div style={{
-                          position: 'absolute',
-                          top: 'calc(100% - 6px)',
-                          right: isMe ? '8px' : 'auto',
-                          left: isMe ? 'auto' : '8px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          backgroundColor: 'var(--bg-secondary)',
-                          border: '1px solid var(--border-light)',
-                          borderRadius: '20px',
-                          padding: '2px 8px',
-                          boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
-                          animation: 'fadeIn 0.15s ease',
-                          zIndex: 50
-                        }}>
-                          {/* 1. 번역 (🌐) */}
+                        <div 
+                          onMouseEnter={() => setHoveredMsgId(msg.id)}
+                          style={{
+                            position: 'absolute',
+                            top: '-16px',
+                            right: isMe ? 'auto' : '8px',
+                            left: isMe ? '8px' : 'auto',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            backgroundColor: '#ffffff',
+                            border: '1px solid #dcdfe6',
+                            borderRadius: '16px',
+                            padding: '3px 8px',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                            animation: 'fadeIn 0.12s ease-out',
+                            zIndex: 50
+                          }}
+                        >
+                          {/* 1. 답장 (↩️) */}
                           <button 
                             type="button"
-                            title="번역"
+                            title="답장"
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleTranslate(msg.id, msg.content || '', !!msg.translation);
+                              setReplyingTo(msg);
                             }}
-                            style={{ ...styles.lowerToolBtn, width: 'auto', padding: '0 6px', gap: '4px' }}
+                            style={styles.lowerToolBtn}
                           >
-                            <Globe size={11} />
-                            <span style={{ fontSize: '10px', fontWeight: '500' }}>번역</span>
+                            <span style={{ fontSize: '11px', display: 'flex', alignItems: 'center' }}>↩️</span>
                           </button>
 
                           {/* 2. 복사 (📋) */}
@@ -997,58 +1102,37 @@ export default function ChatArea({
                             <Forward size={11} />
                           </button>
 
-                          {/* 4. 상태 이모티콘 남기기 (❤️) */}
+                          {/* 4. 번역 (🌐) - 필수 유지 */}
                           <button 
                             type="button"
-                            title="리액션 남기기"
+                            title="번역"
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (onToggleMessageReaction) {
-                                onToggleMessageReaction(msg.id, '❤️');
-                              }
+                              handleTranslate(msg.id, msg.content || '', !!msg.translation);
                             }}
-                            style={{
-                              ...styles.lowerToolBtn,
-                              color: (msg.reactions && msg.reactions.some(r => r.startsWith('❤️:'))) ? 'var(--danger)' : 'var(--text-secondary)'
-                            }}
+                            style={{ ...styles.lowerToolBtn, width: 'auto', padding: '0 4px', gap: '3px' }}
                           >
-                            <span style={{ fontSize: '10px', display: 'flex', alignItems: 'center' }}>❤️</span>
+                            <Globe size={11} />
+                            <span style={{ fontSize: '9px', fontWeight: 'bold' }}>번역</span>
                           </button>
 
-                          {/* 5. 즐겨찾기 채팅 등록 (⭐) */}
+                          {/* 5. 더보기 (⋮) */}
                           <button 
                             type="button"
-                            title="채팅방 즐겨찾기"
+                            title="더보기"
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (onToggleFavorite) {
-                                onToggleFavorite(activeChat.id);
-                              }
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              setContextMenu({
+                                visible: true,
+                                x: rect.left,
+                                y: rect.bottom,
+                                msg: msg
+                              });
                             }}
-                            style={{
-                              ...styles.lowerToolBtn,
-                              color: favoritedChats && favoritedChats.includes(activeChat.id) ? '#ffcc00' : 'var(--text-secondary)'
-                            }}
+                            style={styles.lowerToolBtn}
                           >
-                            <Star size={11} fill={favoritedChats && favoritedChats.includes(activeChat.id) ? '#ffcc00' : 'none'} />
-                          </button>
-
-                          {/* 6. 신고하기 (⚠️) */}
-                          <button 
-                            type="button"
-                            title="신고하기"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setReportTargetMsg(msg);
-                              setReportSeverity('경');
-                              setShowReportModal(true);
-                            }}
-                            style={{
-                              ...styles.lowerToolBtn,
-                              color: 'var(--danger)'
-                            }}
-                          >
-                            <AlertTriangle size={11} />
+                            <span style={{ fontSize: '11px', display: 'flex', alignItems: 'center', fontWeight: 'bold' }}>⋮</span>
                           </button>
                         </div>
                       )}
@@ -1198,6 +1282,35 @@ export default function ChatArea({
           style={{ display: 'none' }} 
           onChange={handleFileChange} 
         />
+        {/* 답장 프리뷰 바 */}
+        {replyingTo && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '8px 12px',
+            backgroundColor: 'var(--bg-secondary)',
+            borderBottom: '1px solid var(--border-light)',
+            borderTopLeftRadius: '6px',
+            borderTopRightRadius: '6px',
+            fontSize: '0.8rem',
+            animation: 'fadeIn 0.15s ease-out'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)', minWidth: 0, flex: 1 }}>
+              <span style={{ fontWeight: 'bold', color: 'var(--primary)' }}>↩️ {replyingTo.senderName}님에게 답장:</span>
+              <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', flex: 1 }}>
+                {replyingTo.content || '[첨부파일]'}
+              </span>
+            </div>
+            <button 
+              type="button" 
+              onClick={() => setReplyingTo(null)} 
+              style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}
+            >
+              <X size={14} />
+            </button>
+          </div>
+        )}
         {/* Quick Emoji bar */}
         <div style={styles.quickEmojiBar}>
           {quickEmojis.map(emoji => (
@@ -1825,11 +1938,194 @@ export default function ChatArea({
         </div>
       )}
 
+      {/* 네이버웍스식 커스텀 우클릭 컨텍스트 메뉴 */}
+      {contextMenu.visible && contextMenu.msg && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: `${contextMenu.y}px`,
+            left: `${contextMenu.x}px`,
+            backgroundColor: '#ffffff',
+            border: '1px solid #dcdfe6',
+            borderRadius: '8px',
+            padding: '6px 0',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+            zIndex: 10000,
+            display: 'flex',
+            flexDirection: 'column',
+            minWidth: '140px'
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* 1. 답장 */}
+          <button
+            type="button"
+            onClick={() => {
+              setReplyingTo(contextMenu.msg);
+              setContextMenu({ visible: false, x: 0, y: 0, msg: null });
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f7fa'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+            style={styles.contextMenuItem}
+          >
+            <span style={{ fontSize: '12px' }}>↩️</span> 답장
+          </button>
+
+          {/* 2. 복사 */}
+          <button
+            type="button"
+            onClick={() => {
+              navigator.clipboard.writeText(contextMenu.msg.content || contextMenu.msg.fileName || '');
+              setCopiedMsgId(contextMenu.msg.id);
+              setTimeout(() => setCopiedMsgId(null), 1200);
+              setContextMenu({ visible: false, x: 0, y: 0, msg: null });
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f7fa'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+            style={styles.contextMenuItem}
+          >
+            <span style={{ fontSize: '12px' }}>📋</span> 복사
+          </button>
+
+          {/* 3. 전달 */}
+          <button
+            type="button"
+            onClick={() => {
+              setMessageToForward(contextMenu.msg.content || contextMenu.msg.fileName || '첨부파일');
+              setIsForwardModalOpen(true);
+              setSelectedForwardTarget(null);
+              setContextMenu({ visible: false, x: 0, y: 0, msg: null });
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f7fa'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+            style={styles.contextMenuItem}
+          >
+            <span style={{ fontSize: '12px' }}>➡️</span> 전달
+          </button>
+
+          {/* 4. 번역 */}
+          <button
+            type="button"
+            onClick={() => {
+              handleTranslate(contextMenu.msg.id, contextMenu.msg.content || '', !contextMenu.msg.translation);
+              setContextMenu({ visible: false, x: 0, y: 0, msg: null });
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f7fa'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+            style={styles.contextMenuItem}
+          >
+            <span style={{ fontSize: '12px' }}>🌐</span> 번역
+          </button>
+
+          {/* 5. 공지 등록 (채널일 때만 활성화) */}
+          {activeChat.type === 'channel' && (
+            <button
+              type="button"
+              onClick={() => {
+                if (onNoticeUpdate) {
+                  onNoticeUpdate(activeChat.id, {
+                    msgId: contextMenu.msg.id,
+                    content: contextMenu.msg.content || (contextMenu.msg.fileName ? `[파일] ${contextMenu.msg.fileName}` : '공지사항'),
+                    senderName: contextMenu.msg.senderName,
+                    time: contextMenu.msg.time
+                  });
+                }
+                setContextMenu({ visible: false, x: 0, y: 0, msg: null });
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f7fa'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+              style={styles.contextMenuItem}
+            >
+              <span style={{ fontSize: '12px' }}>📌</span> 공지 등록
+            </button>
+          )}
+
+          {/* 6. 할 일 등록 */}
+          <button
+            type="button"
+            onClick={() => {
+              if (onAddTodo) {
+                onAddTodo(contextMenu.msg.content || (contextMenu.msg.fileName ? `[파일] ${contextMenu.msg.fileName}` : '메신저 등록 할 일'));
+              }
+              setContextMenu({ visible: false, x: 0, y: 0, msg: null });
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f7fa'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+            style={styles.contextMenuItem}
+          >
+            <span style={{ fontSize: '12px' }}>📅</span> 할 일 등록
+          </button>
+
+          {/* 분리선 */}
+          <div style={{ height: '1px', backgroundColor: '#e4e7ed', margin: '4px 0' }} />
+
+          {/* 7. 삭제 또는 신고 */}
+          {((currentUser && contextMenu.msg.sender === currentUser.id) || contextMenu.msg.sender === 'me') ? (
+            <button
+              type="button"
+              onClick={() => {
+                if (confirm('정말로 이 메시지를 삭제하시겠습니까?\n(상대방의 대화창에서도 실시간으로 삭제됩니다.)')) {
+                  if (onDeleteMessage) {
+                    onDeleteMessage(contextMenu.msg.id);
+                  }
+                }
+                setContextMenu({ visible: false, x: 0, y: 0, msg: null });
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f7fa'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+              style={{ ...styles.contextMenuItem, color: '#ef4444' }}
+            >
+              <span style={{ fontSize: '12px' }}>🗑️</span> 삭제
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setReportTargetMsg(contextMenu.msg);
+                setReportSeverity('경');
+                setShowReportModal(true);
+                setContextMenu({ visible: false, x: 0, y: 0, msg: null });
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f7fa'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+              style={{ ...styles.contextMenuItem, color: '#ef4444' }}
+            >
+              <span style={{ fontSize: '12px' }}>🚨</span> 신고하기
+            </button>
+          )}
+        </div>
+      )}
+
     </div>
   );
 }
 
 const styles = {
+  contextMenuItem: {
+    border: 'none',
+    background: 'none',
+    width: '100%',
+    textAlign: 'left',
+    padding: '8px 16px',
+    fontSize: '0.825rem',
+    color: '#303133',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    transition: 'background-color 0.15s',
+    userSelect: 'none'
+  },
+  noticeBanner: {
+    backgroundColor: '#fffdf0',
+    borderBottom: '1px solid #ffe8cc',
+    padding: '10px 16px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    zIndex: 10,
+    boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+  },
   lowerToolBtn: {
     border: 'none',
     background: 'none',

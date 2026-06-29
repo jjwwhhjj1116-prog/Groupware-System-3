@@ -81,7 +81,12 @@ const ChatSchema = new mongoose.Schema({
   fileName: String,
   fileSize: String,
   fileData: String,
-  fileType: String
+  fileType: String,
+  replyTo: {
+    id: String,
+    senderName: String,
+    content: String
+  }
 });
 const Chat = mongoose.model('Chat', ChatSchema);
 
@@ -99,7 +104,13 @@ const Event = mongoose.model('Event', EventSchema);
 const ChannelSchema = new mongoose.Schema({
   id: { type: String, required: true, unique: true },
   name: String,
-  workspace: String
+  workspace: String,
+  notice: {
+    msgId: String,
+    content: String,
+    senderName: String,
+    time: String
+  }
 });
 const Channel = mongoose.model('Channel', ChannelSchema);
 
@@ -486,6 +497,59 @@ app.post('/api/chats/send', async (req, res) => {
   }
 });
 
+// 채팅 메시지 삭제 API
+app.delete('/api/chats/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await Chat.findOneAndDelete({ id });
+    res.json({ success: true, message: 'Message deleted successfully.' });
+  } catch (err) {
+    console.error('[Delete Chat Error]', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 채널 공지 등록/수정 API
+app.post('/api/channels/:id/notice', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { notice } = req.body; // { msgId, content, senderName, time }
+    const updatedChannel = await Channel.findOneAndUpdate(
+      { id },
+      { $set: { notice } },
+      { new: true }
+    );
+    if (!updatedChannel) {
+      return res.status(404).json({ success: false, error: '채널을 찾을 수 없습니다.' });
+    }
+    io.emit('channel:notice:updated', { channelId: id, notice });
+    res.json({ success: true, channel: updatedChannel });
+  } catch (err) {
+    console.error('[Update Notice Error]', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 채널 공지 삭제 API
+app.delete('/api/channels/:id/notice', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updatedChannel = await Channel.findOneAndUpdate(
+      { id },
+      { $unset: { notice: "" } },
+      { new: true }
+    );
+    if (!updatedChannel) {
+      return res.status(404).json({ success: false, error: '채널을 찾을 수 없습니다.' });
+    }
+    io.emit('channel:notice:updated', { channelId: id, notice: null });
+    res.json({ success: true, channel: updatedChannel });
+  } catch (err) {
+    console.error('[Delete Notice Error]', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // 로그인 검증 API
 app.post('/api/login', async (req, res) => {
   try {
@@ -697,6 +761,10 @@ io.on('connection', (socket) => {
     } catch (err) {
       console.error('❌ Socket chat save error:', err);
     }
+  });
+
+  socket.on('message:delete', ({ msgId, channelId }) => {
+    io.to(channelId).emit('message:deleted', { msgId, channelId });
   });
 
   socket.on('message:reaction', async ({ msgId, channelId, userId, userName, emoji }) => {

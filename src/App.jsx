@@ -725,6 +725,34 @@ export default function App() {
       });
     });
 
+    // 메시지 삭제 리스너 추가
+    socket.on('message:deleted', ({ msgId, channelId }) => {
+      setMessages(prev => {
+        const next = { ...prev };
+        if (next[channelId]) {
+          next[channelId] = next[channelId].filter(m => m.id !== msgId);
+        }
+        return next;
+      });
+    });
+
+    // 채널 공지 업데이트 리스너 추가
+    socket.on('channel:notice:updated', ({ channelId, notice }) => {
+      setWorkspaceChannels(prev => {
+        const next = { ...prev };
+        for (const ws in next) {
+          next[ws] = next[ws].map(c => c.id === channelId ? { ...c, notice } : c);
+        }
+        return next;
+      });
+      setActiveChat(prev => {
+        if (prev && prev.id === channelId) {
+          return { ...prev, notice };
+        }
+        return prev;
+      });
+    });
+
     // 보고서 생성 (비공개 스레드) 수신
     socket.on('report:created', (report) => {
       const roleLevel = getUserRoleLevel(currentUser);
@@ -1318,7 +1346,7 @@ export default function App() {
     return null;
   };
 
-  const handleSendMessage = async (content, youngjaImageUrl = null, fileObj = null) => {
+  const handleSendMessage = async (content, youngjaImageUrl = null, fileObj = null, replyTo = null) => {
     const chatKey = getChatKey();
     const now = new Date();
     const timeStr = now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
@@ -1336,7 +1364,12 @@ export default function App() {
       fileName: fileObj ? fileObj.fileName : undefined,
       fileSize: fileObj ? fileObj.fileSize : undefined,
       fileData: fileObj ? fileObj.fileData : undefined,
-      fileType: fileObj ? fileObj.fileType : undefined
+      fileType: fileObj ? fileObj.fileType : undefined,
+      replyTo: replyTo ? {
+        id: replyTo.id,
+        senderName: replyTo.senderName,
+        content: replyTo.content || (replyTo.fileName ? `[파일] ${replyTo.fileName}` : '')
+      } : undefined
     };
 
     // 로컬 상태 반영
@@ -1416,6 +1449,64 @@ export default function App() {
 
       // 챗봇 답변 도착 시 사운드 알림
       playNotificationSound();
+    }
+  };
+
+  const handleAddTodoFromMessage = (text) => {
+    const newTodo = {
+      id: Date.now(),
+      text,
+      completed: false,
+      date: '오늘',
+      priority: '보통',
+      starred: false,
+      memo: '메신저 대화에서 할 일로 등록됨'
+    };
+    setTodos(prev => [newTodo, ...prev]);
+    alert('📅 해당 메시지가 할 일로 즉시 추가되었습니다!');
+  };
+
+  const handleDeleteMessage = async (msgId) => {
+    const chatKey = getChatKey();
+    // 로컬 상태 즉시 삭제
+    setMessages(prev => {
+      const next = { ...prev };
+      if (next[chatKey]) {
+        next[chatKey] = next[chatKey].filter(m => m.id !== msgId);
+      }
+      return next;
+    });
+
+    // 백엔드 API 호출 및 소켓 알림
+    try {
+      await fetch(`/api/chats/${msgId}`, { method: 'DELETE' });
+      if (socketRef.current) {
+        socketRef.current.emit('message:delete', { msgId, channelId: chatKey });
+      }
+    } catch (err) {
+      console.error('메시지 삭제 실패:', err);
+    }
+  };
+
+  const handleNoticeUpdate = async (channelId, notice) => {
+    try {
+      await fetch(`/api/channels/${channelId}/notice`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notice })
+      });
+    } catch (err) {
+      console.error('공지 등록 실패:', err);
+    }
+  };
+
+  const handleNoticeDelete = async (channelId) => {
+    try {
+      await fetch(`/api/channels/${channelId}/notice`, {
+        method: 'DELETE'
+      });
+    } catch (err) {
+      console.error('공지 해제 실패:', err);
     }
   };
 
@@ -3472,6 +3563,10 @@ export default function App() {
             onToggleMessageReaction={handleToggleMessageReaction}
             currentUser={currentUser}
             allEmployees={allEmployees}
+            onAddTodo={handleAddTodoFromMessage}
+            onDeleteMessage={handleDeleteMessage}
+            onNoticeUpdate={handleNoticeUpdate}
+            onNoticeDelete={handleNoticeDelete}
           />
         );
 
